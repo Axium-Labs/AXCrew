@@ -29,3 +29,6 @@ tauri-plugin-notification = "2"
 uuid = { version = "1", features = ["v4"] }
 portable-pty = "0.9"
 tauri-plugin-dialog = "2"
+# 仅用于「检查 AX 更新」那一次 GitHub Releases 查询；下载与安装交给 AX 自己的
+# 升级器和官方安装脚本，所以这里只要 json + rustls。
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy"] }

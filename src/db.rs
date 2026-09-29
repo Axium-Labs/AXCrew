@@ -465,17 +465,23 @@ impl Db {
     }
     pub fn default_session_member(&self) -> Result<Option<Member>> {
         let db = self.0.lock().unwrap();
-        let id: Option<String> = db.query_row(
-            "SELECT id FROM crew_members ORDER BY CASE WHEN device_id='local' THEN 0 ELSE 1 END, rowid LIMIT 1",
-            [],
-            |row| row.get(0),
-        ).optional()?;
-        id.map(|id| member(&db, &id).and_then(|value| value.ok_or_else(|| anyhow!("member missing")))).transpose()
+        // A remote path or a deleted historical project cannot be the local
+        // composer's default. Keep the historical member unchanged for replay.
+        let mut statement = db.prepare("SELECT id FROM crew_members WHERE device_id='local' ORDER BY rowid")?;
+        let ids = statement.query_map([], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for id in ids {
+            if let Some(value) = member(&db, &id)? {
+                let path = Path::new(&value.cwd);
+                if path.is_absolute() && path.is_dir() { return Ok(Some(value)); }
+            }
+        }
+        Ok(None)
     }
     pub fn ensure_local_session_member(&self, cwd: &str, provider: Option<&str>, model: Option<&str>) -> Result<Member> {
         let directory = Path::new(cwd);
         if !directory.is_absolute() || !directory.is_dir() {
-            return Err(anyhow!("workspace must be an existing absolute directory"));
+            return Err(anyhow!("工作目录不存在或不是绝对路径：{cwd}。请重新选择一个现有文件夹；消息内容已保留。"));
         }
         if provider.is_some() != model.is_some() {
             return Err(anyhow!("provider and model must be selected together"));
@@ -1202,4 +1208,29 @@ fn task(db: &Connection, id: &str) -> Result<Option<Task>> {
         started_at,
         finished_at,
     }))
+}
+
+#[cfg(test)]
+mod workspace_tests {
+    use super::*;
+    #[test]
+    fn local_default_skips_missing_workspaces_without_rewriting_history() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch(include_str!("schema.sql")).unwrap();
+        let db = Db(Arc::new(Mutex::new(connection)));
+        db.bootstrap_local("test", "test").unwrap();
+        let root = std::env::temp_dir().join(format!("crew-workspace-{}", Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let cwd = root.to_string_lossy().into_owned();
+        let member = db.ensure_local_session_member(&cwd, None, None).unwrap();
+        assert_eq!(db.default_session_member().unwrap().unwrap().id, member.id);
+        std::fs::remove_dir(&root).unwrap();
+        assert!(db.default_session_member().unwrap().is_none());
+        assert_eq!(db.member(&member.id).unwrap().unwrap().cwd, cwd);
+        assert!(db.ensure_local_session_member(&cwd, None, None).is_err());
+        assert!(db.ensure_local_session_member("relative", None, None).is_err());
+        let current = std::env::current_dir().unwrap().to_string_lossy().into_owned();
+        let valid = db.ensure_local_session_member(&current, None, None).unwrap();
+        assert_eq!(db.default_session_member().unwrap().unwrap().id, valid.id);
+    }
 }

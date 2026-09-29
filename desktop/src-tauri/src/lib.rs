@@ -1,7 +1,10 @@
 mod terminal;
 mod ax;
+mod ax_catalog;
+mod ax_update;
+mod proc;
 
-use std::{fs, path::{Component, Path, PathBuf}, process::{Child, Command, Stdio}, sync::{Mutex, atomic::{AtomicBool, Ordering}}};
+use std::{fs, path::{Component, Path, PathBuf}, process::{Child, Stdio}, sync::{Mutex, atomic::{AtomicBool, Ordering}}};
 use tauri::{Manager, menu::{Menu, MenuItem}, tray::TrayIconBuilder};
 
 struct DesktopState {
@@ -65,6 +68,35 @@ struct WorkspaceListing {
     entries: Vec<WorkspaceEntry>,
 }
 
+/// Runs filesystem work on the blocking pool.
+///
+/// Tauri executes a non-`async` command on the main thread, so a directory
+/// walk (the reference picker scans up to 10k files) or a file read froze the
+/// whole window. Awaiting this keeps the UI thread free.
+async fn blocking<T, F>(work: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+fn validate_workspace_sync(path: &str) -> Result<String, String> {
+    let directory = Path::new(path);
+    if !directory.is_absolute() || !directory.is_dir() {
+        return Err(format!("工作目录不可用：{path}。请选择一个现有文件夹。"));
+    }
+    // Preserve the user's spelling, including UNC and Windows verbatim paths.
+    Ok(path.to_owned())
+}
+
+#[tauri::command]
+async fn validate_workspace(path: String) -> Result<String, String> {
+    blocking(move || validate_workspace_sync(&path)).await
+}
+
 fn workspace_path(root: &str, relative: &str) -> Result<PathBuf, String> {
     let base = PathBuf::from(root).canonicalize().map_err(|error| error.to_string())?;
     let path = Path::new(relative);
@@ -79,7 +111,11 @@ fn workspace_path(root: &str, relative: &str) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-fn list_workspace_files(root: String, relative: String) -> Result<WorkspaceListing, String> {
+async fn list_workspace_files(root: String, relative: String) -> Result<WorkspaceListing, String> {
+    blocking(move || list_workspace_files_sync(root, relative)).await
+}
+
+fn list_workspace_files_sync(root: String, relative: String) -> Result<WorkspaceListing, String> {
     let path = workspace_path(&root, &relative)?;
     if !path.is_dir() { return Err("Not a directory".into()); }
     let mut entries = Vec::new();
@@ -100,7 +136,11 @@ fn list_workspace_files(root: String, relative: String) -> Result<WorkspaceListi
 }
 
 #[tauri::command]
-fn read_workspace_file(root: String, relative: String) -> Result<String, String> {
+async fn read_workspace_file(root: String, relative: String) -> Result<String, String> {
+    blocking(move || read_workspace_file_sync(root, relative)).await
+}
+
+fn read_workspace_file_sync(root: String, relative: String) -> Result<String, String> {
     let path = workspace_path(&root, &relative)?;
     let metadata = fs::metadata(&path).map_err(|error| error.to_string())?;
     if !metadata.is_file() { return Err("Not a file".into()); }
@@ -119,7 +159,11 @@ fn workspace_file_exists(root: String, relative: String) -> Result<bool, String>
 }
 
 #[tauri::command]
-fn search_workspace_files(root: String, query: String) -> Result<Vec<String>, String> {
+async fn search_workspace_files(root: String, query: String) -> Result<Vec<String>, String> {
+    blocking(move || search_workspace_files_sync(root, query)).await
+}
+
+fn search_workspace_files_sync(root: String, query: String) -> Result<Vec<String>, String> {
     let base = PathBuf::from(root).canonicalize().map_err(|error| error.to_string())?;
     if !base.is_dir() { return Err("Workspace is not a directory".into()); }
     let mut pending = std::collections::VecDeque::from([base.clone()]);
@@ -147,7 +191,16 @@ fn search_workspace_files(root: String, query: String) -> Result<Vec<String>, St
 
 #[cfg(test)]
 mod workspace_tests {
-    use super::{list_workspace_files, read_workspace_file, workspace_file_exists};
+    #[test]
+    fn send_workspace_requires_an_existing_absolute_directory() {
+        let cwd = std::env::current_dir().unwrap();
+        assert!(super::validate_workspace_sync(&cwd.to_string_lossy()).is_ok());
+        assert!(super::validate_workspace_sync(".").is_err());
+        assert!(super::validate_workspace_sync(&cwd.join("missing-directory-for-validation").to_string_lossy()).is_err());
+        assert!(super::validate_workspace_sync(&cwd.join("Cargo.toml").to_string_lossy()).is_err());
+    }
+
+    use super::{list_workspace_files_sync, read_workspace_file_sync, workspace_file_exists};
 
     #[test]
     fn file_preview_stays_inside_workspace() {
@@ -156,10 +209,10 @@ mod workspace_tests {
         std::fs::write(root.join("note.txt"), "hello").unwrap();
         let path = root.to_string_lossy().into_owned();
 
-        assert_eq!(read_workspace_file(path.clone(), "note.txt".into()).unwrap(), "hello");
-        assert_eq!(list_workspace_files(path.clone(), "".into()).unwrap().entries.len(), 1);
-        assert!(read_workspace_file(path.clone(), "../outside.txt".into()).is_err());
-        assert!(list_workspace_files(path, "C:\\Windows".into()).is_err());
+        assert_eq!(read_workspace_file_sync(path.clone(), "note.txt".into()).unwrap(), "hello");
+        assert_eq!(list_workspace_files_sync(path.clone(), "".into()).unwrap().entries.len(), 1);
+        assert!(read_workspace_file_sync(path.clone(), "../outside.txt".into()).is_err());
+        assert!(list_workspace_files_sync(path, "C:\\Windows".into()).is_err());
 
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -195,9 +248,15 @@ fn binary(app: &tauri::App, name: &str, override_var: &str, development: PathBuf
 
 fn ax_binary(app: &tauri::App, development: PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
     if let Ok(path) = std::env::var("AX_CREW_AX") { return Ok(PathBuf::from(path)); }
+    // 优先使用「通过 GitHub 安装的 AX」：AX 官方安装脚本（scripts/install.ps1 /
+    // install.sh）会把二进制装进固定目录（Windows 为 %LOCALAPPDATA%\Programs\AX\bin）
+    // 并写入 PATH，设置页的「AX 更新」也更新这一份。优先用它，保证在设置页里
+    // 检测并更新 AX 后，Crew 立刻运行的就是新版本。
     if let Some(installed) = ax::installed_ax().filter(|path| ax::supports_acp(path)) { return Ok(installed); }
-    if cfg!(debug_assertions) && development.exists() { return Ok(development); }
     let bundled = app.path().resource_dir()?.join("bin").join(executable("ax"));
+    // 开发构建：直接用工作区里编译的 ax。
+    if cfg!(debug_assertions) && development.exists() { return Ok(development); }
+    // 兜底：随包捆绑的 AX（便携包里没有这一份，只有开发产物里才可能残留）。
     if bundled.exists() { return Ok(bundled); }
     if development.exists() { return Ok(development); }
     Err("No AX executable with Crew ACP support was found".into())
@@ -215,7 +274,7 @@ pub fn run() {
             .build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![backend_connection, list_workspace_files, read_workspace_file, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax::ax_local_state, ax::ax_store_api_key, ax::ax_remove_credential, ax::ax_select_model, ax::ax_export, ax::ax_import])
+        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_export, ax::ax_import, ax_update::ax_check_update, ax_update::ax_apply_update, ax_catalog::ax_catalog])
         .setup(|app| {
             let root=PathBuf::from(env!("CARGO_MANIFEST_DIR"));
             let backend=binary(app,"ax-crew","AX_CREW_BACKEND",root.join("../../target/debug").join(executable("ax-crew")))?;
@@ -280,7 +339,7 @@ pub fn run() {
             cfg.token = Some(token.clone());
 
             fs::write(&config_path, serde_json::to_string_pretty(&cfg)?)?;
-            let child=Command::new(backend).arg("--listen").arg(format!("{listen_addr}:{port}"))
+            let child=proc::command(backend).arg("--listen").arg(format!("{listen_addr}:{port}"))
                 .arg("--database").arg(data.join("crew.sqlite3"))
                 .arg("--ax").arg(&ax)
                 .env("AX_CREW_ADMIN_TOKEN",&token)

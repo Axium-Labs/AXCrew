@@ -114,10 +114,48 @@
 .session-transcript{max-width:990px;margin:0 auto;padding:26px 24px 36px}.session-transcript-meta{margin-bottom:18px;color:var(--session-muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .session-transcript-line{display:flex;gap:12px;margin:17px 0}
 .session-transcript-avatar{width:31px;height:31px;flex:none;display:grid;place-items:center;border-radius:10px;background:var(--session-selected);color:var(--session-accent);font-size:11px;font-weight:700}
-.session-transcript-line.is-user .session-transcript-avatar{background:var(--session-soft);color:var(--session-text)}
-.session-transcript-body{min-width:0;padding-top:4px;color:var(--session-text);font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.session-transcript-line.is-thought .session-transcript-avatar{background:transparent;color:var(--session-muted)}
+.session-transcript-body{min-width:0;flex:1;padding-top:4px;color:var(--session-text);font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
 .session-transcript-author{font-size:12px;font-weight:700;margin-bottom:4px}
-.session-transcript-author small{margin-left:9px;color:var(--session-muted);font-weight:400}
+.session-transcript-time{margin-left:8px;color:var(--session-muted);font-size:11px;font-weight:400;font-variant-numeric:tabular-nums}
+/* The user's own words sit on the right, in a bubble, without an avatar. */
+.session-transcript-line.is-user{justify-content:flex-end}
+.session-transcript-user{display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:min(620px,78%);min-width:0}
+.session-transcript-bubble{padding:9px 13px;border-radius:14px 14px 4px 14px;background:var(--session-selected);color:var(--session-text);font-size:13px;line-height:1.65;overflow-wrap:anywhere}
+.session-transcript-user .session-transcript-time{margin-left:0}
+/* Activity: a hairline rail with one compact row per step. No cards, no fills —
+   size, weight and indent carry the hierarchy so the answer keeps the weight. */
+.session-activity{margin:8px 0 12px 43px;min-width:0}
+.session-activity-head{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:transparent;color:var(--session-muted);text-align:left;font-size:11.5px;font-weight:500}
+.session-activity-head:hover{color:var(--session-text)}
+.session-activity.is-running .session-activity-head{color:var(--session-accent)}
+.session-activity-label{font-variant-numeric:tabular-nums}
+/* The only animation on the page: a turn that is still running has to show it. */
+.session-activity-pulse{flex:none;width:6px;height:6px;border-radius:50%;background:currentColor;animation:session-activity-pulse 1.15s ease-in-out infinite}
+@keyframes session-activity-pulse{0%,100%{opacity:.3;transform:scale(.78)}50%{opacity:1;transform:scale(1)}}
+.session-activity-chevron{flex:none;color:var(--session-muted);transition:transform var(--dur-quick) var(--ease-out)}
+.session-activity-chevron.is-open{transform:rotate(90deg)}
+.session-activity-list{margin:5px 0 0;padding:0 0 0 15px;list-style:none;border-left:1px solid var(--session-border);display:flex;flex-direction:column}
+.session-activity-item{position:relative;min-width:0}
+/* Icons sit on the rail rather than beside it. */
+.session-activity-glyph{position:absolute;left:-22px;top:3px;display:grid;place-items:center;width:14px;height:14px;border-radius:50%;background:var(--session-bg);color:var(--session-muted)}
+.session-activity-item.is-tool .session-activity-glyph{color:var(--session-accent)}
+.session-activity-bead{width:4px;height:4px;border-radius:50%;background:currentColor}
+.session-activity-row{display:flex;align-items:baseline;gap:7px;width:100%;min-width:0;padding:2px 0;border:0;background:transparent;color:var(--session-muted);text-align:left;font-size:12px;line-height:1.55}
+.session-activity-row:hover{color:var(--session-text)}
+.session-activity-row.is-static{cursor:default}
+.session-activity-verb{flex:none;color:var(--session-text);font-weight:600}
+.session-activity-target{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+.session-activity-status{flex:none;font-size:10.5px}
+.session-activity-status.is-failed{color:#e0505c}
+.session-activity-status.is-in_progress{color:var(--session-accent)}
+.session-activity-time{flex:none;margin-left:auto;font-size:10.5px;font-variant-numeric:tabular-nums}
+.session-activity-detail{margin:1px 0 6px;color:var(--session-muted);font-size:12px}
+.session-activity-detail .session-markdown{font-size:12px;line-height:1.6}
+/* Raw stdout/stderr stays folded: capped, hairline-indented, never a wall of red. */
+.session-activity-output{margin:3px 0 7px;padding:3px 0 3px 9px;max-height:220px;overflow:auto;border-left:1px solid var(--session-border);color:var(--session-muted);font-family:ui-monospace,Consolas,monospace;font-size:11px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+/* The answer is the point of the turn — separate it from the activity that led there. */
+.session-activity + .session-transcript-line{margin-top:18px}
 .session-markdown{white-space:normal;line-height:1.72}
 .session-markdown>*:first-child{margin-top:0}
 .session-markdown>*:last-child{margin-bottom:0}

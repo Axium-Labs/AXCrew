@@ -35,15 +35,19 @@ import kotlinx.coroutines.flow.filterNotNull
     connect: () -> Unit, open: (String) -> Unit,
 ) {
     val snapshot = state.crew.snapshot
-    val original = snapshot.tasks.find { it.id == id }
-    val originalBinding = snapshot.sessions.find { it.task_id == id }
-    val task = if (id == null) null else conversations(snapshot).find { group ->
-        group.root.id == id || originalBinding?.let { source ->
-            snapshot.sessions.any { it.task_id == group.latest.id && it.device_id == source.device_id && it.ax_session_id == source.ax_session_id }
-        } == true
-    }?.latest ?: original
+    // 这些派生值被每帧都读一次（输入框每次按键都会让本页重组），必须按数据缓存：
+    // conversations() 要遍历全部任务、做分组与深度排序，逐帧重算就是打字/切页卡顿的来源。
+    val (original, task, members) = remember(snapshot, id, deviceId) {
+        val original = snapshot.tasks.find { it.id == id }
+        val originalBinding = snapshot.sessions.find { it.task_id == id }
+        val task = if (id == null) null else conversations(snapshot).find { group ->
+            group.root.id == id || originalBinding?.let { source ->
+                snapshot.sessions.any { it.task_id == group.latest.id && it.device_id == source.device_id && it.ax_session_id == source.ax_session_id }
+            } == true
+        }?.latest ?: original
+        Triple(original, task, snapshot.members.filter { it.device_id == deviceId })
+    }
     val effectiveId = task?.id ?: id
-    val members = snapshot.members.filter { it.device_id == deviceId }
     var memberId by rememberSaveable(deviceId) { mutableStateOf("") }
     val member = if (task != null) snapshot.members.find { it.id == task.assigned_member } else members.find { it.id == memberId } ?: members.firstOrNull()
     var draft by rememberSaveable(id ?: "new") { mutableStateOf("") }
@@ -70,7 +74,7 @@ import kotlinx.coroutines.flow.filterNotNull
     var historyError by remember(effectiveId) { mutableStateOf<String?>(null) }
     var settled by remember(effectiveId) { mutableStateOf(false) }
     var refresh by remember(id) { mutableIntStateOf(0) }
-    val binding = snapshot.sessions.find { it.task_id == effectiveId }
+    val binding = remember(snapshot, effectiveId) { snapshot.sessions.find { it.task_id == effectiveId } }
     val list = rememberLazyListState()
     var following by remember(id) { mutableStateOf(true) }
     var mounted by remember { mutableStateOf(true) }
@@ -85,7 +89,12 @@ import kotlinx.coroutines.flow.filterNotNull
             delay(15_000)
         } while (true)
     }
-    val lines = task?.let { reconcile(history, state.crew.streams[it.id].orEmpty(), it, settled) }.orEmpty()
+    // 合并历史与实时流是 O(行数²) 的匹配，并且只在数据变化时才需要重算：
+    // 之前它在每次重组（包括每次按键）都跑一遍。
+    val live = task?.let { state.crew.streams[it.id] }.orEmpty()
+    val lines = remember(history, live, task, settled) {
+        task?.let { reconcile(history, live, it, settled) }.orEmpty()
+    }
     LaunchedEffect(list) { snapshotFlow { if (list.isScrollInProgress) !list.canScrollForward else null }.filterNotNull().collect { following = it } }
     LaunchedEffect(id, lines.size, lines.lastOrNull()?.text, task?.status) {
         delay(60)

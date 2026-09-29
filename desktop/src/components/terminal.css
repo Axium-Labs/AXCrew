@@ -13,9 +13,12 @@
 .terminal-dock.is-bottom .terminal-resize:hover::before,.terminal-dock.is-bottom.is-dragging .terminal-resize::before{top:0;left:0;right:0;height:2px}
 .terminal-dock.is-right .terminal-resize:hover::before,.terminal-dock.is-right.is-dragging .terminal-resize::before{top:0;bottom:0;left:0;width:2px}
 .terminal-panel-body{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
-.terminal-tabs{height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;white-space:nowrap}
-.terminal-tab{display:flex;align-items:center;min-width:0;height:30px;border:1px solid transparent;border-radius:17px;color:var(--shell-muted)}
+.terminal-tabs{height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;white-space:nowrap;overflow-x:auto;scrollbar-width:none}
+.terminal-tabs::-webkit-scrollbar{height:0}
+.terminal-tab{display:flex;align-items:center;min-width:0;height:30px;border:1px solid transparent;border-radius:17px;color:var(--shell-muted);cursor:grab}
 .terminal-tab.is-active{background:var(--shell-bg);border-color:var(--shell-border);color:var(--shell-text);box-shadow:0 1px 3px #0000000d}
+.terminal-tab.is-dragging{opacity:.45;cursor:grabbing}
+.terminal-tab.is-drop-target{border-color:var(--shell-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--shell-accent) 22%,transparent)}
 .terminal-tab>button{display:flex;align-items:center;justify-content:center;gap:6px;height:28px;border:0;border-radius:16px;background:transparent;color:inherit;cursor:pointer}
 .terminal-tab>button:first-child{max-width:125px;padding:0 8px;font-size:12px}
 .terminal-tab>button:last-child{width:24px}

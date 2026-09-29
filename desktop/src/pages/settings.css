@@ -46,6 +46,7 @@
 .settings-actions span{color:var(--shell-muted);font-size:12px}
 .settings-provider-status{display:flex;align-items:center;gap:7px;margin-top:12px;color:var(--shell-accent);font-size:12px}
 .settings-provider-status button{margin-left:auto}
+.settings-provider-status.is-warning{color:#e56a73}
 .settings-provider-list>div{display:flex;justify-content:space-between;gap:11px;padding:9px 0;border-bottom:1px solid var(--shell-border)}
 .settings-provider-list>div:last-child{border:0}
 .settings-provider-list span{color:var(--shell-muted);font-size:12px}
@@ -62,3 +63,15 @@
 .settings-notice{max-width:900px;margin:13px 0;padding:10px 13px;border:1px solid var(--shell-border);border-radius:12px;background:var(--shell-panel);white-space:pre-wrap;overflow-wrap:anywhere}
 .settings-notice.is-error{color:#e56a73}
 @media(max-width:850px){.settings-workspace{grid-template-columns:200px minmax(0,1fr)}.settings-main{padding:15px}.settings-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.settings-overview-grid{grid-template-columns:1fr}}
+/* AX 能力：技能 / MCP 服务器 / 内置工具，每项一张小卡。 */
+.settings-card h2{display:flex;align-items:center;gap:8px}
+.settings-card h2 small{color:var(--shell-muted);font-size:12px;font-weight:400}
+.settings-capability-list{display:flex;flex-direction:column;gap:8px;margin:10px 0 0;padding:0;list-style:none}
+.settings-capability-list li{padding:9px 11px;border:1px solid var(--shell-border);border-radius:12px;background:var(--shell-input)}
+.settings-capability-list p{margin:5px 0 0;font-size:12px;line-height:1.5}
+.settings-capability-head{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+.settings-capability-head strong{font-size:13px}
+.settings-capability-head svg{flex:none}
+.settings-capability-warning{color:#e56a73;font-size:11px;font-style:normal}
+.settings-capability-tag{padding:1px 7px;border-radius:999px;background:var(--shell-panel);color:var(--shell-muted);font-size:11px}
+.settings-notice.is-inline{display:flex;align-items:center;gap:7px}

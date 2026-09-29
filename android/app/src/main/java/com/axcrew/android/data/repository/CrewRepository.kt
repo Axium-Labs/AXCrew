@@ -16,6 +16,9 @@ data class CrewState(
     val streams: Map<String, List<JsonObject>> = emptyMap(), val historyRevision: Int = 0,
 )
 
+/** 两次全量同步之间至少间隔的时间：把事件风暴合并成一次拉取。 */
+private const val REFRESH_COALESCE = 700L
+
 class CrewRepository(val api: GatewayApi) {
     private val mutable = MutableStateFlow(CrewState())
     val state = mutable.asStateFlow()
@@ -48,6 +51,10 @@ class CrewRepository(val api: GatewayApi) {
             for (ignored in refreshes) {
                 try { refresh() } catch (e: CancellationException) { throw e }
                 catch (e: Exception) { mutable.update { it.copy(error = e.message ?: "同步失败") } }
+                // 一次 refresh 是六个以上 HTTP 请求。事件密集时（工具输出、审批、任务状态）
+                // 之前会在请求刚返回就立刻发起下一次，把网络和重组占满，表现为整机卡顿。
+                // 这里留出合并窗口：期间到达的刷新请求会被 CONFLATED 通道压成一次。
+                delay(REFRESH_COALESCE)
             }
         }
         launch { while (isActive) { delay(8_000); requestRefresh() } }

@@ -1,6 +1,11 @@
 package com.axcrew.android.navigation
 
 import android.net.Uri
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -33,6 +38,16 @@ import kotlinx.coroutines.launch
 private data class Destination(val route: String, val title: String, val icon: ImageVector)
 private val destinations = listOf(Destination("sessions", "会话", Icons.AutoMirrored.Outlined.Chat), Destination("schedule", "计划", Icons.Outlined.CalendarMonth), Destination("devices", "设备", Icons.Outlined.Devices), Destination("more", "更多", Icons.Outlined.MoreHoriz))
 
+/**
+ * 导航过渡只做很短的淡入淡出。
+ *
+ * Navigation 的默认值是 700ms 的淡入 + 淡出，整个过渡期间前后两个页面同时处于组合中：
+ * 会话页要重放 Markdown、抽屉要重算会话分组，于是每次切换都卡一下。缩短到 140ms 后
+ * 视觉上依然连贯，但两页同时存在的窗口小得多。
+ */
+private val fastEnter: EnterTransition = fadeIn(tween(140))
+private val fastExit: ExitTransition = fadeOut(tween(110))
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun CrewApp(vm: CrewViewModel) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -50,6 +65,16 @@ private val destinations = listOf(Destination("sessions", "会话", Icons.AutoMi
             val entry by nav.currentBackStackEntryAsState()
             val route = entry?.destination?.route ?: "sessions"
             val topLevel = destinations.any { it.route == route }
+            // 抽屉在每一次滑动帧里都会重组，而 conversations() 要遍历全部任务并做分组排序。
+            // 按数据而不是按帧缓存，滑动手感才不会随会话数量下降。
+            val drawerGroups = remember(snapshot, selectedDevice) {
+                conversations(snapshot).filter { it.latest.assigned_device == selectedDevice }
+            }
+            val drawerByDate = remember(drawerGroups) {
+                drawerGroups.groupBy { group ->
+                    java.time.Instant.ofEpochSecond(group.latest.created_at).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                }
+            }
             fun go(path: String) { nav.navigate(path) { launchSingleTop = true } }
             fun openTask(id: String) { go("task/${Uri.encode(id)}") }
             fun openChat(id: String) { go("chat/${Uri.encode(id)}") }
@@ -79,15 +104,14 @@ private val destinations = listOf(Destination("sessions", "会话", Icons.AutoMi
                     OutlinedButton(onClick = { scope.launch { drawer.close(); go("sessions") } }, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(54.dp), shape = RoundedCornerShape(18.dp)) { Icon(Icons.Outlined.AddComment, null); Spacer(Modifier.width(10.dp)); Text("新建会话", style = MaterialTheme.typography.titleMedium) }
                     Spacer(Modifier.height(24.dp))
                     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        val groups = conversations(snapshot).filter { it.latest.assigned_device == selectedDevice }
                         val today = java.time.LocalDate.now()
-                        groups.groupBy { java.time.Instant.ofEpochSecond(it.latest.created_at).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }.forEach { (date, entries) ->
+                        drawerByDate.forEach { (date, entries) ->
                             item { Text(if (date == today) "今天" else if (date == today.minusDays(1)) "昨天" else date.toString(), Modifier.padding(14.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                             items(entries, key = { it.root.id }) { group ->
                                 NavigationDrawerItem(label = { Text(group.root.title, maxLines = 2, overflow = TextOverflow.Ellipsis) }, selected = entry?.arguments?.getString("id") in listOf(group.latest.id, group.root.id), onClick = { scope.launch { drawer.close(); openChat(group.latest.id) } })
                             }
                         }
-                        if (groups.isEmpty()) item { Text(if (state.configured) "还没有会话，开始新的工作吧。" else "连接电脑后同步最近会话。", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        if (drawerGroups.isEmpty()) item { Text(if (state.configured) "还没有会话，开始新的工作吧。" else "连接电脑后同步最近会话。", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f))
                     Row(Modifier.fillMaxWidth().clickable(onClick = ::connect).padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -124,7 +148,9 @@ private val destinations = listOf(Destination("sessions", "会话", Icons.AutoMi
                             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                             (state.error ?: state.crew.error)?.let { ErrorBanner(it) { vm.clearError(); vm.refresh() } }
                             if (state.crew.snapshot.permissions.isNotEmpty() && route != "permissions") TextButton(onClick = { go("permissions") }, modifier = Modifier.fillMaxWidth()) { Text("${state.crew.snapshot.permissions.size} 项工具请求等待审批 →") }
-                            NavHost(nav, startDestination = "sessions", modifier = Modifier.weight(1f)) {
+                            NavHost(nav, startDestination = "sessions", modifier = Modifier.weight(1f),
+                                enterTransition = { fastEnter }, exitTransition = { fastExit },
+                                popEnterTransition = { fastEnter }, popExitTransition = { fastExit }) {
                                 composable("sessions") { SessionScreen(vm, state, null, selectedDevice, ::connect, ::openChat) }
                                 composable("chat/{id}") { back -> SessionScreen(vm, state, back.arguments?.getString("id"), selectedDevice, ::connect, ::openChat) }
                                 composable("schedule") { ScheduleScreen(vm, state, ::openTask) }

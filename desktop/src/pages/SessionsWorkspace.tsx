@@ -1,3 +1,4 @@
+import { resolveSendWorkspace } from '../lib/workspace'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -12,7 +13,7 @@ import { Menu } from '../components/ui/menu'
 import { conversationTranscript, transcript } from '../lib/sessionTranscript'
 import type { LocalAxProject, LocalAxSession, Session, Task } from '../lib/types'
 import { WorkspaceFiles } from './WorkspaceFiles'
-import { MessageMarkdown } from '../components/MessageMarkdown'
+import { TranscriptLines } from '../components/SessionTranscript'
 import { GoalLoopDialog, type LoopStart } from '../components/GoalLoopDialog'
 import { startGoalLoop, stopGoalLoop } from '../lib/goalLoop'
 import { stopFileRelative, useGoalLoop, type LoopRun } from '../store/goal'
@@ -21,30 +22,25 @@ import { axAvailable, axLocalState, axSelectModel } from '../lib/ax'
 import { invoke } from '@tauri-apps/api/core'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { useTerminalDock } from '../store/terminal'
+import { useLang, useT, type TFn } from '../lib/i18n'
 import './sessions.css'
 
-const suggestions=[
-  '帮我梳理今天的工作',
-  '总结最近的项目改动',
-  '检查待处理的问题',
-  '规划下一步任务',
-  '解释当前工作区',
-  '整理已完成的工作',
-]
+const suggestionKeys=['session.suggestions.0','session.suggestions.1','session.suggestions.2','session.suggestions.3','session.suggestions.4','session.suggestions.5']
+const altSuggestionKeys=['session.suggestions.6','session.suggestions.7','session.suggestions.8','session.suggestions.9','session.suggestions.10','session.suggestions.11']
 type AttachedImage={name:string;mime:string;data:string}
 const slashCommands=[
-  {name:'/new',description:'新建会话'},{name:'/model',description:'选择 AX 模型'},
-  {name:'/login',description:'登录模型提供商'},{name:'/logout',description:'管理登录凭据'},
-  {name:'/memory',description:'管理记忆与备份'},{name:'/permissions',description:'设置会话权限'},
-  {name:'/status',description:'查看本地 AX 状态'},{name:'/resume',description:'选择已有会话'},
-  {name:'/skills',description:'在 AX 中管理技能'},{name:'/tools',description:'在 AX 中查看工具'},
-  {name:'/mcp',description:'在 AX 中管理 MCP'},{name:'/compact',description:'在 AX 中压缩上下文'},
+  {name:'/new',key:'session.slash.new'},{name:'/model',key:'session.slash.model'},
+  {name:'/login',key:'session.slash.login'},{name:'/logout',key:'session.slash.logout'},
+  {name:'/memory',key:'session.slash.memory'},{name:'/permissions',key:'session.slash.permissions'},
+  {name:'/status',key:'session.slash.status'},{name:'/resume',key:'session.slash.resume'},
+  {name:'/skills',key:'session.slash.skills'},{name:'/tools',key:'session.slash.tools'},
+  {name:'/mcp',key:'session.slash.mcp'},{name:'/compact',key:'session.slash.compact'},
 ] as const
-async function imageFromFile(file:File):Promise<AttachedImage>{
-  if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type))throw new Error('仅支持 PNG、JPEG、WebP、GIF 图片')
-  if(file.size>8*1024*1024)throw new Error('单张图片不能超过 8 MB')
+async function imageFromFile(file:File,t:TFn):Promise<AttachedImage>{
+  if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type))throw new Error(t('error.imagesOnly'))
+  if(file.size>8*1024*1024)throw new Error(t('error.imageTooLarge'))
   const data=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]??'');reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file)})
-  return {name:file.name||'粘贴的图片',mime:file.type,data}
+  return {name:file.name||t('error.pastedImage'),mime:file.type,data}
 }
 
 
@@ -61,23 +57,26 @@ function timeLabel(value?:number|null){
   const ms=value<1e12?value*1000:value
   const date=new Date(ms)
   const now=new Date()
-  const clock=date.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})
+  const locale=useLang.getState().lang==='en'?'en-US':'zh-CN'
+  const clock=date.toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'})
   return date.toDateString()===now.toDateString()?clock:`${date.getMonth()+1}/${date.getDate()} ${clock}`
 }
 
 function LocalThread({session,project}:{session:LocalAxSession|undefined;project:LocalAxProject|undefined}){
+  const t=useT()
   const history=useQuery({queryKey:['local-session',session?.id],queryFn:()=>endpoints.localSession(session!.id),enabled:!!session,retry:1,refetchOnWindowFocus:false})
   const lines=useMemo(()=>transcript(history.data),[history.data])
-  if(!session)return <div className="session-thread-waiting">正在读取本地 AX 会话…</div>
-  return <div className="session-transcript"><div className="session-transcript-meta">本地 AX · {session.title}{project?` · ${project.root}`:''}</div>
-    {history.isError&&<div className="session-inline-error">读取本地记录失败：{String(history.error)} <button onClick={()=>void history.refetch()}>重试</button></div>}
-    {!history.isLoading&&!history.isError&&!lines.length&&<div className="session-thread-waiting">这个会话没有可显示的消息。</div>}
-    {lines.map(line=><div className={`session-transcript-line is-${line.type}`} key={line.key}><div className="session-transcript-avatar">{line.type==='user'?'你':line.type==='tool'?'⚙':'AX'}</div><div className="session-transcript-body"><div className="session-transcript-author">{line.type==='user'?'你':line.type==='tool'?'工具':line.type==='thought'?'思考':'AX Crew'}{line.status&&<small>{line.status}</small>}</div><MessageMarkdown text={line.text}/></div></div>)}
+  if(!session)return <div className="session-thread-waiting">{t('session.readingLocal')}</div>
+  return <div className="session-transcript"><div className="session-transcript-meta">{t('session.localAx')} · {session.title}{project?` · ${project.root}`:''}</div>
+    {history.isError&&<div className="session-inline-error">{t('session.loadLocalFailed')}{String(history.error)} <button onClick={()=>void history.refetch()}>{t('session.retry')}</button></div>}
+    {!history.isLoading&&!history.isError&&!lines.length&&<div className="session-thread-waiting">{t('session.noMessages')}</div>}
+    <TranscriptLines lines={lines}/>
   </div>
 }
 
 export function SessionsWorkspace(){
   const {id}=useParams(),navigate=useNavigate(),location=useLocation(),queryClient=useQueryClient(),[params]=useSearchParams()
+  const t=useT()
   const ui=useSessionUi()
   const {listOpen,setListOpen,rightOpen,setRightOpen,rightTab,setRightTab,thinkingEffort,setThinkingEffort}=ui
   const sessions=useSessions(),tasks=useTasks(),members=useAllMembers(),devices=useDevices(),permissions=usePermissions(),localAx=useLocalAx()
@@ -164,14 +163,14 @@ export function SessionsWorkspace(){
       return !!member&&normalizePath(member.cwd)===normalizePath(project.root)
     })
     return [
-      ...project.sessions.map(session=>({key:`local:${session.id}`,title:session.title||'未命名会话',at:session.updated_at,active:false,attached:!!session.task_id,open:()=>openLocal(session)})),
-      ...crew.map(row=>({key:`crew:${row.binding.ax_session_id}`,title:row.task?.title??'会话',at:row.latestAt,active:isActiveTask(row.latest),attached:true,open:()=>navigate(`/sessions/${row.binding.task_id}`)})),
+      ...project.sessions.map(session=>({key:`local:${session.id}`,title:session.title||t('session.untitled'),at:session.updated_at,active:false,attached:!!session.task_id,open:()=>openLocal(session)})),
+      ...crew.map(row=>({key:`crew:${row.binding.ax_session_id}`,title:row.task?.title??t('session.recentSession'),at:row.latestAt,active:isActiveTask(row.latest),attached:true,open:()=>navigate(`/sessions/${row.binding.task_id}`)})),
     ].sort((a,b)=>b.at-a.at)
   }
   const persistProjects=(next:string[])=>{setProjectDirs(next);try{localStorage.setItem(PROJECT_KEY,JSON.stringify(next))}catch{/* a local convenience only */}}
   const startInProject=(root:string)=>{ui.setSelectedCwd(root);newSession()}
   const addProject=async()=>{
-    if(!axAvailable){setSendError('请在 AX Crew 桌面应用中选择项目目录。');return}
+    if(!axAvailable){setSendError(t('error.desktopPickProject'));return}
     try{
       const selected=await open({directory:true,multiple:false,defaultPath:workspace})
       if(typeof selected!=='string')return
@@ -187,7 +186,7 @@ export function SessionsWorkspace(){
     navigate(`/sessions/${task.id}`)
   }
   const canSend=(!!draft.trim()||images.length>0)&&!sending&&(!id||!!selectedBinding&&!busy)
-  const addImages=async(files:File[])=>{try{if(images.length+files.length>4)throw new Error('最多添加 4 张图片');const added=await Promise.all(files.map(imageFromFile));setImagesByDraft(state=>({...state,[draftKey]:[...(state[draftKey]??[]),...added]}));setSendError('')}catch(error){setSendError(String(error))}}
+  const addImages=async(files:File[])=>{try{if(images.length+files.length>4)throw new Error(t('error.tooManyImages'));const added=await Promise.all(files.map(file=>imageFromFile(file,t)));setImagesByDraft(state=>({...state,[draftKey]:[...(state[draftKey]??[]),...added]}));setSendError('')}catch(error){setSendError(String(error))}}
 
   useEffect(()=>{setSendError('');followScroll.current=true;requestAnimationFrame(()=>inputRef.current?.focus())},[draftKey])
   useEffect(()=>{if(followScroll.current&&scrollRef.current)scrollRef.current.scrollTop=scrollRef.current.scrollHeight},[lines,draftKey])
@@ -202,9 +201,16 @@ export function SessionsWorkspace(){
     sendLock.current=true;setSending(true);setSendError('')
     const origin=locationRef.current,sourceKey=draftKey,binding=selectedBinding,attached=imagesByDraft[draftKey]??[]
     try{
+      let cwd=ui.selectedCwd??settings.data?.default_cwd
+      if(!id&&axAvailable){
+        const resolved=await resolveSendWorkspace(cwd)
+        if(!resolved){setSendError(t('error.workspaceSelectionCancelled'));return}
+        cwd=resolved
+        useSessionUi.getState().setSelectedCwd(resolved)
+      }
       const created=id
         ?await api<Task>(`/api/sessions/${encodeURIComponent(task!.id)}/message`,'POST',{text,images:attached,permission_profile:permissionMode})
-        :await api<Task>('/api/sessions','POST',{title:text.slice(0,60)||'图片',text,images:attached,cwd:ui.selectedCwd??settings.data?.default_cwd,provider:ax.data?.selected_model?.provider,model:ax.data?.selected_model?.id,permission_profile:permissionMode,...(thinkingEffort?{reasoning_effort:thinkingEffort}:{})})
+        :await api<Task>('/api/sessions','POST',{title:text.slice(0,60)||t('session.imageTitle'),text,images:attached,cwd,provider:ax.data?.selected_model?.provider,model:ax.data?.selected_model?.id,permission_profile:permissionMode,...(thinkingEffort?{reasoning_effort:thinkingEffort}:{})})
       queryClient.setQueryData<Task[]>(['tasks'],old=>[...(old??[]).filter(item=>item.id!==created.id),created])
       if(binding)queryClient.setQueryData<Session[]>(['sessions'],old=>[...(old??[]).filter(item=>item.task_id!==created.id),{...binding,task_id:created.id}])
       else {useSessionUi.getState().addStarting(created.id);useSessionUi.getState().setPermissionMode(created.id,permissionMode)}
@@ -231,10 +237,10 @@ export function SessionsWorkspace(){
     }
     if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing){event.preventDefault();void send()}
   }
-  const title=localMode?(localMatch?.session.title||'本地 AX 会话'):id?(current?.root.title??task?.title??'加载会话…'):'新会话'
-  const permissionLabel=({ask:'常规',read:'读取',trust:'信任',yolo:'YOLO'} as const)[permissionMode]
-  const thinkingLabel=({low:'快速',medium:'标准',high:'深度'} as const)[thinkingEffort]??'自动'
-  const thinkingOptions=[['','自动'],['low','快速'],['medium','标准'],['high','深度']] as const
+  const title=localMode?(localMatch?.session.title||t('session.localAxSession')):id?(current?.root.title??task?.title??t('session.loading')):t('session.new')
+  const permissionLabel=t(`session.permission.${permissionMode}`)
+  const thinkingLabel=thinkingEffort?t(`session.thinking.${thinkingEffort}`):t('session.thinking.auto')
+  const thinkingOptions=[['',t('session.thinking.auto')],['low',t('session.thinking.low')],['medium',t('session.thinking.medium')],['high',t('session.thinking.high')]] as const
   const workspace=member?.cwd??ui.selectedCwd??settings.data?.default_cwd
   const models=ax.data?.providers.filter(provider=>provider.configured).flatMap(provider=>provider.models)??[]
   const selectedModel=ax.data?.selected_model
@@ -242,13 +248,13 @@ export function SessionsWorkspace(){
   const referenceToken=draft.slice(0,cursor).match(/(?:^|\s)@([^\s]*)$/)?.[1]
   const debouncedReference=useDebouncedValue(referenceToken??'',180)
   const fileMatches=useQuery({queryKey:['workspace-file-search',workspace,debouncedReference],queryFn:()=>invoke<string[]>('search_workspace_files',{root:workspace,query:debouncedReference}),enabled:axAvailable&&!!workspace&&referenceToken!==undefined,retry:false})
-  const completions=referenceToken!==undefined?(fileMatches.data??[]).map(path=>({kind:'file' as const,value:path,label:path,description:'引用工作区文件'}))
-    :slashToken!==undefined?slashCommands.filter(item=>item.name.slice(1).includes(slashToken.toLowerCase())).map(item=>({kind:'slash' as const,value:item.name,label:item.name,description:item.description})):[]
+  const completions=referenceToken!==undefined?(fileMatches.data??[]).map(path=>({kind:'file' as const,value:path,label:path,description:t('session.referenceWorkspaceFile')}))
+    :slashToken!==undefined?slashCommands.filter(item=>item.name.slice(1).includes(slashToken.toLowerCase())).map(item=>({kind:'slash' as const,value:item.name,label:item.name,description:t(item.key)})):[]
   const runAxSlash=(command:string)=>{
-    if(!axAvailable||!workspace||!ax.data?.active_path){setSendError('请在桌面应用中连接 AX 后使用该命令。');return}
+    if(!axAvailable||!workspace||!ax.data?.active_path){setSendError(t('error.desktopNeedsAx'));return}
     const escaped=ax.data.active_path.replaceAll("'","''")
     useTerminalDock.getState().addTab(workspace,`& '${escaped}' tui`)
-    setSendError(`AX 终端已打开，请在终端输入 ${command}。`)
+    setSendError(t('error.axTerminalOpened',{command}))
   }
   const selectCompletion=(item:(typeof completions)[number])=>{
     if(item.kind==='file'){
@@ -271,10 +277,10 @@ export function SessionsWorkspace(){
     setCompletionClosed(true)
   }
   const chooseWorkspace=async()=>{
-    if(!axAvailable){setSendError('请在 AX Crew 桌面应用中选择工作目录。');return}
+    if(!axAvailable){setSendError(t('error.desktopPickWorkspace'));return}
     try{
       const selected=await open({directory:true,multiple:false,defaultPath:workspace})
-      if(typeof selected==='string')ui.setSelectedCwd(selected)
+      if(typeof selected==='string'){ui.setSelectedCwd(selected);setSendError('')}
     }catch(error){setSendError(String(error))}
   }
   const chooseModel=async(provider:string,model:string)=>{
@@ -282,7 +288,7 @@ export function SessionsWorkspace(){
     catch(error){setSendError(String(error))}
   }
   const startLoop=(config:LoopStart)=>{
-    if(!workspace){setSendError('请先选择工作目录再启动循环。');return}
+    if(!workspace){setSendError(t('error.chooseWorkspaceFirst'));return}
     const key=loopKey??draftKey
     const run:LoopRun={...config,taskId:id??null,cwd:workspace,provider:ax.data?.selected_model?.provider??null,model:ax.data?.selected_model?.id??null,reasoningEffort:thinkingEffort||undefined,permissionProfile:permissionMode,stopFile:stopFileRelative,rounds:0,errors:0,startedAt:Date.now(),status:'running',detail:''}
     setSendError('');setGoalOpen(false)
@@ -292,17 +298,17 @@ export function SessionsWorkspace(){
   const clearLoop=()=>useGoalLoop.getState().clear(loopKey??draftKey)
 
   return <div className={`sessions-workspace ${listOpen?'has-session-list':''} ${rightOpen?'has-right-panel':''}`}>
-    <aside className={`session-list-panel ${listOpen?'':'is-closed'}`} aria-label={listOpen?'会话列表':'会话列表已收起'}>
+    <aside className={`session-list-panel ${listOpen?'':'is-closed'}`} aria-label={listOpen?t('session.listOpen'):t('session.listClosed')}>
       <div className="session-list-rail" aria-hidden={listOpen}>
-        <button className="session-rail-button is-current" aria-label="展开会话列表" title="展开会话列表" onClick={()=>setListOpen(true)}><MessageSquare size={18}/></button>
+        <button className="session-rail-button is-current" aria-label={t('session.expandList')} title={t('session.expandList')} onClick={()=>setListOpen(true)}><MessageSquare size={18}/></button>
       </div>
-      <div className="session-list-heading"><button className="session-list-toggle" aria-label="收起会话列表" aria-expanded={listOpen} title="收起会话列表" onClick={()=>setListOpen(false)}><MessageSquare size={18}/><strong>会话</strong></button></div>
+      <div className="session-list-heading"><button className="session-list-toggle" aria-label={t('session.collapseList')} aria-expanded={listOpen} title={t('session.collapseList')} onClick={()=>setListOpen(false)}><MessageSquare size={18}/><strong>{t('nav.sessions')}</strong></button></div>
       <div className="session-list-body" aria-hidden={!listOpen}>
-      <button className="session-new-chat" aria-label="新聊天" title="新聊天" tabIndex={listOpen?0:-1} onClick={newSession}><SquarePen size={17}/><span>新聊天</span></button>
-      <div className="session-list-search"><Search size={17}/><input aria-label="搜索会话" value={search} onChange={event=>setSearch(event.target.value)} placeholder="搜索会话…"/><button className={onlyActive?'is-filtered':''} aria-label="筛选活动会话" title={onlyActive?'显示所有会话':'仅显示活动会话'} onClick={()=>setOnlyActive(value=>!value)}><SlidersHorizontal size={17}/></button></div>
+      <button className="session-new-chat" aria-label={t('session.newChat')} title={t('session.newChat')} tabIndex={listOpen?0:-1} onClick={newSession}><SquarePen size={17}/><span>{t('session.newChat')}</span></button>
+      <div className="session-list-search"><Search size={17}/><input aria-label={t('session.search')} value={search} onChange={event=>setSearch(event.target.value)} placeholder={t('session.searchPlaceholder')}/><button className={onlyActive?'is-filtered':''} aria-label={t('session.filterActive')} title={onlyActive?t('session.showAll'):t('session.onlyActive')} onClick={()=>setOnlyActive(value=>!value)}><SlidersHorizontal size={17}/></button></div>
       <div className="session-list-scroll">
-        <section className="session-section" aria-label="项目">
-          <button className="session-section-head" aria-label="项目" aria-expanded={projectsOpen} onClick={()=>setProjectsOpen(value=>!value)}><strong>项目</strong><ChevronRight size={16} className={projectsOpen?'rotate-90':''}/></button>
+        <section className="session-section" aria-label={t('session.sectionProjects')}>
+          <button className="session-section-head" aria-label={t('session.sectionProjects')} aria-expanded={projectsOpen} onClick={()=>setProjectsOpen(value=>!value)}><strong>{t('session.sectionProjects')}</strong><ChevronRight size={16} className={projectsOpen?'rotate-90':''}/></button>
           {projectsOpen&&<div className="session-section-body">
             {projects.map(project=>{
               const opened=openProject===project.key
@@ -313,53 +319,53 @@ export function SessionsWorkspace(){
                     <Folder size={16}/><span>{project.name}</span>
                     {project.error&&<i className="session-project-warn" title={project.error}>!</i>}
                   </button>
-                  <button className="session-project-action" aria-label={`在 ${project.name} 中新建会话`} title="在此项目中新会话" onClick={()=>startInProject(project.root)}><SquarePen size={15}/></button>
-                  <Menu trigger={<button className="session-project-action" type="button" aria-label={`${project.name} 的更多操作`} title="更多操作"><MoreHorizontal size={15}/></button>} items={[
-                    {label:'在此项目中新会话',action:()=>startInProject(project.root)},
-                    {label:'设为当前工作目录',action:()=>ui.setSelectedCwd(project.root)},
-                    ...(project.picked?[{label:'从项目列表移除',action:()=>persistProjects(projectDirs.filter(directory=>normalizePath(directory)!==project.key))}]:[]),
+                  <button className="session-project-action" aria-label={t('session.newInProject',{name:project.name})} title={t('session.newSessionHere')} onClick={()=>startInProject(project.root)}><SquarePen size={15}/></button>
+                  <Menu trigger={<button className="session-project-action" type="button" aria-label={t('session.moreActions',{name:project.name})} title={t('session.moreActions',{name:project.name})}><MoreHorizontal size={15}/></button>} items={[
+                    {label:t('session.newSessionHere'),action:()=>startInProject(project.root)},
+                    {label:t('session.setAsWorkspace'),action:()=>ui.setSelectedCwd(project.root)},
+                    ...(project.picked?[{label:t('session.removeFromList'),action:()=>persistProjects(projectDirs.filter(directory=>normalizePath(directory)!==project.key))}]:[]),
                   ]}/>
                 </div>
                 {opened&&<div className="session-project-sessions">
                   {sessions.map(item=><button key={item.key} className={`session-project-session ${item.active?'is-active':''}`} onClick={item.open}>
                     <span className="session-project-title">{item.title}</span>
-                    {item.active?<span className="session-project-flag">正在回复…</span>:<small>{timeLabel(item.at)}</small>}
+                    {item.active?<span className="session-project-flag">{t('session.replying')}</span>:<small>{timeLabel(item.at)}</small>}
                   </button>)}
-                  {!sessions.length&&<div className="session-local-note">这个项目还没有会话</div>}
+                  {!sessions.length&&<div className="session-local-note">{t('session.emptyProject')}</div>}
                 </div>}
               </div>
             })}
-            {!projects.length&&<div className="session-list-empty">{localAx.isLoading?'正在读取本地 AX…':'还没有项目，先选一个目录。'}</div>}
-            <button className="session-add-project" onClick={()=>void addProject()}><FolderPlus size={15}/><span>选择目录…</span></button>
+            {!projects.length&&<div className="session-list-empty">{localAx.isLoading?t('session.readingLocalAx'):t('session.noProjects')}</div>}
+            <button className="session-add-project" onClick={()=>void addProject()}><FolderPlus size={15}/><span>{t('session.chooseDirectory')}</span></button>
           </div>}
         </section>
-        <section className="session-section" aria-label="最近">
-          <button className="session-section-head" aria-label="最近" aria-expanded={recentOpen} onClick={()=>setRecentOpen(value=>!value)}><strong>最近</strong><ChevronRight size={16} className={recentOpen?'rotate-90':''}/></button>
+        <section className="session-section" aria-label={t('session.sectionRecent')}>
+          <button className="session-section-head" aria-label={t('session.sectionRecent')} aria-expanded={recentOpen} onClick={()=>setRecentOpen(value=>!value)}><strong>{t('session.sectionRecent')}</strong><ChevronRight size={16} className={recentOpen?'rotate-90':''}/></button>
           {recentOpen&&<div className="session-section-body">
             {visibleRows.map(row=><button key={row.binding.ax_session_id} className={`session-recent-row ${current?.key===row.key?'is-selected':''}`} onClick={()=>navigate(`/sessions/${row.binding.task_id}`)}>
               {isActiveTask(row.latest)&&<span className="session-recent-dot"/>}
-              <span className="session-project-title">{row.task?.title||'未命名会话'}</span>
+              <span className="session-project-title">{row.task?.title||t('session.untitled')}</span>
               <small>{timeLabel(row.latestAt)}</small>
             </button>)}
-            {!visibleRows.length&&<div className="session-list-empty">{sessions.isLoading?'正在加载会话…':search||onlyActive?'没有匹配的会话':'还没有会话。输入消息开始。'}</div>}
+            {!visibleRows.length&&<div className="session-list-empty">{sessions.isLoading?t('session.loadingSessions'):search||onlyActive?t('session.noMatch'):t('session.noSessionsYet')}</div>}
           </div>}
         </section>
-        <section className="session-section is-remote" aria-label="远程 AX 项目">
-          <button className="session-section-head" aria-label="远程项目" aria-expanded={remoteOpen} onClick={()=>setRemoteOpen(value=>!value)}><Laptop size={16}/><strong>远程项目</strong><span className="session-section-count">{remoteDevices.length||''}</span><ChevronRight size={16} className={remoteOpen?'rotate-90':''}/></button>
+        <section className="session-section is-remote" aria-label={t('session.sectionRemote')}>
+          <button className="session-section-head" aria-label={t('session.remoteProjects')} aria-expanded={remoteOpen} onClick={()=>setRemoteOpen(value=>!value)}><Laptop size={16}/><strong>{t('session.remoteProjects')}</strong><span className="session-section-count">{remoteDevices.length||''}</span><ChevronRight size={16} className={remoteOpen?'rotate-90':''}/></button>
           {remoteOpen&&<div className="session-section-body">
             {remoteDevices.map(device=>{
               const deviceRows=rows.filter(row=>row.binding.device_id===device.id)
               return <div key={device.id} className="session-local-project">
-                <div className="session-remote-device"><span className={`session-remote-dot is-${device.status}`}/><strong>{device.name}</strong><small>{device.hostname||device.platform}</small><em>{device.status==='online'||device.status==='busy'?'在线':'离线'}</em></div>
+                <div className="session-remote-device"><span className={`session-remote-dot is-${device.status}`}/><strong>{device.name}</strong><small>{device.hostname||device.platform}</small><em>{device.status==='online'||device.status==='busy'?t('session.online'):t('session.offline')}</em></div>
                 {deviceRows.map(row=><button key={row.binding.ax_session_id} className={`session-list-row session-local-row ${current?.key===row.key?'is-selected':''}`} onClick={()=>navigate(`/sessions/${row.binding.task_id}`)}>
-                  <span className="session-row-top"><small>远程 AX</small><small>{timeLabel(row.latestAt)}</small></span>
-                  <strong>{row.task?.title??'会话'}</strong>
-                  <span className="session-row-preview">{isActiveTask(row.latest)?'正在回复…':row.task?.description||'AX Session'}</span>
+                  <span className="session-row-top"><small>{t('session.remoteAx')}</small><small>{timeLabel(row.latestAt)}</small></span>
+                  <strong>{row.task?.title??t('session.recentSession')}</strong>
+                  <span className="session-row-preview">{isActiveTask(row.latest)?t('session.replying'):row.task?.description||'AX Session'}</span>
                 </button>)}
-                {!deviceRows.length&&<div className="session-local-note">{device.status==='online'||device.status==='busy'?'这个设备还没有 AX 会话':'设备离线'}</div>}
+                {!deviceRows.length&&<div className="session-local-note">{device.status==='online'||device.status==='busy'?t('session.emptyRemoteDevice'):t('session.deviceOffline')}</div>}
               </div>
             })}
-            {!remoteDevices.length&&<div className="session-local-note">还没有配对的远程 AX 设备。<Link className="session-local-link" to="/devices?pair=1">去配对</Link></div>}
+            {!remoteDevices.length&&<div className="session-local-note">{t('session.noRemoteDevices')}<Link className="session-local-link" to="/devices?pair=1">{t('session.goPair')}</Link></div>}
           </div>}
         </section>
       </div>
@@ -367,26 +373,26 @@ export function SessionsWorkspace(){
     </aside>
 
     <section className="session-chat-panel">
-      <div className="session-chat-header"><Menu trigger={<button className="session-title-menu" aria-label="会话菜单"><strong title={title}>{title}</strong><ChevronDown size={15}/></button>} items={[{label:'新建会话',action:newSession},{label:'会话详情',action:showDetails},...(id?[{label:'打开关联任务',action:()=>navigate(`/tasks/${task?.id??id}`)}]:[])]}/><div className="session-header-spacer"/>{id&&<Link className="session-header-icon" to={`/tasks/${task?.id??id}`} aria-label="查看关联任务" title="查看关联任务"><ExternalLink size={17}/></Link>}</div>
+      <div className="session-chat-header"><Menu trigger={<button className="session-title-menu" aria-label={t('session.menu')}><strong title={title}>{title}</strong><ChevronDown size={15}/></button>} items={[{label:t('session.new'),action:newSession},{label:t('session.details'),action:showDetails},...(id?[{label:t('session.openTask'),action:()=>navigate(`/tasks/${task?.id??id}`)}]:[])]}/><div className="session-header-spacer"/>{id&&<Link className="session-header-icon" to={`/tasks/${task?.id??id}`} aria-label={t('session.viewTask')} title={t('session.viewTask')}><ExternalLink size={17}/></Link>}</div>
       <div className="session-chat-scroll" ref={scrollRef} onScroll={event=>{const node=event.currentTarget;followScroll.current=node.scrollHeight-node.scrollTop-node.clientHeight<80}}>
-        {localMode?<LocalThread session={localMatch?.session} project={localMatch?.project}/>:id&&!task&&!tasks.isPending?<div className="session-thread-waiting">{tasks.error?'加载会话失败，请重试':'会话不存在或已被删除'}<button onClick={()=>void tasks.refetch()}>重新加载</button></div>:!id?<div className="session-welcome"><div className="session-welcome-title"><h1>我能帮你做什么？</h1></div><div className="session-suggestions">{(suggestionPage%2?['检查项目的测试情况','帮我阅读项目文档','查找重复的代码','整理当前工作区文件','分析最近的错误','列出可执行的下一步']:suggestions).map(item=><button key={item} onClick={()=>chooseSuggestion(item)}>{item}</button>)}<button className="session-refresh-suggestions" aria-label="换一组建议" title="换一组建议" onClick={()=>setSuggestionPage(value=>value+1)}><RotateCcw size={16}/></button></div></div>
-        :<div className="session-transcript"><div className="session-transcript-meta">{selectedBinding?`AX Session · ${selectedBinding.ax_session_id}`:task?.status==='failed'?'会话启动失败':'正在连接 AX Session…'}</div>{history.error&&<div className="session-inline-error">读取会话历史失败：{String(history.error)} <button onClick={()=>void history.refetch()}>重试</button></div>}{lines.length?lines.map(line=><div className={`session-transcript-line is-${line.type}`} key={line.key}><div className="session-transcript-avatar">{line.type==='user'?'你':line.type==='tool'?'⚙':'AX'}</div><div className="session-transcript-body"><div className="session-transcript-author">{line.type==='user'?'你':line.type==='tool'?'工具':line.type==='thought'?'思考':'AX Crew'}{line.status&&<small>{line.status}</small>}</div><MessageMarkdown text={line.text}/></div></div>):<div className="session-thread-waiting">{task?.status==='failed'?`会话启动失败：${task.output?.error??'请查看关联任务'}`:task?.status==='cancelled'?'已停止':selectedBinding?'正在加载消息…':'正在启动会话…'}</div>}</div>}
+        {localMode?<LocalThread session={localMatch?.session} project={localMatch?.project}/>:id&&!task&&!tasks.isPending?<div className="session-thread-waiting">{tasks.error?t('session.loadFailedRetry'):t('session.gone')}<button onClick={()=>void tasks.refetch()}>{t('session.reload')}</button></div>:!id?<div className="session-welcome"><div className="session-welcome-title"><h1>{t('session.welcome')}</h1></div><div className="session-suggestions">{(suggestionPage%2?altSuggestionKeys:suggestionKeys).map(key=><button key={key} onClick={()=>chooseSuggestion(t(key))}>{t(key)}</button>)}<button className="session-refresh-suggestions" aria-label={t('session.moreSuggestions')} title={t('session.moreSuggestions')} onClick={()=>setSuggestionPage(value=>value+1)}><RotateCcw size={16}/></button></div></div>
+        :<div className="session-transcript"><div className="session-transcript-meta">{selectedBinding?`AX Session · ${selectedBinding.ax_session_id}`:task?.status==='failed'?t('session.launchFailed'):t('session.connecting')}</div>{history.error&&<div className="session-inline-error">{t('session.loadHistoryFailed')}{String(history.error)} <button onClick={()=>void history.refetch()}>{t('session.retry')}</button></div>}{lines.length?<TranscriptLines lines={lines}/>:<div className="session-thread-waiting">{task?.status==='failed'?`${t('session.startFailedDetail')}${task.output?.error??t('session.seeLinkedTask')}`:task?.status==='cancelled'?t('session.stopped'):selectedBinding?t('session.loadingMessages'):t('session.starting')}</div>}</div>}
       </div>
-      {localMode?<div className="session-local-bar" role="status"><span>只读查看本地 AX 中的这段对话</span><div className="session-local-bar-actions">{localMatch?.session.task_id?<Link className="session-local-link" to={`/sessions/${localMatch.session.task_id}`}>已在 Crew 中打开 <ExternalLink size={13}/></Link>:<Action variant="default" run={adoptLocal} disabled={!localMatch}>在 Crew 中继续</Action>}</div></div>:<div className="session-composer-wrap">
-        {!id&&members.isSuccess&&!members.data.length&&<div className="session-inline-error" role="status">本地 AX 运行环境未就绪。<Link to="/settings">查看设置</Link></div>}        {!id&&members.isError&&<div className="session-inline-error" role="alert">读取运行环境失败：{String(members.error)} <button onClick={()=>void members.refetch()}>重试</button></div>}
-        {permissions.data?.filter(permission=>permission.request.sessionId===selectedBinding?.ax_session_id).map(permission=><div className="session-permission-request" key={permission.request_id}><strong>{permission.request.toolCall.title}</strong><span>此操作需要你的确认</span><div>{permission.request.options.map(option=><Action key={option.optionId} run={()=>api(`/api/permissions/${permission.request_id}/resolve`,'POST',{option_id:option.optionId})}>{option.name}</Action>)}</div></div>)}
-        {task&&<div className="session-run-status" role="status">{task.status==='waiting_permission'?'等待操作授权':busy?'正在回复…':task.status==='failed'?`执行失败：${task.output?.error??'查看关联任务了解详情'}`:task.status==='cancelled'?'已停止，可以继续发送消息':task.status==='waiting_user'?'等待你的回复':''}</div>}
-        {loopRun&&<div className={`session-loop-status is-${loopRun.status}`} role="status"><span className="session-loop-dot"/><strong>{loopRun.kind==='goal'?'目标循环':'拉取请求监控'}</strong><span>{loopRun.status==='running'?`第 ${loopRun.rounds} 轮 · 每 ${loopRun.intervalSeconds} 秒`:(loopRun.detail||'已停止')}</span>{loopRun.status==='running'?<button type="button" onClick={stopLoop}>停止</button>:<button type="button" aria-label="清除循环状态" title="清除循环状态" onClick={clearLoop}><X size={13}/></button>}</div>}
-        {completions.length>0&&!completionClosed&&<div className="session-completions" role="listbox" aria-label={referenceToken!==undefined?"文件引用建议":"AX 命令建议"}>{completions.map((item,index)=><button type="button" role="option" aria-selected={index===completionIndex} className={index===completionIndex?"is-active":""} key={item.value} onMouseDown={event=>event.preventDefault()} onClick={()=>selectCompletion(item)}><strong>{item.label}</strong><small>{item.description}</small></button>)}</div>}<form className="session-composer" onSubmit={onSubmit} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void addImages([...event.dataTransfer.files])}}><input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={event=>{void addImages([...event.target.files??[]]);event.target.value=""}}/>{images.length>0&&<div className="session-image-previews">{images.map((image,index)=><div key={`${image.name}-${index}`} className="session-image-preview"><img src={`data:${image.mime};base64,${image.data}`} alt={image.name}/><button type="button" aria-label={`移除图片 ${index+1}`} onClick={()=>setImagesByDraft(state=>({...state,[draftKey]:(state[draftKey]??[]).filter((_,position)=>position!==index)}))}><X size={13}/></button></div>)}</div>}<textarea ref={inputRef} aria-label="发送消息" value={draft} disabled={sending} onChange={event=>{setDraft(event.target.value);setCursor(event.target.selectionStart);setCompletionClosed(false);setCompletionIndex(0)}} onClick={event=>setCursor(event.currentTarget.selectionStart)} onKeyUp={event=>setCursor(event.currentTarget.selectionStart)} onPaste={event=>{const pasted=[...event.clipboardData.files].filter(file=>file.type.startsWith("image/"));if(pasted.length)void addImages(pasted)}} onKeyDown={onComposerKeyDown} placeholder="给 AX Crew 发消息…" rows={2}/><div className="session-composer-actions"><Menu trigger={<button type="button" className="session-composer-icon" title="添加上下文" aria-label="添加上下文"><Plus size={20}/></button>} items={[{label:'添加图片',action:()=>imageInputRef.current?.click()},{label:'引用工作区文件',action:()=>{setRightTab('files');setRightOpen(true)}},{label:'会话详情',action:showDetails}]}/><button type="button" className="session-composer-icon" aria-label="设定目标" title="设定目标" onClick={()=>setGoalOpen(true)}><Target size={19}/></button><Menu trigger={<button type="button" className="session-composer-permission" aria-label="安全模式" title="选择会话访问权限"><ShieldCheck size={16}/>{permissionLabel}<ChevronDown size={13}/></button>} items={[{label:<><strong>常规</strong><small>执行可能改变内容的操作前询问</small></>,action:()=>ui.setPermissionMode(draftKey,"ask")},{label:<><strong>读取</strong><small>可读取信息，修改前需要确认</small></>,action:()=>ui.setPermissionMode(draftKey,"read")},{label:<><strong>信任</strong><small>当前会话无需逐项确认</small></>,action:()=>ui.setPermissionMode(draftKey,"trust")},{label:<><strong>YOLO</strong><small>默认自动授权后续会话</small></>,action:()=>ui.setPermissionMode(draftKey,"yolo")}]}/><div className="session-composer-spacer"/>{busy?<Action variant="danger" run={async()=>{await api(`/api/tasks/${task!.id}/cancel`,'POST',{});void queryClient.invalidateQueries({queryKey:['history',task!.id]})}}><Square size={15}/> 停止</Action>:<button className="session-send-button" type="submit" aria-label="发送消息" title={busy?'会话正在运行':'发送消息'} disabled={!canSend}><ArrowUp size={20}/></button>}</div></form>{sendError&&<div className="session-inline-error" role="alert">操作失败（消息内容已保留）：{sendError}</div>}<div className="session-composer-footer"><button className="session-footer-path" type="button" aria-label="选择工作目录" title={id?'当前会话的工作目录固定；新会话可选择':workspace??'选择工作目录'} disabled={!!id} onClick={()=>void chooseWorkspace()}><Folder size={14}/><span>{workspace??'选择工作目录'}</span></button><Menu trigger={<button className="session-footer-thinking" type="button" aria-label="思考程度" title="选择模型思考程度">{thinkingLabel}<ChevronDown size={13}/></button>} items={thinkingOptions.map(([value,label])=>({label,action:()=>setThinkingEffort(value)}))}/><Menu trigger={<button className="session-footer-auto" type="button" aria-label="选择 AX 模型" title="选择 AX 已登录的模型">{selectedModel?.id??'auto'}<ChevronDown size={13}/></button>} items={models.length?models.map(model=>({label:`${model.display_name} · ${model.provider}`,action:()=>{void chooseModel(model.provider,model.id)}})):[{label:'前往设置连接模型',action:()=>navigate('/settings')}]}/></div></div>}
+      {localMode?<div className="session-local-bar" role="status"><span>{t('session.readOnlyNote')}</span><div className="session-local-bar-actions">{localMatch?.session.task_id?<Link className="session-local-link" to={`/sessions/${localMatch.session.task_id}`}>{t('session.alreadyInCrew')} <ExternalLink size={13}/></Link>:<Action variant="default" run={adoptLocal} disabled={!localMatch}>{t('session.continueInCrew')}</Action>}</div></div>:<div className="session-composer-wrap">
+        {!id&&members.isSuccess&&!members.data.length&&<div className="session-inline-error" role="status">{t('session.runtimeNotReady')}<Link to="/settings">{t('session.openSettings')}</Link></div>}        {!id&&members.isError&&<div className="session-inline-error" role="alert">{t('session.readRuntimeFailed')}{String(members.error)} <button onClick={()=>void members.refetch()}>{t('session.retry')}</button></div>}
+        {permissions.data?.filter(permission=>permission.request.sessionId===selectedBinding?.ax_session_id).map(permission=><div className="session-permission-request" key={permission.request_id}><strong>{permission.request.toolCall.title}</strong><span>{t('session.askConfirm')}</span><div>{permission.request.options.map(option=><Action key={option.optionId} run={()=>api(`/api/permissions/${permission.request_id}/resolve`,'POST',{option_id:option.optionId})}>{option.name}</Action>)}</div></div>)}
+        {task&&<div className="session-run-status" role="status">{task.status==='waiting_permission'?t('session.waitingPermission'):busy?t('session.running'):task.status==='failed'?`${t('session.execFailed')}${task.output?.error??t('session.viewLinkedTask')}`:task.status==='cancelled'?t('session.stopped'):task.status==='waiting_user'?t('session.waitingUser'):''}</div>}
+        {loopRun&&<div className={`session-loop-status is-${loopRun.status}`} role="status"><span className="session-loop-dot"/><strong>{loopRun.kind==='goal'?t('session.goalLoop'):t('session.prWatch')}</strong><span>{loopRun.status==='running'?t('session.roundProgress',{rounds:loopRun.rounds,seconds:loopRun.intervalSeconds}):(loopRun.detail||t('session.loopStopped'))}</span>{loopRun.status==='running'?<button type="button" onClick={stopLoop}>{t('session.stopLoop')}</button>:<button type="button" aria-label={t('session.clearLoop')} title={t('session.clearLoop')} onClick={clearLoop}><X size={13}/></button>}</div>}
+        {completions.length>0&&!completionClosed&&<div className="session-completions" role="listbox" aria-label={referenceToken!==undefined?t('session.fileSuggestions'):t('session.slashSuggestions')}>{completions.map((item,index)=><button type="button" role="option" aria-selected={index===completionIndex} className={index===completionIndex?"is-active":""} key={item.value} onMouseDown={event=>event.preventDefault()} onClick={()=>selectCompletion(item)}><strong>{item.label}</strong><small>{item.description}</small></button>)}</div>}<form className="session-composer" onSubmit={onSubmit} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void addImages([...event.dataTransfer.files])}}><input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={event=>{void addImages([...event.target.files??[]]);event.target.value=""}}/>{images.length>0&&<div className="session-image-previews">{images.map((image,index)=><div key={`${image.name}-${index}`} className="session-image-preview"><img src={`data:${image.mime};base64,${image.data}`} alt={image.name}/><button type="button" aria-label={t('session.removeImage',{index:index+1})} onClick={()=>setImagesByDraft(state=>({...state,[draftKey]:(state[draftKey]??[]).filter((_,position)=>position!==index)}))}><X size={13}/></button></div>)}</div>}<textarea ref={inputRef} aria-label={t('session.sendMessage')} value={draft} disabled={sending} onChange={event=>{setDraft(event.target.value);setCursor(event.target.selectionStart);setCompletionClosed(false);setCompletionIndex(0)}} onClick={event=>setCursor(event.currentTarget.selectionStart)} onKeyUp={event=>setCursor(event.currentTarget.selectionStart)} onPaste={event=>{const pasted=[...event.clipboardData.files].filter(file=>file.type.startsWith("image/"));if(pasted.length)void addImages(pasted)}} onKeyDown={onComposerKeyDown} placeholder={t('session.placeholder')} rows={2}/><div className="session-composer-actions"><Menu trigger={<button type="button" className="session-composer-icon" title={t('session.addContext')} aria-label={t('session.addContext')}><Plus size={20}/></button>} items={[{label:t('session.addImage'),action:()=>imageInputRef.current?.click()},{label:t('session.referenceFile'),action:()=>{setRightTab('files');setRightOpen(true)}},{label:t('session.details'),action:showDetails}]}/><button type="button" className="session-composer-icon" aria-label={t('session.setGoal')} title={t('session.setGoal')} onClick={()=>setGoalOpen(true)}><Target size={19}/></button><Menu trigger={<button type="button" className="session-composer-permission" aria-label={t('session.accessMode')} title={t('session.chooseAccess')}><ShieldCheck size={16}/>{permissionLabel}<ChevronDown size={13}/></button>} items={[{label:<><strong>{t('session.permission.ask')}</strong><small>{t('session.permission.askHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"ask")},{label:<><strong>{t('session.permission.read')}</strong><small>{t('session.permission.readHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"read")},{label:<><strong>{t('session.permission.trust')}</strong><small>{t('session.permission.trustHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"trust")},{label:<><strong>YOLO</strong><small>{t('session.permission.yoloHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"yolo")}]}/><div className="session-composer-spacer"/>{busy?<Action variant="danger" run={async()=>{await api(`/api/tasks/${task!.id}/cancel`,'POST',{});void queryClient.invalidateQueries({queryKey:['history',task!.id]})}}><Square size={15}/> {t('session.stop')}</Action>:<button className="session-send-button" type="submit" aria-label={t('session.sendMessage')} title={busy?t('session.sessionRunning'):t('session.sendMessage')} disabled={!canSend}><ArrowUp size={20}/></button>}</div></form>{sendError&&<div className="session-inline-error" role="alert">{t('session.failedKeptDraft')}{sendError}</div>}<div className="session-composer-footer"><button className="session-footer-path" type="button" aria-label={t('session.chooseWorkspace')} title={id?t('session.workspaceFixed'):workspace??t('session.chooseWorkspace')} disabled={!!id} onClick={()=>void chooseWorkspace()}><Folder size={14}/><span>{workspace??t('session.chooseWorkspace')}</span></button><Menu trigger={<button className="session-footer-thinking" type="button" aria-label={t('session.reasoningEffort')} title={t('session.chooseReasoning')}>{thinkingLabel}<ChevronDown size={13}/></button>} items={thinkingOptions.map(([value,label])=>({label,action:()=>setThinkingEffort(value)}))}/><Menu trigger={<button className="session-footer-auto" type="button" aria-label={t('session.chooseModel')} title={t('session.chooseModelTitle')}>{selectedModel?.id??'auto'}<ChevronDown size={13}/></button>} items={models.length?models.map(model=>({label:`${model.display_name} · ${model.provider}`,action:()=>{void chooseModel(model.provider,model.id)}})):[{label:t('session.connectModel'),action:()=>navigate('/settings')}]}/></div></div>}
     </section>
 
-    {rightOpen&&<button className="session-right-backdrop" aria-label="关闭右侧面板遮罩" onClick={()=>setRightOpen(false)}/>}
-    <aside className={`session-right-panel ${rightOpen?'':'is-closed'}`} aria-label={rightOpen?'会话侧栏':'会话侧栏已收起'}>
+    {rightOpen&&<button className="session-right-backdrop" aria-label={t('session.rightBackdrop')} onClick={()=>setRightOpen(false)}/>}
+    <aside className={`session-right-panel ${rightOpen?'':'is-closed'}`} aria-label={rightOpen?t('session.rightPanelOpen'):t('session.rightPanelClosed')}>
       <div className="session-right-tabs">
-        {rightOpen&&<><button className={rightTab==='files'?'active':''} onClick={()=>setRightTab('files')}><Folder size={17}/> 文件</button><button className={rightTab==='details'?'active':''} onClick={()=>setRightTab('details')}><SlidersHorizontal size={17}/> 详情</button></>}
-        <button className="session-right-toggle" aria-label={rightOpen?'关闭右侧面板':'打开右侧面板'} title={rightOpen?'收起右侧面板':'展开右侧面板'} aria-expanded={rightOpen} onClick={()=>setRightOpen(!rightOpen)}><PanelRight size={18}/></button>
+        {rightOpen&&<><button className={rightTab==='files'?'active':''} onClick={()=>setRightTab('files')}><Folder size={17}/> {t('session.tabFiles')}</button><button className={rightTab==='details'?'active':''} onClick={()=>setRightTab('details')}><SlidersHorizontal size={17}/> {t('session.tabDetails')}</button></>}
+        <button className="session-right-toggle" aria-label={rightOpen?t('session.closeRight'):t('session.openRight')} title={rightOpen?t('session.collapseRight'):t('session.expandRight')} aria-expanded={rightOpen} onClick={()=>setRightOpen(!rightOpen)}><PanelRight size={18}/></button>
       </div>
-      {rightOpen&&(rightTab==='files'?<WorkspaceFiles key={member?.id} member={member} onReference={path=>{setDraft(`${draft}${draft?'\n':''}@file ${path}`);inputRef.current?.focus()}}/>:<div className="session-right-details"><div><span>设备</span><strong>{device?.name??member?.device_id??'—'}</strong></div><div><span>任务状态</span><strong>{task?.status??'新会话'}</strong></div><div><span>AX Session</span><strong className="session-detail-id">{selectedBinding?.ax_session_id??'—'}</strong></div>{id&&<Link to={`/tasks/${task?.id??id}`}>查看关联任务 <ExternalLink size={14}/></Link>}</div>)}
+      {rightOpen&&(rightTab==='files'?<WorkspaceFiles key={member?.id} member={member} onReference={path=>{setDraft(`${draft}${draft?'\n':''}@file ${path}`);inputRef.current?.focus()}}/>:<div className="session-right-details"><div><span>{t('session.deviceLabel')}</span><strong>{device?.name??member?.device_id??'—'}</strong></div><div><span>{t('session.taskStatus')}</span><strong>{task?.status??t('session.statusNew')}</strong></div><div><span>{t('session.axSessionId')}</span><strong className="session-detail-id">{selectedBinding?.ax_session_id??'—'}</strong></div>{id&&<Link to={`/tasks/${task?.id??id}`}>{t('session.viewTask')} <ExternalLink size={14}/></Link>}</div>)}
     </aside>
     <GoalLoopDialog open={goalOpen} onOpenChange={setGoalOpen} storeKey={loopKey??draftKey} run={loopRun} workspace={workspace} disabled={!axAvailable||!workspace} onStart={startLoop} onStop={stopLoop}/>
   </div>

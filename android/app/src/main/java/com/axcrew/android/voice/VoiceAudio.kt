@@ -79,8 +79,8 @@ class VoiceAudio(private val context: Context, private val interrupted: () -> Un
         if (!focus()) return
         val turn = epochs.current
         mutable.value = mutable.value.copy(phase = "listening", partial = "", error = null)
-        if (XfyStore.current == null) {
-            // 桌面保存 key 早于手机连接时，连接阶段的拉取可能拿不到：这里实时再取一次。
+        if (!XfyStore.isFresh()) {
+            // 电脑端保存/更新 key 可能早于或晚于手机连接：这里按需再取一次（有缓存则立即返回）。
             ioScope.launch {
                 val ok = XfyStore.ensure()
                 handler.post {

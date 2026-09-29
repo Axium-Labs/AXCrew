@@ -27,6 +27,7 @@ import App from './App'
 import { queryClient } from './lib/runtime'
 import { useUi } from './store/ui'
 import { useSessionUi } from './store/sessions'
+import { useLang } from './lib/i18n'
 
 const task=(id:string,patch:Partial<Task>={}):Task=>({id,crew_id:'crew',parent_id:null,title:`会话 ${id}`,description:'',assigned_member:'member',assigned_device:'local',dependencies:[],priority:0,status:'completed',input:`prompt ${id}`,output:null,retry_count:0,created_at:1,started_at:1,finished_at:2,...patch})
 const start=async(path='/sessions')=>{window.history.replaceState({idx:0},'',`/#${path}`);render(<App/>);await screen.findByRole('textbox',{name:'发送消息'})}
@@ -36,6 +37,9 @@ beforeEach(()=>{
   queryClient.clear();queryClient.setDefaultOptions({queries:{retry:false}})
   useUi.setState({sidebar:true,palette:false,theme:'dark'})
   useSessionUi.setState({listOpen:true,rightOpen:false,rightTab:'files',drafts:{},startingIds:[]})
+  // The suite asserts the Chinese copy, so pin the language instead of inheriting
+  // whatever `navigator.language` the test environment reports.
+  useLang.setState({lang:'zh'})
   Object.defineProperty(window,'matchMedia',{writable:true,value:vi.fn(()=>({matches:false,addEventListener:vi.fn(),removeEventListener:vi.fn()}))})
   window.requestAnimationFrame=callback=>{callback(0);return 0}
   Element.prototype.scrollIntoView=vi.fn()

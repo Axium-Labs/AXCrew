@@ -10,6 +10,9 @@
 # Packaged portable build output
 /dist-pack/
 
+# Bundled binary staging dir for tauri build (prepare-binaries output)
+/desktop/src-tauri/bin/
+
 # Packaged installer/binaries copied into repo root
 /AX-Crew*.exe
 

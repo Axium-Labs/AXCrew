@@ -100,21 +100,18 @@ import java.io.File
     fun startPressListening() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) { micPermission.launch(Manifest.permission.RECORD_AUDIO); return }
         if (System.currentTimeMillis() - lastRequestAt.get() < 1500) { voiceHint = "操作太快了，稍等一下再按住说话。"; return }
-        if (XfyStore.current == null) {
-            // 桌面保存 key 早于手机连接时，连接阶段的拉取可能拿不到：按住时实时再取一次。
-            pressing = true; listening = true
-            voiceHint = "正在获取讯飞配置…"
-            scope.launch {
-                val ok = XfyStore.ensure()
-                handler.post {
-                    if (!ok) { pressing = false; listening = false; voiceHint = XfyStore.lastError ?: "电脑端未配置讯飞语音识别密钥。" }
-                    else if (pressing) tryBeginListening()
-                    else voiceHint = null
-                }
+        if (XfyStore.isFresh()) { tryBeginListening(); return }
+        // 桌面端保存或更新 key 可能早于/晚于手机连接：按住时按需再取一次。
+        pressing = true; listening = true
+        voiceHint = "正在获取讯飞配置…"
+        scope.launch {
+            val ok = XfyStore.ensure()
+            handler.post {
+                if (!ok) { pressing = false; listening = false; voiceHint = XfyStore.lastError ?: "电脑端未配置讯飞语音识别密钥。" }
+                else if (pressing) tryBeginListening()
+                else voiceHint = null
             }
-            return
         }
-        tryBeginListening()
     }
     fun stopPressListening() {
         pressing = false

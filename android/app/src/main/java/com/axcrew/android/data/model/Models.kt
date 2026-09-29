@@ -33,6 +33,7 @@ fun JsonObject.str(key: String) = get(key).text()
 @Serializable data class NewMember(val name: String, val role: String, val device_id: String, val cwd: String, val provider: String? = null, val model: String? = null, val skills: List<String> = emptyList(), val mcp_servers: List<String> = emptyList(), val permission_profile: String = "ask", val max_concurrency: Int = 1)
 @Serializable data class NewTask(val crew_id: String, val title: String, val assigned_member: String, val input: JsonElement, val dependencies: List<String> = emptyList(), val priority: Int = 0)
 
+/** 快照是 data class：StateFlow 只在值真的变化时才推送，避免每次轮询都整树重组。 */
 data class Snapshot(val devices: List<Device> = emptyList(), val crews: List<Crew> = emptyList(), val members: List<Member> = emptyList(), val tasks: List<Task> = emptyList(), val sessions: List<Session> = emptyList(), val permissions: List<Permission> = emptyList(), val settings: Settings = Settings())
 data class Conversation(val root: Task, val latest: Task)
 fun conversations(snapshot: Snapshot): List<Conversation> {

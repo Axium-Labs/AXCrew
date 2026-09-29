@@ -11,31 +11,23 @@
 .app{flex-direction:column}
 .workspace{display:flex;flex:1;min-height:0;min-width:0;gap:10px;padding:6px;transition:margin-top .26s cubic-bezier(.22,1,.36,1)}
 .backend-error{display:flex;align-items:center;justify-content:center;gap:10px;min-height:34px;padding:5px 12px;background:#5b222a;color:#fff;font-size:12px}.backend-error button{border:1px solid #ffffff80;border-radius:7px;background:transparent;color:inherit;padding:3px 9px;cursor:pointer}.backend-error button:hover{background:#ffffff24}
-.shell-titlebar{height:var(--titlebar-h);min-height:var(--titlebar-h);display:grid;grid-template-columns:minmax(150px,1fr) minmax(220px,352px) minmax(390px,1fr);align-items:center;gap:12px;position:relative;z-index:10;background:#fdfdfd;color:#535464;border:0;user-select:none;-webkit-user-select:none;transition:transform .26s cubic-bezier(.22,1,.36,1)}
-.shell-titlebar-left,.shell-titlebar-center,.shell-titlebar-right,.shell-window-controls,.shell-connection{display:flex;align-items:center;height:100%}
+.shell-titlebar{height:var(--titlebar-h);min-height:var(--titlebar-h);display:grid;grid-template-columns:minmax(150px,1fr) minmax(220px,352px) minmax(150px,1fr);align-items:center;gap:12px;position:relative;z-index:10;background:#fdfdfd;color:#535464;border:0;user-select:none;-webkit-user-select:none;transition:transform .26s cubic-bezier(.22,1,.36,1)}
+.shell-titlebar-left,.shell-titlebar-center,.shell-titlebar-right,.shell-window-controls{display:flex;align-items:center;height:100%}
 .shell-titlebar-left{gap:2px;padding-left:7px}
 .shell-titlebar-center{min-width:0;gap:9px}
 .shell-titlebar-right{justify-content:flex-end;gap:9px;min-width:0}
-.shell-icon-button,.shell-connection-action,.shell-feature-button,.shell-window-button{appearance:none;border:0;background:transparent;color:inherit;display:inline-flex;align-items:center;justify-content:center;flex:none;cursor:pointer;transition:background-color .12s ease,color .12s ease}
+.shell-icon-button,.shell-window-button,.shell-lang-button{appearance:none;border:0;background:transparent;color:inherit;display:inline-flex;align-items:center;justify-content:center;flex:none;cursor:pointer;transition:background-color .12s ease,color .12s ease}
 .shell-icon-button{width:34px;height:34px;border-radius:7px}
-.shell-icon-button:hover,.shell-connection-action:hover{background:#f0f0f3;color:#343541}
-.shell-icon-button:active,.shell-connection-action:active{background:#e5e5eb}
+.shell-icon-button:hover{background:#f0f0f3;color:#343541}
+.shell-icon-button:active{background:#e5e5eb}
+.shell-lang-button{height:26px;gap:5px;border:1px solid #e0e1e7;border-radius:13px;margin-left:4px;padding:0 9px;font-size:11px;font-weight:700;letter-spacing:.02em;color:#5c5d6b}
+.shell-lang-button:hover{background:#f2f1f6;color:#343541}
+.shell-lang-button:active{background:#e8e6ef}
 .shell-command-input{height:34px;width:100%;min-width:0;border:1px solid #dfe0e6;border-radius:10px;background:#fdfdfd;color:#4a4b59;text-align:center;font-size:13px;outline:none;cursor:pointer;transition:background-color var(--dur-quick) ease,border-color var(--dur-quick) ease,box-shadow var(--dur-quick) ease}
 .shell-command-input::placeholder{color:#555566;opacity:1}
 .shell-command-input:hover{border-color:#c9cad3;background:#fff}
 .shell-command-input:focus{border-color:#9574ed;box-shadow:0 0 0 2px #9574ed20}
 .shell-scan-button{width:34px}
-.shell-connection{height:31px;gap:3px;border:1px solid #e0e1e7;border-radius:17px;padding:0 5px 0 11px;box-shadow:0 1px 2px #1618240d;transition:border-color var(--dur-quick) ease,background-color var(--dur-quick) ease}
-.shell-connection-dot{width:8px;height:8px;border-radius:50%;background:#9da0aa;margin-right:4px;transition:background-color var(--dur-soft) ease,box-shadow var(--dur-soft) ease}
-.shell-connection-dot.is-connected{background:#078a49}
-.shell-connection-action{height:25px;width:28px;border-radius:6px}
-.shell-connection-action+ .shell-connection-action{border-left:1px solid #e1e1e7;border-radius:0}
-.shell-connection-action:first-of-type{color:#8b3dff}
-.shell-feature-button{height:31px;border:1px solid #e0e1e7;border-radius:17px;gap:6px;padding:0 10px;font-size:12px;white-space:nowrap;transition:background-color var(--dur-quick) ease,border-color var(--dur-quick) ease,transform var(--dur-quick) var(--ease-out)}
-.shell-feature-button:hover{background:#f2f1f6}
-.shell-feature-button:active{background:#e8e6ef}
-.shell-count{min-width:16px;height:16px;border-radius:8px;background:#8b3dff;color:white;display:inline-flex;align-items:center;justify-content:center;font-size:10px}
-.shell-notification-button{width:32px}
 .shell-window-controls{margin-left:4px}
 .shell-window-button{width:46px;height:42px;border-radius:0;color:#24242a}
 .shell-window-button:hover{background:#e8e8ec}
@@ -43,7 +35,7 @@
 .shell-close-button:hover{background:#e81123;color:#fff}
 .shell-close-button:active{background:#bf0f1d;color:#fff}
 .shell-titlebar button:focus-visible,.shell-command-input:focus-visible{outline:2px solid #9b6dff;outline-offset:-2px}
-@media(max-width:1100px){.shell-titlebar{grid-template-columns:minmax(118px,1fr) minmax(200px,280px) minmax(335px,1fr);gap:6px}.shell-permissions-label{display:none}.shell-feature-button{width:32px;padding:0}.shell-titlebar-right{gap:5px}}
+@media(max-width:1100px){.shell-titlebar{grid-template-columns:minmax(118px,1fr) minmax(200px,280px) minmax(142px,1fr);gap:6px}.shell-titlebar-right{gap:5px}}
 
 /* Focus mode: the titlebar slides away and returns when the pointer reaches the top edge. */
 .app.is-focus .shell-titlebar{transform:translateY(-100%)}
@@ -75,19 +67,15 @@
   --shell-accent:#8f3dff;
 }
 .shell-titlebar{background:var(--shell-bg);color:var(--shell-text);border-color:var(--shell-border)}
-.shell-icon-button:hover,.shell-connection-action:hover{background:var(--shell-hover);color:var(--shell-text)}
-.shell-icon-button:active,.shell-connection-action:active{background:var(--shell-active)}
+.shell-icon-button:hover{background:var(--shell-hover);color:var(--shell-text)}
+.shell-icon-button:active{background:var(--shell-active)}
 .shell-command-input{background:var(--shell-input);border-color:var(--shell-border);color:var(--shell-text)}
 .shell-command-input::placeholder{color:var(--shell-text)}
 .shell-command-input:hover{border-color:var(--shell-muted);background:var(--shell-input)}
 .shell-command-input:focus{border-color:var(--shell-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--shell-accent) 18%,transparent)}
-.shell-connection{border-color:var(--shell-border);box-shadow:none}
-.shell-connection-action+.shell-connection-action{border-left-color:var(--shell-border)}
-.shell-connection-action:first-of-type{color:var(--shell-accent)}
-.shell-feature-button{border-color:var(--shell-border)}
-.shell-feature-button:hover{background:var(--shell-hover)}
-.shell-feature-button:active{background:var(--shell-active)}
-.shell-count{background:var(--shell-accent)}
+.shell-lang-button{border-color:var(--shell-border);color:var(--shell-muted)}
+.shell-lang-button:hover{background:var(--shell-hover);color:var(--shell-text)}
+.shell-lang-button:active{background:var(--shell-active)}
 .shell-window-button{color:var(--shell-text)}
 .shell-window-button:hover{background:var(--shell-hover)}
 .shell-window-button:active{background:var(--shell-active)}

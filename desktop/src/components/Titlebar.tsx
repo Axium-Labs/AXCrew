@@ -1,13 +1,10 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { Activity, ArrowLeft, ArrowRight, Bell, Copy, Lightbulb, Link2, Menu, Minus, ScanLine, Square, X } from 'lucide-react'
-import type { ConnectionStatus } from '../lib/live'
+import { ArrowLeft, ArrowRight, Copy, Languages, Menu, Minus, ScanLine, Square, X } from 'lucide-react'
+import { useLang, useT } from '../lib/i18n'
 
 type Props = {
-  connection: ConnectionStatus
-  backendUnavailable: boolean
-  permissionCount: number
   sidebarExpanded: boolean
   canGoBack: boolean
   canGoForward: boolean
@@ -18,16 +15,15 @@ type Props = {
   onBack: () => void
   onForward: () => void
   onCommand: () => void
-  onRunningTasks: () => void
-  onDevices: () => void
-  onPermissions: () => void
-  onNotifications: () => void
 }
 
 const desktopWindow = isTauri() ? getCurrentWindow() : null
 
-export function Titlebar({connection,backendUnavailable,permissionCount,sidebarExpanded,canGoBack,canGoForward,focus,hidden,onFocus,onMenu,onBack,onForward,onCommand,onRunningTasks,onDevices,onPermissions,onNotifications}: Props) {
+export function Titlebar({sidebarExpanded,canGoBack,canGoForward,focus,hidden,onFocus,onMenu,onBack,onForward,onCommand}: Props) {
   const [maximized, setMaximized] = useState(false)
+  const t = useT()
+  const lang = useLang(state => state.lang)
+  const toggleLang = useLang(state => state.toggleLang)
 
   useEffect(() => {
     if (!desktopWindow) return
@@ -59,30 +55,25 @@ export function Titlebar({connection,backendUnavailable,permissionCount,sidebarE
     if (event.detail === 2) toggleMaximized()
     else void desktopWindow.startDragging().catch(console.error)
   }
-  const connected = connection === 'Connected' && !backendUnavailable
 
   return <header className="shell-titlebar" onMouseDown={handleTitlebarMouseDown} inert={hidden||undefined} aria-label="AX Crew window titlebar">
     <div className="shell-titlebar-left">
-      <button className="shell-icon-button" aria-label={sidebarExpanded?'收起主导航':'展开主导航'} aria-expanded={sidebarExpanded} title={sidebarExpanded?'收起主导航':'展开主导航'} onClick={onMenu}><Menu size={18}/></button>
-      <button className="shell-icon-button" aria-label="返回" title="返回" disabled={!canGoBack} onClick={onBack}><ArrowLeft size={18}/></button>
-      <button className="shell-icon-button" aria-label="前进" title="前进" disabled={!canGoForward} onClick={onForward}><ArrowRight size={18}/></button>
+      <button className="shell-icon-button" aria-label={sidebarExpanded?t('titlebar.collapseNav'):t('titlebar.expandNav')} aria-expanded={sidebarExpanded} title={sidebarExpanded?t('titlebar.collapseNav'):t('titlebar.expandNav')} onClick={onMenu}><Menu size={18}/></button>
+      <button className="shell-icon-button" aria-label={t('titlebar.back')} title={t('titlebar.back')} disabled={!canGoBack} onClick={onBack}><ArrowLeft size={18}/></button>
+      <button className="shell-icon-button" aria-label={t('titlebar.forward')} title={t('titlebar.forward')} disabled={!canGoForward} onClick={onForward}><ArrowRight size={18}/></button>
+      <button className="shell-lang-button" type="button" aria-label={t('titlebar.switchTo')} title={t('titlebar.switchTo')} onClick={toggleLang}>
+        <Languages size={15}/><span>{lang === 'zh' ? 'EN' : '中'}</span>
+      </button>
     </div>
     <div className="shell-titlebar-center">
-      <button className="shell-command-input" aria-label="运行命令" onClick={onCommand}>运行命令</button>
-      <button className="shell-icon-button shell-scan-button" aria-label={focus?'退出专注模式':'进入专注模式'} aria-pressed={focus} title={focus?'退出专注模式':'进入专注模式'} onClick={onFocus}><ScanLine size={18}/></button>
+      <button className="shell-command-input" aria-label={t('titlebar.runCommand')} onClick={onCommand}>{t('titlebar.runCommand')}</button>
+      <button className="shell-icon-button shell-scan-button" aria-label={focus?t('titlebar.exitFocus'):t('titlebar.enterFocus')} aria-pressed={focus} title={focus?t('titlebar.exitFocus'):t('titlebar.enterFocus')} onClick={onFocus}><ScanLine size={18}/></button>
     </div>
     <div className="shell-titlebar-right">
-      <div className="shell-connection" title={backendUnavailable ? 'Backend unavailable' : connection}>
-        <span className={`shell-connection-dot ${connected ? 'is-connected' : ''}`}/>
-        <button className="shell-connection-action" aria-label="Running tasks" title="Running tasks" onClick={onRunningTasks}><Activity size={16}/></button>
-        <button className="shell-connection-action" aria-label="Devices" title="Devices" onClick={onDevices}><Link2 size={16}/></button>
-      </div>
-      <button className="shell-feature-button" aria-label={`Permissions${permissionCount ? `, ${permissionCount} pending` : ''}`} title="Permissions" onClick={onPermissions}><Lightbulb size={17}/><span className="shell-permissions-label">操作授权</span>{permissionCount > 0 && <span className="shell-count">{permissionCount}</span>}</button>
-      <button className="shell-icon-button shell-notification-button" aria-label="Notifications" title="Notifications" onClick={onNotifications}><Bell size={18}/></button>
-      <div className="shell-window-controls" aria-label="Window controls">
-        <button className="shell-window-button" aria-label="Minimize" title="Minimize" onClick={() => { void desktopWindow?.minimize().catch(console.error) }}><Minus size={16}/></button>
-        <button className="shell-window-button" aria-label={maximized ? 'Restore' : 'Maximize'} title={maximized ? 'Restore' : 'Maximize'} onClick={toggleMaximized}>{maximized ? <Copy size={14}/> : <Square size={14}/>}</button>
-        <button className="shell-window-button shell-close-button" aria-label="Close" title="Close" onClick={() => { void desktopWindow?.close().catch(console.error) }}><X size={18}/></button>
+      <div className="shell-window-controls" aria-label={t('titlebar.windowControls')}>
+        <button className="shell-window-button" aria-label={t('titlebar.minimize')} title={t('titlebar.minimize')} onClick={() => { void desktopWindow?.minimize().catch(console.error) }}><Minus size={16}/></button>
+        <button className="shell-window-button" aria-label={maximized ? t('titlebar.restore') : t('titlebar.maximize')} title={maximized ? t('titlebar.restore') : t('titlebar.maximize')} onClick={toggleMaximized}>{maximized ? <Copy size={14}/> : <Square size={14}/>}</button>
+        <button className="shell-window-button shell-close-button" aria-label={t('titlebar.close')} title={t('titlebar.close')} onClick={() => { void desktopWindow?.close().catch(console.error) }}><X size={18}/></button>
       </div>
     </div>
   </header>

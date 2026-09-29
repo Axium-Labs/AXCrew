@@ -177,13 +177,23 @@ fn to_update(session: &str, message: &Value) -> Option<Value> {
         return None;
     }
     let id = message["id"].to_string();
+    // ACP has no field for message time, so it rides along in the private `_ax`
+    // object the Crew client already reads for vendor extensions.
+    let at = message["created_at"].as_i64().unwrap_or(0);
     let update = match role {
         "user" => json!({"sessionUpdate":"user_message_chunk","messageId":id,"content":{"type":"text","text":content}}),
         "assistant" => json!({"sessionUpdate":"agent_message_chunk","messageId":id,"content":{"type":"text","text":content}}),
         "tool" => json!({"sessionUpdate":"tool_call_update","toolCallId":id,"status":"completed","content":[{"type":"content","content":{"type":"text","text":content}}]}),
         _ => return None,
     };
-    Some(json!({"sessionId":session,"update":update}))
+    Some(json!({"sessionId":session,"update":with_time(update, at)}))
+}
+
+fn with_time(mut update: Value, at: i64) -> Value {
+    if let Value::Object(ref mut map) = update {
+        map.insert("_ax".to_owned(), json!({"createdAt": at}));
+    }
+    update
 }
 
 /// Raw transcript of one AX session, in the same shape the ACP `session/load`
@@ -264,6 +274,9 @@ mod tests {
         }
         let replay = replay.unwrap();
         assert_eq!(replay["updates"].as_array().unwrap().len(), 2);
+        // The wall-clock time rides along in `_ax` so the client can label each row.
+        assert_eq!(replay["updates"][0]["update"]["_ax"]["createdAt"], 1);
+        assert_eq!(replay["updates"][1]["update"]["_ax"]["createdAt"], 2);
         assert!(missing.is_err());
         fs::remove_dir_all(root).unwrap();
     }
