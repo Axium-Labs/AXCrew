@@ -1,0 +1,23 @@
+/target/
+/crew.sqlite3*
+
+# Local AX project identity (per machine)
+/.ax/
+
+# Agent working notes and memory
+/.workbuddy/
+
+# Packaged portable build output
+/dist-pack/
+
+# Packaged installer/binaries copied into repo root
+/AX-Crew*.exe
+
+# Android APK build output anywhere
+**/*.apk
+
+# Runtime logs
+/gateway-restart*.log
+
+# Android UI inspection build artifacts
+/android/uisnoop/

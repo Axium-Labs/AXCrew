@@ -1,0 +1,682 @@
+/* ===== 「连接手机」页面 —— 连接流程优先 ===== */
+.connect-page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 28px 34px 56px;
+}
+
+/* 头部：标题 + 紧凑横向步骤条 */
+.connect-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 22px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.connect-head-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.connect-head-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 13px;
+  background: linear-gradient(135deg, var(--shell-accent), color-mix(in srgb, var(--shell-accent) 55%, #000));
+  color: #fff;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--shell-accent) 26%, transparent);
+}
+.connect-head h1 {
+  margin: 0;
+  font-size: 23px;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.connect-head p {
+  margin: 5px 0 0;
+  color: var(--shell-muted);
+  font-size: 12.5px;
+}
+.connect-steps {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.connect-steps li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--shell-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.connect-steps li b {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--shell-hover);
+  color: var(--shell-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+.connect-steps li.active {
+  color: var(--shell-accent);
+  font-weight: 600;
+}
+.connect-steps li.active b {
+  background: var(--shell-accent);
+  color: #fff;
+}
+.connect-steps li:not(:last-child)::after {
+  content: '';
+  width: 14px;
+  height: 1px;
+  margin: 0 9px;
+  background: var(--shell-border);
+}
+
+/* 主卡片 */
+.connect-card {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* 连接方式切换 */
+.connect-mode-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border: 1px solid var(--shell-border);
+  border-radius: 11px;
+  background: var(--shell-bg);
+}
+.connect-mode-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--shell-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+.connect-mode-tabs button:hover {
+  color: var(--shell-text);
+}
+.connect-mode-tabs button.active {
+  background: var(--shell-accent);
+  color: #fff;
+}
+
+/* 局域网：二维码 + 手动信息 左右两栏 */
+.connect-lan {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+/* 二维码 */
+.connect-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.connect-qr-frame {
+  width: 200px;
+  height: 200px;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-card);
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+.connect-qr-frame img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.connect-qr-frame.placeholder {
+  border-style: dashed;
+  background: var(--shell-input);
+  box-shadow: none;
+}
+.connect-qr-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 6px;
+  color: var(--shell-muted);
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.connect-qr-placeholder p {
+  margin: 0;
+}
+.connect-qr-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--shell-accent);
+  font-size: 12px;
+}
+.connect-qr-sub {
+  margin: 0;
+  color: var(--shell-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* 手动信息 */
+.connect-manual {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.connect-manual > h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 有效期 segmented control */
+.connect-ttl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.connect-ttl > span {
+  flex: none;
+  color: var(--shell-muted);
+  font-size: 12px;
+}
+.connect-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--shell-border);
+  border-radius: 10px;
+  background: var(--shell-bg);
+}
+.connect-seg button {
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--shell-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+.connect-seg button:hover {
+  color: var(--shell-text);
+}
+.connect-seg button.active {
+  background: var(--shell-accent);
+  color: #fff;
+}
+
+/* 主操作按钮行 */
+.connect-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.connect-main-btn {
+  min-height: 34px;
+  padding: 6px 16px;
+  font-size: 13px;
+}
+.connect-copy-btn {
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+
+/* 手动字段（地址 / Token） */
+.connect-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.connect-field > span {
+  color: var(--shell-muted);
+  font-size: 11.5px;
+}
+.connect-field-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.connect-field-value code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  color: var(--shell-text);
+  background: var(--shell-input);
+  border: 1px solid var(--shell-border);
+  border-radius: 9px;
+  padding: 7px 10px;
+}
+.connect-field-value button {
+  flex: none;
+}
+
+.connect-note {
+  margin: 0;
+  color: var(--shell-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* 已签发 Token 折叠区 */
+.connect-issued {
+  margin-top: 16px;
+  border-top: 1px solid var(--shell-border);
+}
+.connect-issued summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 2px;
+  cursor: pointer;
+  color: var(--shell-muted);
+  font-size: 12.5px;
+  list-style: none;
+  user-select: none;
+}
+.connect-issued summary::-webkit-details-marker {
+  display: none;
+}
+.connect-issued summary:hover {
+  color: var(--shell-text);
+}
+.connect-issued summary strong {
+  color: var(--shell-text);
+}
+.connect-issued-hint {
+  color: var(--shell-muted);
+  font-size: 11.5px;
+}
+.connect-issued summary .chev {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  color: var(--shell-muted);
+  transition: transform var(--dur-soft) var(--ease-out);
+}
+.connect-issued[open] summary .chev {
+  transform: rotate(90deg);
+}
+
+.connect-token-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.connect-token-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--shell-border);
+  border-radius: 8px;
+  background: var(--shell-surface, var(--shell-bg));
+  font-size: 12px;
+}
+.connect-token-list code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+  color: var(--shell-text);
+  flex: none;
+}
+.connect-token-state {
+  color: var(--shell-muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+.connect-token-state.dead {
+  color: var(--color-danger, #ef5350);
+}
+.connect-token-copy,
+.connect-token-revoke {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--shell-border);
+  background: transparent;
+  color: var(--shell-muted);
+  cursor: pointer;
+  transition: color var(--dur-soft) var(--ease-soft), border-color var(--dur-soft) var(--ease-soft);
+}
+.connect-token-copy:hover {
+  color: var(--shell-text);
+  border-color: var(--shell-accent);
+}
+.connect-token-revoke:hover {
+  color: var(--color-danger, #ef5350);
+  border-color: var(--color-danger, #ef5350);
+}
+
+/* 远程连接占位 */
+.connect-remote-coming {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 18px;
+  border: 1px dashed var(--shell-border);
+  border-radius: var(--radius-card);
+  color: var(--shell-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 底部帮助折叠 */
+.connect-help {
+  margin-top: 14px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-card);
+  background: var(--shell-panel);
+}
+.connect-help summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  color: var(--shell-muted);
+  font-size: 12.5px;
+  list-style: none;
+  user-select: none;
+}
+.connect-help summary::-webkit-details-marker {
+  display: none;
+}
+.connect-help summary:hover {
+  color: var(--shell-text);
+}
+.connect-help[open] summary {
+  border-bottom: 1px solid var(--shell-border);
+}
+.connect-help ul {
+  margin: 0;
+  padding: 12px 18px 15px 34px;
+  color: var(--shell-muted);
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+.connect-error {
+  margin: 12px 0 0;
+  color: var(--color-danger, #ef5350);
+  font-size: 12px;
+}
+
+/* 响应式：窄窗口二维码 + 信息改为上下布局 */
+@media (max-width: 760px) {
+  .connect-page {
+    padding: 22px 18px 44px;
+  }
+  .connect-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .connect-lan {
+    grid-template-columns: 1fr;
+  }
+  .connect-qr {
+    align-items: center;
+  }
+}
+
+/* ---- 配对流程：短配对码 + 描述 ---- */
+.connect-desc {
+  margin: -6px 0 0;
+  color: var(--shell-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.connect-pair-code {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.connect-pair-code > span {
+  color: var(--shell-muted);
+  font-size: 11.5px;
+}
+.connect-short {
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: 13px !important;
+  color: var(--shell-accent) !important;
+}
+.connect-pair-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.spin {
+  animation: connect-spin 1s linear infinite;
+}
+@keyframes connect-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- 已授权设备列表 ---- */
+.connect-pending-badge {
+  margin-left: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--shell-accent) 18%, transparent);
+  color: var(--shell-accent);
+  font-size: 10.5px;
+}
+.connect-device-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.connect-device {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--shell-border);
+  border-radius: 10px;
+  background: var(--shell-surface, var(--shell-bg));
+  font-size: 12px;
+}
+.connect-device.pending {
+  border-color: color-mix(in srgb, var(--shell-accent) 45%, transparent);
+}
+.connect-device-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--shell-hover);
+  color: var(--shell-text);
+}
+.connect-device-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.connect-device-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 550;
+  color: var(--shell-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.connect-device-sub {
+  color: var(--shell-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.connect-device-state {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.connect-device-state.online {
+  background: rgba(46, 204, 113, 0.16);
+  color: #2ecc71;
+}
+.connect-device-state.offline {
+  background: var(--shell-hover);
+  color: var(--shell-muted);
+}
+.connect-device-state.pending {
+  background: color-mix(in srgb, #f39c12 20%, transparent);
+  color: #f39c12;
+}
+.connect-device-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.connect-device-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--shell-border);
+  background: transparent;
+  color: var(--shell-muted);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: color var(--dur-quick) ease, border-color var(--dur-quick) ease, background-color var(--dur-quick) ease;
+}
+.connect-device-confirm {
+  color: #2ecc71 !important;
+  border-color: rgba(46, 204, 113, 0.4) !important;
+}
+.connect-device-confirm:hover {
+  background: rgba(46, 204, 113, 0.12) !important;
+}
+.connect-device-deny:hover {
+  color: var(--color-danger, #ef5350) !important;
+  border-color: var(--color-danger, #ef5350) !important;
+}
+.connect-device-revoke:hover {
+  color: var(--color-danger, #ef5350) !important;
+  border-color: var(--color-danger, #ef5350) !important;
+}
+
+/* ---- 新设备授权确认弹窗 ---- */
+.connect-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 11, 18, 0.62);
+  backdrop-filter: blur(3px);
+}
+.connect-confirm {
+  width: min(360px, calc(100vw - 48px));
+  padding: 22px;
+  border: 1px solid var(--shell-border);
+  border-radius: 16px;
+  background: var(--shell-panel, var(--shell-bg));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+.connect-confirm-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 12px;
+  border-radius: 13px;
+  background: color-mix(in srgb, #f39c12 18%, transparent);
+  color: #f39c12;
+}
+.connect-confirm h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.connect-confirm-name {
+  margin: 0;
+  font-size: 14px;
+}
+.connect-confirm-sub {
+  margin: 5px 0 0;
+  color: var(--shell-muted);
+  font-size: 12px;
+}
+.connect-confirm-desc {
+  margin: 12px 0 0;
+  color: var(--shell-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.connect-confirm-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  justify-content: center;
+}
+.connect-confirm-actions button {
+  flex: 1;
+  justify-content: center;
+  padding: 8px 12px;
+  font-size: 12.5px;
+}
+.connect-confirm-allow {
+  color: #fff;
+}
