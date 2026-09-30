@@ -645,17 +645,25 @@ const loginCopy:Record<string,[string,string]>={
  'failed':['登录未完成或已过期，请重新尝试。','Sign-in failed or expired. Try again.'],'close':['完成','Done'],
 }
 for(const [key,values] of Object.entries(loginCopy)){zh['login.'+key]=values[0];en['login.'+key]=values[1]}
+const newCopy:Record<string,[string,string]>={
+ 'login.openBrowser':['打开浏览器','Open browser'],'login.copied':['已复制','Copied'],'login.retry':['重试登录','Retry sign-in'],
+ 'settings.removeProvider':['移除提供商','Remove provider'],'settings.language':['语言','Language'],
+ 'session.permanentDelete':['永久删除','Delete permanently'],'session.deleteHint':['会话和所有消息将被永久删除，无法恢复。','The conversation and all messages will be permanently deleted. This cannot be undone.'],
+ 'settings.usage':['用量统计','Usage'],'usage.note':['统计本机 AX 已保存回复的实际用量；不估算旧记录、Fast 取消请求及内部请求的 token。套餐额度与费用未提供。','Reported usage of saved local AX responses. Missing historical tokens, cancelled Fast requests and internal requests are not estimated. Plan quotas and costs are unavailable.'],
+ 'usage.tokens':['Token 用量','Token usage'],'usage.messages':['消息','Messages'],'usage.tools':['工具活动','Tool activity'],'usage.skills':['已使用技能','Skills used'],
+ 'usage.model':['按模型','By model'],'usage.client':['按使用端','By client'],'usage.ranking':['会话用量排行','Conversation usage'],
+ 'usage.input':['输入','Input'],'usage.output':['输出','Output'],'usage.cached':['缓存输入','Cached input'],'usage.more':['显示更多','Show more'],
+ 'usage.empty':['暂无用量记录','No usage records yet'],'usage.unreported':['未报告 token 用量','Token usage unreported'],
+};
+for(const [key,values] of Object.entries(newCopy)){zh[key]=values[0];en[key]=values[1]}
 export const dictionaries: Record<Lang, Record<string, string>> = { zh, en }
 
 export type LangState = { lang: Lang; setLang: (lang: Lang) => void; toggleLang: () => void }
 
-const systemLang = (): Lang =>
-  typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en') ? 'en' : 'zh'
-
 export const useLang = create<LangState>()(
   persist(
     set => ({
-      lang: systemLang(),
+      lang: 'en',
       setLang: lang => set({ lang }),
       toggleLang: () => set(state => ({ lang: state.lang === 'zh' ? 'en' : 'zh' })),
     }),

@@ -13,18 +13,18 @@ use crate::{
     transport::{DeviceRouter, LocalTransport},
 };
 use anyhow::Result;
-use base64::{Engine, engine::general_purpose::STANDARD};
 use axum::{
-    extract::DefaultBodyLimit,
     Json, Router,
+    extract::DefaultBodyLimit,
     extract::{
         Path, Query, State, WebSocketUpgrade,
         ws::{Message, WebSocket},
     },
     http::{HeaderMap, Method, StatusCode, header},
     response::{IntoResponse, Response},
-    routing::{get, post, delete},
+    routing::{delete, get, post},
 };
+use base64::{Engine, engine::general_purpose::STANDARD};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -74,9 +74,9 @@ impl TokenStore {
     }
     fn valid(&self, value: &str) -> bool {
         let now = Self::now();
-        self.records
-            .iter()
-            .any(|record| record.value == value && record.expires_at.map(|end| end > now).unwrap_or(true))
+        self.records.iter().any(|record| {
+            record.value == value && record.expires_at.map(|end| end > now).unwrap_or(true)
+        })
     }
     fn prune(&mut self) {
         let now = Self::now();
@@ -201,17 +201,18 @@ async fn main() -> Result<()> {
         .route("/api/permissions", get(pending_permissions))
         .route("/api/sessions", get(sessions).post(create_session))
         .route("/api/sessions/attach", post(attach_session))
-        .route("/api/sessions/{id}", get(session))
+        .route("/api/sessions/{id}", get(session).delete(delete_session))
         .route("/api/sessions/{id}/history", get(session_history))
         .route("/api/sessions/{id}/resume", post(resume_session))
         .route("/api/sessions/{id}/message", post(session_message))
         .route("/api/ax/local", get(local_ax_overview))
-        .route("/api/ax/local/{session}", get(local_ax_session))
-        .route("/api/automations", get(automations).post(create_automation))
+        .route("/api/usage", get(usage))
         .route(
-            "/api/automations/runs",
-            get(automation_runs),
+            "/api/ax/local/{session}",
+            get(local_ax_session).delete(delete_local_session),
         )
+        .route("/api/automations", get(automations).post(create_automation))
+        .route("/api/automations/runs", get(automation_runs))
         .route(
             "/api/automations/{id}",
             axum::routing::put(update_automation).delete(delete_automation),
@@ -226,10 +227,19 @@ async fn main() -> Result<()> {
         .route("/api/pairing/client/redeem", post(redeem_client_pairing))
         .route("/api/pairing/client/status", post(claim_client_credential))
         .route("/api/authorizations", get(list_client_authorizations))
-        .route("/api/authorizations/pending", get(pending_client_authorizations))
-        .route("/api/authorizations/{id}/confirm", post(confirm_client_device))
+        .route(
+            "/api/authorizations/pending",
+            get(pending_client_authorizations),
+        )
+        .route(
+            "/api/authorizations/{id}/confirm",
+            post(confirm_client_device),
+        )
         .route("/api/authorizations/{id}/deny", post(deny_client_device))
-        .route("/api/authorizations/{id}", delete(revoke_client_authorization))
+        .route(
+            "/api/authorizations/{id}",
+            delete(revoke_client_authorization),
+        )
         .route("/api/tokens", get(list_tokens).post(create_token))
         .route("/api/tokens/{value}", delete(revoke_token))
         .route("/api/xfy", get(xfy_get).post(xfy_set))
@@ -593,13 +603,14 @@ async fn attach_session(
         input: json!({"imported":true,"ax_session_id":body.ax_session_id}),
     })?;
     app.db.bind(&task, &body.ax_session_id)?;
-    app.db
-        .set_status(&task.id, "completed", Some(json!({"text":"","imported":true})))?;
-    Ok(Json(
-        app.db
-            .task(&task.id)?
-            .ok_or_else(|| ApiError(anyhow::anyhow!("imported session missing")))?,
-    ))
+    app.db.set_status(
+        &task.id,
+        "completed",
+        Some(json!({"text":"","imported":true})),
+    )?;
+    Ok(Json(app.db.task(&task.id)?.ok_or_else(|| {
+        ApiError(anyhow::anyhow!("imported session missing"))
+    })?))
 }
 /// Local AX stores discovered on this machine, newest session first.
 async fn local_ax_overview(State(app): State<App>, headers: HeaderMap) -> Api<Value> {
@@ -608,7 +619,13 @@ async fn local_ax_overview(State(app): State<App>, headers: HeaderMap) -> Api<Va
         .db
         .tasks()?
         .into_iter()
-        .filter_map(|task| app.db.binding(&task.id).ok().flatten().map(|session| (session, task.id)))
+        .filter_map(|task| {
+            app.db
+                .binding(&task.id)
+                .ok()
+                .flatten()
+                .map(|session| (session, task.id))
+        })
         .collect::<std::collections::HashMap<_, _>>();
     let mut projects = Vec::new();
     for project in local_ax::projects() {
@@ -655,11 +672,22 @@ struct NewSession {
     files: Vec<ComposerFile>,
 }
 #[derive(Deserialize)]
-struct ComposerImage { name: String, mime: String, data: String }
+struct ComposerImage {
+    name: String,
+    mime: String,
+    data: String,
+}
 
-fn save_images(cwd: &str, images: Vec<ComposerImage>) -> std::result::Result<Vec<String>, ApiError> {
-    if images.len() > 4 { return Err(ApiError(anyhow::anyhow!("attach up to four images"))); }
-    if images.is_empty() { return Ok(Vec::new()); }
+fn save_images(
+    cwd: &str,
+    images: Vec<ComposerImage>,
+) -> std::result::Result<Vec<String>, ApiError> {
+    if images.len() > 4 {
+        return Err(ApiError(anyhow::anyhow!("attach up to four images")));
+    }
+    if images.is_empty() {
+        return Ok(Vec::new());
+    }
     let root = fs::canonicalize(cwd)?;
     let folder = root.join(".ax").join("crew-attachments");
     fs::create_dir_all(&folder)?;
@@ -683,7 +711,10 @@ fn save_images(cwd: &str, images: Vec<ComposerImage>) -> std::result::Result<Vec
     }).collect()
 }
 #[derive(Deserialize)]
-struct ComposerFile { name: String, data: String }
+struct ComposerFile {
+    name: String,
+    data: String,
+}
 
 fn save_files(cwd: &str, files: Vec<ComposerFile>) -> std::result::Result<Vec<String>, ApiError> {
     if files.len() > 4 { return Err(ApiError(anyhow::anyhow!("attach up to four files"))); }
@@ -691,21 +722,60 @@ fn save_files(cwd: &str, files: Vec<ComposerFile>) -> std::result::Result<Vec<St
     let root = fs::canonicalize(cwd)?;
     let folder = root.join(".ax").join("crew-attachments");
     fs::create_dir_all(&folder)?;
-    if !fs::canonicalize(&folder)?.starts_with(&root) { return Err(ApiError(anyhow::anyhow!("attachment directory escapes workspace"))); }
-    let validated = files.into_iter().map(|file| {
-        if file.data.len() > 11_000_000 { return Err(ApiError(anyhow::anyhow!("file is too large"))); }
-        let bytes = STANDARD.decode(&file.data)?;
-        if bytes.len() > 8 * 1024 * 1024 { return Err(ApiError(anyhow::anyhow!("file is too large"))); }
-        let name: String = file.name.chars().filter(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | '_')).take(80).collect();
-        Ok((format!("{}-{}", uuid::Uuid::new_v4(), if name.is_empty() { "attachment" } else { &name }), bytes))
-    }).collect::<std::result::Result<Vec<_>, ApiError>>()?;
-    validated.into_iter().map(|(name, bytes)| {
-        fs::OpenOptions::new().write(true).create_new(true).open(folder.join(&name)).and_then(|mut f| std::io::Write::write_all(&mut f, &bytes))?;
-        Ok(format!(".ax/crew-attachments/{name}"))
-    }).collect()
+    if !fs::canonicalize(&folder)?.starts_with(&root) {
+        return Err(ApiError(anyhow::anyhow!(
+            "attachment directory escapes workspace"
+        )));
+    }
+    let validated = files
+        .into_iter()
+        .map(|file| {
+            if file.data.len() > 11_000_000 {
+                return Err(ApiError(anyhow::anyhow!("file is too large")));
+            }
+            let bytes = STANDARD.decode(&file.data)?;
+            if bytes.len() > 8 * 1024 * 1024 {
+                return Err(ApiError(anyhow::anyhow!("file is too large")));
+            }
+            let name: String = file
+                .name
+                .chars()
+                .filter(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | '_'))
+                .take(80)
+                .collect();
+            Ok((
+                format!(
+                    "{}-{}",
+                    uuid::Uuid::new_v4(),
+                    if name.is_empty() { "attachment" } else { &name }
+                ),
+                bytes,
+            ))
+        })
+        .collect::<std::result::Result<Vec<_>, ApiError>>()?;
+    validated
+        .into_iter()
+        .map(|(name, bytes)| {
+            fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(folder.join(&name))
+                .and_then(|mut f| std::io::Write::write_all(&mut f, &bytes))?;
+            Ok(format!(".ax/crew-attachments/{name}"))
+        })
+        .collect()
 }
-fn session_input(text: String, permission_profile: Option<String>, reasoning_effort: Option<&str>, images: Vec<ComposerImage>, files: Vec<ComposerFile>, cwd: &str) -> std::result::Result<Value, ApiError> {
-    if images.len() + files.len() > 4 { return Err(ApiError(anyhow::anyhow!("attach up to four items"))); }
+fn session_input(
+    text: String,
+    permission_profile: Option<String>,
+    reasoning_effort: Option<&str>,
+    images: Vec<ComposerImage>,
+    files: Vec<ComposerFile>,
+    cwd: &str,
+) -> std::result::Result<Value, ApiError> {
+    if images.len() + files.len() > 4 {
+        return Err(ApiError(anyhow::anyhow!("attach up to four items")));
+    }
     let file_paths = save_files(cwd, files)?;
     let image_paths = save_images(cwd, images)?;
     let mut prompt = text.clone();
@@ -718,7 +788,9 @@ fn session_input(text: String, permission_profile: Option<String>, reasoning_eff
         for path in &file_paths { prompt.push_str(&format!("- {path}\n")); }
     }
     match permission_profile.as_deref() {
-        None if image_paths.is_empty() && file_paths.is_empty() && reasoning_effort.is_none() => Ok(json!(text)),
+        None if image_paths.is_empty() && file_paths.is_empty() && reasoning_effort.is_none() => {
+            Ok(json!(text))
+        }
         None | Some("ask" | "read" | "trust" | "yolo") => {
             let mut input = json!({"prompt":prompt,"display_text":text,"image_paths":image_paths,"file_paths":file_paths,"permission_profile":permission_profile});
             if let Some(effort) = reasoning_effort {
@@ -746,7 +818,13 @@ async fn create_session(
     } else if body.cwd.is_some() || body.provider.is_some() || body.model.is_some() {
         let cwd = body.cwd.as_deref().filter(|value| !value.trim().is_empty())
             .map(str::to_owned)
-            .or_else(|| app.db.default_session_member().ok().flatten().map(|member| member.cwd))
+            .or_else(|| {
+                app.db
+                    .default_session_member()
+                    .ok()
+                    .flatten()
+                    .map(|member| member.cwd)
+            })
             .ok_or_else(|| ApiError(anyhow::anyhow!("workspace not configured")))?;
         app.db.ensure_local_session_member(&cwd, body.provider.as_deref(), body.model.as_deref())?
     } else {
@@ -760,13 +838,26 @@ async fn create_session(
         title: body
             .title
             .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| if body.text.trim().is_empty() {"图片".into()} else {body.text.chars().take(60).collect()}),
+            .unwrap_or_else(|| {
+                if body.text.trim().is_empty() {
+                    "图片".into()
+                } else {
+                    body.text.chars().take(60).collect()
+                }
+            }),
         description: String::new(),
         assigned_member: member.id,
         parent_id: None,
         dependencies: vec![],
         priority: 0,
-        input: session_input(body.text, body.permission_profile, body.reasoning_effort.as_deref(), body.images, body.files, &member.cwd)?,
+        input: session_input(
+            body.text,
+            body.permission_profile,
+            body.reasoning_effort.as_deref(),
+            body.images,
+            body.files,
+            &member.cwd,
+        )?,
     })?;
     Ok(Json(app.scheduler.start(&task.id)?))
 }
@@ -796,6 +887,88 @@ async fn session_context(
         .binding(id)?
         .ok_or_else(|| ApiError(anyhow::anyhow!("AX session not bound yet")))?;
     Ok((task, member, ax_id))
+}
+async fn delete_session(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Api<Value> {
+    authorize(&app, &headers)?;
+    let (task, member, ax_id) = session_context(&app, &id).await?;
+    app.db.session_tasks(&task.assigned_device, &ax_id)?;
+    let inspected = app
+        .router
+        .inspect(
+            &task.assigned_device,
+            &member.cwd,
+            member.provider.as_deref(),
+            member.model.as_deref(),
+            "session/delete",
+            json!({"sessionId":ax_id,"cwd":member.cwd}),
+        )
+        .await?;
+    if inspected.result["deleted"] != true && (task.assigned_device != "local" || local_ax::project_of(&ax_id).is_some()) { return Err(ApiError(anyhow::anyhow!("AX session was not deleted; update AX and verify its workspace"))); }
+    app.db.delete_session_tasks(&task.assigned_device, &ax_id)?;
+    Ok(Json(json!({"deleted":true})))
+}
+async fn delete_local_session(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Api<Value> {
+    authorize(&app, &headers)?;
+    uuid::Uuid::parse_str(&id).map_err(|e| ApiError(e.into()))?;
+    app.db.session_tasks("local", &id)?;
+    let project = local_ax::project_of(&id)
+        .ok_or_else(|| ApiError(anyhow::anyhow!("local session not found")))?;
+    let inspected = app
+        .router
+        .inspect(
+            "local",
+            &project.root,
+            None,
+            None,
+            "session/delete",
+            json!({"sessionId":id,"cwd":project.root}),
+        )
+        .await?;
+    if inspected.result["deleted"] != true {
+        return Err(ApiError(anyhow::anyhow!(
+            "AX session was not deleted; update AX and verify its workspace"
+        )));
+    }
+    app.db.delete_session_tasks("local", &id)?;
+    Ok(Json(json!({"deleted":true})))
+}
+async fn usage(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Query(query): Query<HashMap<String, String>>,
+) -> Api<Value> {
+    authorize(&app, &headers)?;
+    let days = query
+        .get("days")
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(7)
+        .clamp(1, 30);
+    let offset = query
+        .get("offset")
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(0)
+        .clamp(-840, 840);
+    let mut crew = std::collections::HashSet::new();
+    for task in app.db.tasks()? {
+        if task.assigned_device == "local" {
+            if let Some(id) = app.db.binding(&task.id)? {
+                crew.insert(id);
+            }
+        }
+    }
+    Ok(Json(
+        tokio::task::spawn_blocking(move || local_ax::usage(days, offset, &crew))
+            .await
+            .map_err(|e| ApiError(e.into()))??,
+    ))
 }
 async fn session_history(
     State(app): State<App>,
@@ -878,7 +1051,14 @@ async fn session_message(
         parent_id: Some(id),
         dependencies: vec![],
         priority: parent.priority,
-        input: session_input(body.text, body.permission_profile, None, body.images, body.files, &member.cwd)?,
+        input: session_input(
+            body.text,
+            body.permission_profile,
+            None,
+            body.images,
+            body.files,
+            &member.cwd,
+        )?,
     })?;
     app.db.bind(&followup, &ax_id)?;
     Ok(Json(app.scheduler.start(&followup.id)?))
@@ -1189,7 +1369,10 @@ async fn list_client_authorizations(State(app): State<App>, headers: HeaderMap) 
         "authorized": app.db.client_authorizations()?,
     })))
 }
-async fn pending_client_authorizations(State(app): State<App>, headers: HeaderMap) -> Api<Vec<db::AuthorizedClient>> {
+async fn pending_client_authorizations(
+    State(app): State<App>,
+    headers: HeaderMap,
+) -> Api<Vec<db::AuthorizedClient>> {
     authorize(&app, &headers)?;
     Ok(Json(app.db.pending_client_authorizations()?))
 }
@@ -1242,7 +1425,19 @@ mod attachment_tests {
     fn uploaded_files_stay_in_workspace_and_keep_permission_mode() {
         let root = std::env::temp_dir().join(format!("crew-files-test-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&root).unwrap();
-        let result = session_input("review".into(), Some("ask".into()), None, vec![], vec![ComposerFile { name: "../../report.txt".into(), data: STANDARD.encode(b"test content") }], root.to_str().unwrap()).map_err(|e| e.0).unwrap();
+        let result = session_input(
+            "review".into(),
+            Some("ask".into()),
+            None,
+            vec![],
+            vec![ComposerFile {
+                name: "../../report.txt".into(),
+                data: STANDARD.encode(b"test content"),
+            }],
+            root.to_str().unwrap(),
+        )
+        .map_err(|e| e.0)
+        .unwrap();
         assert_eq!(result["permission_profile"], "ask");
         let relative = result["file_paths"][0].as_str().unwrap();
         assert!(relative.starts_with(".ax/crew-attachments/"));
@@ -1253,7 +1448,16 @@ mod attachment_tests {
     }
     #[test]
     fn reasoning_effort_is_injected_into_session_input() {
-        let input = session_input("deep dive".into(), Some("ask".into()), Some("high"), vec![], vec![], "unused").map_err(|e| e.0).unwrap();
+        let input = session_input(
+            "deep dive".into(),
+            Some("ask".into()),
+            Some("high"),
+            vec![],
+            vec![],
+            "unused",
+        )
+        .map_err(|e| e.0)
+        .unwrap();
         assert_eq!(input["reasoning_effort"], "high");
         assert_eq!(input["permission_profile"], "ask");
         let plain = session_input("hello".into(), None, None, vec![], vec![], "unused").map_err(|e| e.0).unwrap();

@@ -80,3 +80,11 @@
 .settings-secret{display:flex;align-items:center;gap:6px}.settings-secret input{flex:1;min-width:0}.settings-secret button{flex:none;display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--shell-border);border-radius:8px;background:transparent;color:inherit}
 
 .settings-oauth-url{display:flex;flex-direction:column;gap:12px;margin:18px 0}.settings-oauth-url a{overflow-wrap:anywhere;color:var(--shell-accent);display:flex;gap:8px;align-items:flex-start}.settings-oauth-url svg{flex:none}.settings-oauth-url button{display:flex;gap:8px;align-items:center;align-self:flex-start;padding:8px 12px;border:1px solid var(--shell-border);border-radius:8px;background:var(--shell-active);color:inherit}
+
+.settings-workspace{container-type:inline-size;grid-template-columns:clamp(180px,20%,236px) minmax(0,1fr)}
+.settings-main{width:100%;max-width:1180px;justify-self:center;padding:clamp(18px,3vw,42px)}
+.settings-stack{width:100%;max-width:960px;margin-inline:auto}
+.settings-page-top{flex-wrap:wrap}.settings-search{width:240px;max-width:100%}
+.settings-provider-list>div{flex-wrap:wrap}.settings-provider-list span{min-width:180px;overflow-wrap:anywhere}
+@container(max-width:760px){.settings-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.settings-overview-grid{grid-template-columns:1fr}.settings-field{flex-wrap:wrap}.settings-field input{width:100%;max-width:none}.settings-main{padding:18px}.settings-page-top h1{font-size:20px}}
+@media(max-width:1000px){.settings-workspace{grid-template-columns:180px minmax(0,1fr)}}

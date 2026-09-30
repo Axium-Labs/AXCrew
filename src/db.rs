@@ -478,7 +478,12 @@ impl Db {
         }
         Ok(None)
     }
-    pub fn ensure_local_session_member(&self, cwd: &str, provider: Option<&str>, model: Option<&str>) -> Result<Member> {
+    pub fn ensure_local_session_member(
+        &self,
+        cwd: &str,
+        provider: Option<&str>,
+        model: Option<&str>,
+    ) -> Result<Member> {
         let directory = Path::new(cwd);
         if !directory.is_absolute() || !directory.is_dir() {
             return Err(anyhow!("工作目录不存在或不是绝对路径：{cwd}。请重新选择一个现有文件夹；消息内容已保留。"));
@@ -496,7 +501,10 @@ impl Db {
             return member(&tx, &id)?.ok_or_else(|| anyhow!("local environment missing"));
         }
         let crew_id = "ax-local";
-        tx.execute("INSERT OR IGNORE INTO crews(id,name) VALUES(?1,'本地 AX')", [crew_id])?;
+        tx.execute(
+            "INSERT OR IGNORE INTO crews(id,name) VALUES(?1,'本地 AX')",
+            [crew_id],
+        )?;
         let id = Uuid::new_v4().to_string();
         tx.execute("INSERT INTO crew_members(id,crew_id,name,role,device_id,cwd,provider,model,skills_json,mcp_servers_json,permission_profile,max_concurrency) VALUES(?1,?2,'AX','本地运行环境','local',?3,?4,?5,'[]','[]','ask',1)", params![id,crew_id,cwd,provider,model])?;
         tx.commit()?;
@@ -646,6 +654,77 @@ impl Db {
         tx.commit()?;
         Ok(updated)
     }
+    pub fn session_tasks(&self, device: &str, session: &str) -> Result<Vec<Task>> {
+        let tasks = self.tasks()?;
+        let mut group = Vec::new();
+        for task in &tasks {
+            if task.assigned_device == device && self.binding(&task.id)?.as_deref() == Some(session)
+            {
+                group.push(task.clone());
+            }
+        }
+        if group.iter().any(|t| {
+            matches!(
+                t.status.as_str(),
+                "pending" | "ready" | "running" | "waiting_permission" | "waiting_user"
+            )
+        }) {
+            return Err(anyhow!("active session cannot be deleted"));
+        }
+        let ids = group
+            .iter()
+            .map(|t| t.id.as_str())
+            .collect::<std::collections::HashSet<_>>();
+        if tasks.iter().any(|t| {
+            !ids.contains(t.id.as_str())
+                && (t.parent_id.as_deref().is_some_and(|p| ids.contains(p))
+                    || t.dependencies.iter().any(|d| ids.contains(d.as_str())))
+        }) {
+            return Err(anyhow!("session has external dependent tasks"));
+        }
+        Ok(group)
+    }
+    pub fn delete_session_tasks(&self, device: &str, session: &str) -> Result<()> {
+        let group = self.session_tasks(device, session)?;
+        let mut db = self.0.lock().unwrap();
+        let tx = db.transaction()?;
+        for task in &group {
+            let status: String =
+                tx.query_row("SELECT status FROM tasks WHERE id=?1", [&task.id], |r| {
+                    r.get(0)
+                })?;
+            if matches!(
+                status.as_str(),
+                "pending" | "ready" | "running" | "waiting_permission" | "waiting_user"
+            ) {
+                return Err(anyhow!("active session cannot be deleted"));
+            }
+            tx.execute("DELETE FROM events WHERE task_id=?1", [&task.id])?;
+            tx.execute("DELETE FROM session_bindings WHERE task_id=?1", [&task.id])?;
+            tx.execute("DELETE FROM task_runs WHERE task_id=?1", [&task.id])?;
+            tx.execute(
+                "DELETE FROM task_dependencies WHERE task_id=?1 OR depends_on_id=?1",
+                [&task.id],
+            )?;
+            tx.execute(
+                "UPDATE automation_runs SET task_id=NULL WHERE task_id=?1",
+                [&task.id],
+            )?;
+        }
+        tx.execute(
+            "DELETE FROM events WHERE session_id=?1 AND device_id=?2",
+            params![session, device],
+        )?;
+        // Parent references are cleared together before removing the whole conversation.
+        for task in &group {
+            tx.execute("UPDATE tasks SET parent_id=NULL WHERE id=?1", [&task.id])?;
+        }
+        for task in &group {
+            tx.execute("DELETE FROM tasks WHERE id=?1", [&task.id])?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
     pub fn delete_task(&self, id: &str) -> Result<()> {
         let mut db = self.0.lock().unwrap();
         let tx = db.transaction()?;
@@ -780,11 +859,9 @@ impl Db {
         {
             return Err(anyhow!("time must use HH:MM"));
         }
-        if body
-            .weekdays
-            .split(',')
-            .any(|day| !day.trim().is_empty() && !(1..=7).contains(&day.trim().parse::<i64>().unwrap_or(0)))
-        {
+        if body.weekdays.split(',').any(|day| {
+            !day.trim().is_empty() && !(1..=7).contains(&day.trim().parse::<i64>().unwrap_or(0))
+        }) {
             return Err(anyhow!("weekdays must be numbers from 1 to 7"));
         }
         if !matches!(body.approval.as_str(), "default" | "auto" | "ask") {
@@ -881,11 +958,10 @@ impl Db {
         self.automation(id)?.ok_or_else(|| anyhow!("schedule missing"))
     }
     pub fn set_automation_enabled(&self, id: &str, enabled: bool) -> Result<Automation> {
-        let changed = self
-            .0
-            .lock()
-            .unwrap()
-            .execute("UPDATE automations SET enabled=?2 WHERE id=?1", params![id, enabled])?;
+        let changed = self.0.lock().unwrap().execute(
+            "UPDATE automations SET enabled=?2 WHERE id=?1",
+            params![id, enabled],
+        )?;
         if changed == 0 {
             return Err(anyhow!("schedule not found"));
         }
@@ -901,18 +977,28 @@ impl Db {
             current.utc_offset_minutes,
             unix_now(),
         );
-        self.0
-            .lock()
-            .unwrap()
-            .execute("UPDATE automations SET next_run_at=?2 WHERE id=?1", params![id, next])?;
-        self.automation(id)?.ok_or_else(|| anyhow!("schedule missing"))
+        self.0.lock().unwrap().execute(
+            "UPDATE automations SET next_run_at=?2 WHERE id=?1",
+            params![id, next],
+        )?;
+        self.automation(id)?
+            .ok_or_else(|| anyhow!("schedule missing"))
     }
-    pub fn start_automation_run(&self, automation_id: &str, task_id: Option<&str>) -> Result<String> {
+    pub fn start_automation_run(
+        &self,
+        automation_id: &str,
+        task_id: Option<&str>,
+    ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         self.0.lock().unwrap().execute("INSERT INTO automation_runs(id,automation_id,task_id,status,started_at) VALUES(?1,?2,?3,'running',unixepoch())",params![id,automation_id,task_id])?;
         Ok(id)
     }
-    pub fn finish_automation_run(&self, automation_id: &str, status: &str, detail: &str) -> Result<()> {
+    pub fn finish_automation_run(
+        &self,
+        automation_id: &str,
+        status: &str,
+        detail: &str,
+    ) -> Result<()> {
         self.0.lock().unwrap().execute("UPDATE automation_runs SET status=?2,finished_at=unixepoch(),detail=?3 WHERE id=(SELECT id FROM automation_runs WHERE automation_id=?1 ORDER BY started_at DESC,rowid DESC LIMIT 1)",params![automation_id,status,detail])?;
         Ok(())
     }
@@ -941,10 +1027,19 @@ impl Db {
             "INSERT INTO client_pairings(code_hash,expires_at) VALUES(?1,unixepoch()+300)",
             [hash],
         )?;
-        Ok(ClientPairingInfo { code, short_code: short, expires_at: unix_now() + 300 })
+        Ok(ClientPairingInfo {
+            code,
+            short_code: short,
+            expires_at: unix_now() + 300,
+        })
     }
     /// 手机提交配对码：标记为待桌面确认，返回临时 device_id（配对码一次性）。
-    pub fn redeem_client_pairing(&self, code: &str, name: &str, platform: &str) -> Result<ClientRedeem> {
+    pub fn redeem_client_pairing(
+        &self,
+        code: &str,
+        name: &str,
+        platform: &str,
+    ) -> Result<ClientRedeem> {
         let hash = format!("{:x}", Sha256::digest(code.as_bytes()));
         let mut db = self.0.lock().unwrap();
         let tx = db.transaction()?;
@@ -957,7 +1052,10 @@ impl Db {
             return Err(anyhow!("配对码无效、已过期或已被使用"));
         }
         tx.commit()?;
-        Ok(ClientRedeem { status: "pending".into(), device_id })
+        Ok(ClientRedeem {
+            status: "pending".into(),
+            device_id,
+        })
     }
     pub fn pending_client_authorizations(&self) -> Result<Vec<AuthorizedClient>> {
         let db = self.0.lock().unwrap();
@@ -1007,7 +1105,13 @@ impl Db {
         let row: (String, String, i64) = tx.query_row(
             "SELECT name,platform,used_at FROM client_pairings WHERE device_id=?1",
             [device_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get::<_, Option<i64>>(2)?.unwrap_or(0))),
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get::<_, Option<i64>>(2)?.unwrap_or(0),
+                ))
+            },
         )?;
         tx.execute(
             "INSERT OR REPLACE INTO client_authorizations(device_id,name,platform,credential_hash,created_at,last_active) VALUES(?1,?2,?3,?4,?5,unixepoch())",
@@ -1017,11 +1121,10 @@ impl Db {
         Ok(credential)
     }
     pub fn deny_client_device(&self, device_id: &str) -> Result<()> {
-        let changed = self
-            .0
-            .lock()
-            .unwrap()
-            .execute("UPDATE client_pairings SET status='denied' WHERE device_id=?1 AND status='pending'", [device_id])?;
+        let changed = self.0.lock().unwrap().execute(
+            "UPDATE client_pairings SET status='denied' WHERE device_id=?1 AND status='pending'",
+            [device_id],
+        )?;
         if changed == 0 {
             return Err(anyhow!("授权请求不存在或已处理"));
         }
@@ -1040,7 +1143,9 @@ impl Db {
             .optional()?;
         match row {
             None => Err(anyhow!("配对码已失效，请刷新后重新扫码")),
-            Some((_, _, expires)) if expires <= unix_now() => Err(anyhow!("配对码已过期，请刷新后重新扫码")),
+            Some((_, _, expires)) if expires <= unix_now() => {
+                Err(anyhow!("配对码已过期，请刷新后重新扫码"))
+            }
             Some((status, _, _)) if status == "denied" => Err(anyhow!("配对请求已被拒绝")),
             Some((_, pending, _)) => {
                 if let Some(credential) = pending {
@@ -1213,6 +1318,49 @@ fn task(db: &Connection, id: &str) -> Result<Option<Task>> {
 #[cfg(test)]
 mod workspace_tests {
     use super::*;
+    #[test]
+    fn permanent_session_deletion_removes_all_turns_and_rejects_active_or_external_dependents() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(include_str!("schema.sql"))
+            .unwrap();
+        let db = Db(Arc::new(Mutex::new(connection)));
+        db.bootstrap_local("test", "test").unwrap();
+        let cwd = std::env::current_dir()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let member = db.ensure_local_session_member(&cwd, None, None).unwrap();
+        let make = |parent: Option<String>| {
+            db.create_task(NewTask {
+                crew_id: member.crew_id.clone(),
+                title: "turn".into(),
+                description: String::new(),
+                assigned_member: member.id.clone(),
+                parent_id: parent,
+                dependencies: vec![],
+                priority: 0,
+                input: json!({}),
+            })
+            .unwrap()
+        };
+        let first = make(None);
+        db.bind(&first, "session").unwrap();
+        assert!(db.delete_session_tasks("local", "session").is_err());
+        db.set_status(&first.id, "completed", None).unwrap();
+        let child = make(Some(first.id.clone()));
+        db.bind(&child, "session").unwrap();
+        db.set_status(&child.id, "completed", None).unwrap();
+        let external = make(Some(child.id.clone()));
+        db.set_status(&external.id, "completed", None).unwrap();
+        assert!(db.delete_session_tasks("local", "session").is_err());
+        assert!(db.task(&first.id).unwrap().is_some());
+        db.delete_task(&external.id).unwrap();
+        db.delete_session_tasks("local", "session").unwrap();
+        assert!(db.task(&first.id).unwrap().is_none());
+        assert!(db.task(&child.id).unwrap().is_none());
+        assert!(db.binding(&first.id).unwrap().is_none());
+    }
     #[test]
     fn local_default_skips_missing_workspaces_without_rewriting_history() {
         let connection = Connection::open_in_memory().unwrap();

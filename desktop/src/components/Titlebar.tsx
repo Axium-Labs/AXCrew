@@ -1,7 +1,7 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Copy, Languages, Menu, Minus, ScanLine, Square, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Copy, Minus, ScanLine, Square, X } from 'lucide-react'
 import { useLang, useT , translate} from '../lib/i18n'
 
 type Props = {
@@ -19,13 +19,11 @@ type Props = {
 
 const desktopWindow = isTauri() ? getCurrentWindow() : null
 
-export function Titlebar({sidebarExpanded,canGoBack,canGoForward,focus,hidden,onFocus,onMenu,onBack,onForward,onCommand}: Props) {
+export function Titlebar({canGoBack,canGoForward,focus,hidden,onFocus,onBack,onForward,onCommand}: Props) {
   useLang(state=>state.lang);
 
   const [maximized, setMaximized] = useState(false)
   const t = useT()
-  const lang = useLang(state => state.lang)
-  const toggleLang = useLang(state => state.toggleLang)
 
   useEffect(() => {
     if (!desktopWindow) return
@@ -60,12 +58,9 @@ export function Titlebar({sidebarExpanded,canGoBack,canGoForward,focus,hidden,on
 
   return <header className="shell-titlebar" onMouseDown={handleTitlebarMouseDown} inert={hidden||undefined} aria-label={translate("english.151")}>
     <div className="shell-titlebar-left">
-      <button className="shell-icon-button" aria-label={sidebarExpanded?t('titlebar.collapseNav'):t('titlebar.expandNav')} aria-expanded={sidebarExpanded} title={sidebarExpanded?t('titlebar.collapseNav'):t('titlebar.expandNav')} onClick={onMenu}><Menu size={18}/></button>
       <button className="shell-icon-button" aria-label={t('titlebar.back')} title={t('titlebar.back')} disabled={!canGoBack} onClick={onBack}><ArrowLeft size={18}/></button>
       <button className="shell-icon-button" aria-label={t('titlebar.forward')} title={t('titlebar.forward')} disabled={!canGoForward} onClick={onForward}><ArrowRight size={18}/></button>
-      <button className="shell-lang-button" type="button" aria-label={t('titlebar.switchTo')} title={t('titlebar.switchTo')} onClick={toggleLang}>
-        <Languages size={15}/><span>{lang === 'zh' ? 'EN' : '中'}</span>
-      </button>
+
     </div>
     <div className="shell-titlebar-center">
       <button className="shell-command-input" aria-label={t('titlebar.runCommand')} onClick={onCommand}>{t('titlebar.runCommand')}</button>

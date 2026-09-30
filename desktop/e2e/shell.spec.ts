@@ -480,7 +480,9 @@ test('settings separates connections and system and switches both languages',asy
   await expect(page).toHaveURL(/settings\/system/)
   await expect(page.getByText('桌面行为')).toBeVisible()
   await expect(page.getByText('公共网关 URL')).toHaveCount(0)
-  await page.getByRole('button',{name:'切换到英文'}).click()
+  await page.getByRole('button',{name:'显示',exact:true}).click()
+  await page.getByLabel('语言').selectOption('en')
+  await page.getByRole('button',{name:'System',exact:true}).click()
   await expect(page.locator('.settings-page-top h1')).toHaveText('System')
   await expect(page.getByText('Desktop behavior')).toBeVisible()
   await page.screenshot({path:'test-results/settings-system-en.png'})
@@ -558,3 +560,24 @@ test('terminal tabs reorder by pointer and scroll without replacing their IDs',a
   expect(await page.evaluate(()=>window.scrollY)).toBe(pageScroll)
   await page.screenshot({path:'test-results/terminal-reordered.png'})
 })
+
+for (const width of [960,1440]) {
+  test(`usage settings remains responsive with navigation collapsed at ${width}`,async({page})=>{
+    await page.route(/\/src\/lib\/api\.ts(?:\?.*)?$/,route=>route.fulfill({contentType:'application/javascript',body:`
+      export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
+      export const endpoints={health:async()=>({status:'ok'}),settings:async()=>({default_cwd:'C:/workspace'}),tasks:async()=>[],sessions:async()=>[],devices:async()=>[],permissions:async()=>[],crews:async()=>[],members:async()=>[],localAx:async()=>({projects:[]})};
+      export const api=async(path)=>{const days=path.includes('days=30')?30:7;return {start:20000,today:20000+days-1,totals:{input:1200,output:400,cached:300,messages:8,tools:3,skills:1,unreported:2},daily:[{day:20003,model:'gpt-6.1-sol',client:'AX Crew',counts:{input:1200,output:400,cached:300,messages:8,tools:3,skills:1,unreported:2}}],ranking:[{id:'one',title:'Test conversation',model:'gpt-6.1-sol',client:'AX Crew',counts:{input:1200,output:400,cached:300,messages:8,tools:3,skills:1,unreported:2}}],warnings:[]}};
+    `}))
+    await page.setViewportSize({width,height:900});await page.goto('/#/settings/usage')
+    await expect(page.getByText('Test conversation')).toBeVisible()
+    await page.locator('.sidebar-collapse').click()
+    await expect(page.locator('.sidebar')).toHaveClass(/is-compact/)
+    expect(await page.locator('.settings-main').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
+    await expect(page.locator('.usage-chart')).toHaveCount(4)
+    await page.getByRole('button',{name:'30 天',exact:true}).click()
+    await expect(page.getByRole('button',{name:'30 天',exact:true})).toHaveClass('is-active')
+    await page.getByText('Test conversation').click()
+    await expect(page.getByText('AX Crew · gpt-6.1-sol')).toBeVisible()
+    await page.screenshot({path:`test-results/usage-settings-${width}.png`})
+  })
+}

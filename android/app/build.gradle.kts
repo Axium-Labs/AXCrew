@@ -11,8 +11,8 @@ android {
         applicationId = "com.axcrew.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.2.2"
+        versionCode = 5
+        versionName = "0.2.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     val releaseStore = providers.environmentVariable("AXCREW_ANDROID_KEYSTORE")

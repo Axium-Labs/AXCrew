@@ -49,7 +49,7 @@ afterEach(()=>{cleanup();queryClient.clear()})
 describe('shell interactions',()=>{
   it('keeps independent collapsed panels across navigation and restores each explicitly',async()=>{
     const user=userEvent.setup();await start()
-    await user.click(screen.getAllByRole('button',{name:'收起主导航'})[1])
+    await user.click(screen.getByRole('button',{name:'收起主导航'}))
     expect(document.querySelector('.sidebar.is-compact')).not.toBeNull()
     await user.click(screen.getAllByRole('button',{name:'收起会话列表'})[0])
     await user.click(screen.getByRole('button',{name:'打开右侧面板'}))
@@ -61,7 +61,7 @@ describe('shell interactions',()=>{
     expect(screen.getByRole('complementary',{name:'会话侧栏'})).not.toBeNull()
     await user.click(screen.getByRole('button',{name:'展开会话列表'}))
     expect(screen.getByRole('complementary',{name:'会话列表'})).not.toBeNull()
-    await user.click(screen.getAllByRole('button',{name:'展开主导航'})[1])
+    await user.click(screen.getByRole('button',{name:'展开主导航'}))
     expect(document.querySelector('.sidebar.is-compact')).toBeNull()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('complementary',{name:'会话侧栏'})).toBeNull()
@@ -172,7 +172,7 @@ describe('actions and failure recovery',()=>{
 
 describe('conversation context menu',()=>{
   const seed=()=>{fixture.tasks=[task('one')];fixture.sessions=[{task_id:'one',ax_session_id:'one',device_id:'local',member_id:'member'}]}
-  it('renames, marks, deletes and restores a conversation without erasing history',async()=>{
+  it('renames, marks and permanently deletes only after confirmation',async()=>{
     seed();const user=userEvent.setup();await start('/sessions/one')
     fireEvent.contextMenu(await screen.findByRole('button',{name:/会话 one/}),{clientX:100,clientY:100})
     await user.click(screen.getByRole('menuitem',{name:'重命名'}))
@@ -189,13 +189,13 @@ describe('conversation context menu',()=>{
     expect(useSessionUi.getState().metadata['local:one'].project).toBe('C:/workspace')
 
     fireEvent.contextMenu(document.querySelector('.session-recent-row')!)
-    await user.click(screen.getByRole('menuitem',{name:'删除'}))
-    expect(useSessionUi.getState().metadata['local:one'].deleted).toBe(true)
-    expect(screen.queryByRole('button',{name:/★ Renamed/})).toBeNull()
-    await user.click(screen.getByRole('button',{name:'查看已删除'}))
-    fireEvent.contextMenu(document.querySelector('.session-recent-row')!)
-    await user.click(screen.getByRole('menuitem',{name:'恢复'}))
-    expect(useSessionUi.getState().metadata['local:one'].deleted).toBe(false)
+    await user.click(screen.getByRole('menuitem',{name:'永久删除'}))
     expect(fixture.api.mock.calls.some(call=>call[1]==='DELETE')).toBe(false)
+    expect(screen.getByRole('dialog',{name:'永久删除'})).not.toBeNull()
+    fixture.api.mockImplementation(async()=>{fixture.tasks=[];fixture.sessions=[];return {deleted:true}})
+    await user.click(screen.getByRole('button',{name:'永久删除'}))
+    await waitFor(()=>expect(fixture.api).toHaveBeenCalledWith('/api/sessions/one','DELETE'))
+    expect(screen.queryByRole('button',{name:'查看已删除'})).toBeNull()
+
   })
 })
