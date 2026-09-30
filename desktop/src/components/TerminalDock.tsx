@@ -74,6 +74,19 @@ function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: bool
 
 export function TerminalDock({ cwd, theme }: { cwd?: string; theme: 'dark' | 'light' }) {
   const { open, position, height, width, tabs, activeId, addTab, closeTab, reorderTab, setOpen, setActive, setPosition, setHeight, setWidth } = useTerminalDock()
+  const [viewport,setViewport]=useState({width:window.innerWidth,height:window.innerHeight})
+  useEffect(()=>{const resize=()=>setViewport({width:window.innerWidth,height:window.innerHeight});window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)},[])
+  const rightWidth=Math.min(width,viewport.width*(viewport.width<1250?.32:.55))
+  const tabStrip=useRef<HTMLDivElement>(null)
+  useEffect(()=>{
+    const strip=tabStrip.current
+    if(!strip)return
+    const wheel=(event:WheelEvent)=>{
+      if(Math.abs(event.deltaY)>Math.abs(event.deltaX)&&strip.scrollWidth>strip.clientWidth){event.preventDefault();strip.scrollLeft+=event.deltaY}
+    }
+    strip.addEventListener('wheel',wheel,{passive:false})
+    return()=>strip.removeEventListener('wheel',wheel)
+  },[])
   const [dragging, setDragging] = useState(false)
   const [draggedTab, setDraggedTab] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
@@ -81,7 +94,7 @@ export function TerminalDock({ cwd, theme }: { cwd?: string; theme: 'dark' | 'li
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
     event.preventDefault()
-    const starting = { x: event.clientX, y: event.clientY, height, width }
+    const starting = { x: event.clientX, y: event.clientY, height, width: rightWidth }
     setDragging(true)
     const move = (next: PointerEvent) => {
       if (position === 'bottom') setHeight(Math.min(window.innerHeight * .72, starting.height + starting.y - next.clientY))
@@ -96,27 +109,53 @@ export function TerminalDock({ cwd, theme }: { cwd?: string; theme: 'dark' | 'li
     window.addEventListener('blur', stop, { once: true })
   }
   const close = (id: string) => { if (isTauri()) void invoke('terminal_close', { id }).catch(console.error); closeTab(id) }
-  const endTabDrag = () => { setDraggedTab(null); setDropTarget(null) }
-  const dropTab = (target: string) => {
-    if (draggedTab) reorderTab(draggedTab, target)
-    endTabDrag()
+  const dragCleanup = useRef<(() => void) | null>(null)
+  useEffect(() => () => dragCleanup.current?.(), [])
+  const startTabDrag = (event: React.PointerEvent<HTMLDivElement>, id: string) => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest('button[aria-label]')) return
+    const strip = event.currentTarget.parentElement!
+    const startX = event.clientX
+    let moved = false
+    const move = (next: PointerEvent) => {
+      if (!moved && Math.abs(next.clientX - startX) < 5) return
+      moved = true
+      setDraggedTab(id)
+      const rect = strip.getBoundingClientRect()
+      if (next.clientX < rect.left + 40) strip.scrollLeft -= 24
+      if (next.clientX > rect.right - 40) strip.scrollLeft += 24
+      const target = document.elementFromPoint(next.clientX, next.clientY)?.closest<HTMLElement>('[data-terminal-id]')?.dataset.terminalId
+      if (target && target !== id) {
+        const targetNode = strip.querySelector<HTMLElement>(`[data-terminal-id="${target}"]`)
+        const bounds = targetNode?.getBoundingClientRect()
+        const order = useTerminalDock.getState().tabs
+        const from = order.findIndex(tab => tab.id === id), to = order.findIndex(tab => tab.id === target)
+        // Cross the target's midpoint before moving, so stationary pointers
+        // do not swap the same two shells back and forth after a layout change.
+        if (bounds && (from < to ? next.clientX >= bounds.left + bounds.width / 2 : next.clientX <= bounds.left + bounds.width / 2)) {
+          setDropTarget(target); reorderTab(id, target)
+        }
+      }
+    }
+    const stop = () => {
+      setDraggedTab(null); setDropTarget(null)
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); window.removeEventListener('pointercancel', stop); window.removeEventListener('blur', stop)
+      dragCleanup.current = null
+    }
+    dragCleanup.current?.(); dragCleanup.current = stop
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop); window.addEventListener('pointercancel', stop); window.addEventListener('blur', stop)
   }
-  const dimension = position === 'bottom' ? { height: open ? Math.min(height, window.innerHeight * .72) : 0 } : { width: open ? Math.min(width, window.innerWidth * .55) : 0 }
+  const dimension = position === 'bottom' ? { height: open ? Math.min(height, window.innerHeight * .72) : 0 } : { width: open ? rightWidth : 0 }
   return <section className={`terminal-dock is-${position} ${open ? 'is-open' : ''} ${dragging ? 'is-dragging' : ''}`} style={dimension} aria-label={t('terminal.panel')} aria-hidden={!open}>
-    <div className="terminal-dock-inner" style={position === 'bottom' ? { height: Math.min(height, window.innerHeight * .72) } : { width: Math.min(width, window.innerWidth * .55) }}>
+    <div className="terminal-dock-inner" style={position === 'bottom' ? { height: Math.min(height, window.innerHeight * .72) } : { width: rightWidth }}>
       <div className="terminal-resize" role="separator" aria-label={t('terminal.resize')} aria-orientation={position === 'bottom' ? 'horizontal' : 'vertical'} onPointerDown={startResize}/>
       <div className="terminal-panel-body">
-        <div className="terminal-tabs" role="tablist" aria-label={t('terminal.tabs')}>
+        <div ref={tabStrip} className="terminal-tabs" role="tablist" aria-label={t('terminal.tabs')}>
           {tabs.map(tab => <div
             className={`terminal-tab ${activeId === tab.id ? 'is-active' : ''} ${draggedTab === tab.id ? 'is-dragging' : ''} ${dropTarget === tab.id ? 'is-drop-target' : ''}`}
             key={tab.id}
             title={t('terminal.reorder')}
-            draggable
-            onDragStart={event => { setDraggedTab(tab.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', tab.id) }}
-            onDragOver={event => { if (!draggedTab || draggedTab === tab.id) return; event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDropTarget(tab.id) }}
-            onDragLeave={() => setDropTarget(current => current === tab.id ? null : current)}
-            onDrop={event => { event.preventDefault(); dropTab(tab.id) }}
-            onDragEnd={endTabDrag}
+            data-terminal-id={tab.id}
+            onPointerDown={event => startTabDrag(event, tab.id)}
           >
             <button role="tab" aria-selected={activeId === tab.id} onClick={() => setActive(tab.id)}><SquareTerminal size={14}/><span>{t('terminal.title')}</span></button>
             <button aria-label={t('terminal.closeTab', { name: t('terminal.title') })} title={t('terminal.close')} onClick={() => close(tab.id)}><X size={13}/></button>

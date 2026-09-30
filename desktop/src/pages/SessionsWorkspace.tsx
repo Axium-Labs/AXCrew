@@ -2,7 +2,7 @@ import { resolveSendWorkspace } from '../lib/workspace'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowUp, ChevronDown, ChevronRight, ExternalLink, Folder, FolderPlus, Laptop, MessageSquare, MoreHorizontal, PanelRight, Plus, RotateCcw, Search, Square, SquarePen, ShieldCheck, SlidersHorizontal, Target, X } from 'lucide-react'
+import { ArrowUp, ChevronDown, ChevronRight, ExternalLink, Folder, FolderPlus, Laptop, MessageSquare, MoreHorizontal, PanelRight, Plus, RotateCcw, Search, Square, SquarePen, ShieldCheck, SlidersHorizontal, Target, X, Zap } from 'lucide-react'
 import { api, endpoints } from '../lib/api'
 import { useAllMembers, useDevices, useLocalAx, usePermissions, useSessions, useTasks } from '../lib/query'
 import { useLive } from '../lib/live'
@@ -18,7 +18,7 @@ import { GoalLoopDialog, type LoopStart } from '../components/GoalLoopDialog'
 import { startGoalLoop, stopGoalLoop } from '../lib/goalLoop'
 import { stopFileRelative, useGoalLoop, type LoopRun } from '../store/goal'
 import { open } from '@tauri-apps/plugin-dialog'
-import { axAvailable, axLocalState, axSelectModel } from '../lib/ax'
+import { axAvailable, axLocalState, axSelectModel, axSelectInferenceMode } from '../lib/ax'
 import { invoke } from '@tauri-apps/api/core'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { useTerminalDock } from '../store/terminal'
@@ -78,11 +78,46 @@ export function SessionsWorkspace(){
   const {id}=useParams(),navigate=useNavigate(),location=useLocation(),queryClient=useQueryClient(),[params]=useSearchParams()
   const t=useT()
   const ui=useSessionUi()
-  const {listOpen,setListOpen,rightOpen,setRightOpen,rightTab,setRightTab,thinkingEffort,setThinkingEffort}=ui
+  const {listOpen:preferredListOpen,setListOpen:saveListOpen,rightOpen,setRightOpen,rightTab,setRightTab,thinkingEffort,setThinkingEffort}=ui
   const sessions=useSessions(),tasks=useTasks(),members=useAllMembers(),devices=useDevices(),permissions=usePermissions(),localAx=useLocalAx()
   const settings=useQuery({queryKey:['settings'],queryFn:endpoints.settings})
   const ax=useQuery({queryKey:['ax-local'],queryFn:axLocalState,enabled:axAvailable,retry:false})
+  const [switchingInference,setSwitchingInference]=useState(false)
+  const fastInference=ax.data?.inference_mode==='fast'
+  const toggleInference=async()=>{
+    if(switchingInference)return
+    setSwitchingInference(true)
+    try{
+      const mode=await axSelectInferenceMode(fastInference?'standard':'fast')
+      queryClient.setQueryData<import('../lib/ax').AxLocalState>(['ax-local'],state=>state?{...state,inference_mode:mode}:state)
+      setSendError('')
+    }catch(error){setSendError(String(error))}finally{setSwitchingInference(false)}
+  }
+  const terminalLayout=useTerminalDock()
+  const [viewportWidth,setViewportWidth]=useState(window.innerWidth)
+  const [compactListOpen,setCompactListOpen]=useState(false)
+  useEffect(()=>{const resize=()=>setViewportWidth(window.innerWidth);window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)},[])
+  const compactForTerminal=terminalLayout.open&&terminalLayout.position==='right'&&viewportWidth<1500
+  const listOpen=compactForTerminal?compactListOpen:preferredListOpen
+  const setListOpen=(value:boolean)=>compactForTerminal?setCompactListOpen(value):saveListOpen(value)
   const [suggestionPage,setSuggestionPage]=useState(0)
+  const [context,setContext] = useState<{id:string;title:string;active:boolean;x:number;y:number}|null>(null)
+  const [editSession,setEditSession] = useState<{id:string;kind:'title'|'project';value:string}|null>(null)
+  const [showDeleted,setShowDeleted] = useState(false)
+  const metadataKey = (key:string) => key.includes(':')?key:`local:${key}`
+  const meta = (key:string) => ui.metadata[metadataKey(key)] ?? {}
+  const label = (key:string,title:string) => `${meta(key).marked?'★ ':''}${meta(key).title??title}`
+  const contextSession = (event: React.MouseEvent, key:string, title:string, active:boolean) => {
+    event.preventDefault()
+    setContext({id:metadataKey(key),title:meta(key).title??title,active,x:Math.min(event.clientX,window.innerWidth-230),y:Math.min(event.clientY,window.innerHeight-240)})
+  }
+  useEffect(()=>{
+    const close = () => setContext(null)
+    const key = (event: globalThis.KeyboardEvent) => { if(event.key==='Escape'){close();setEditSession(null)} }
+    window.addEventListener('click',close);window.addEventListener('keydown',key);window.addEventListener('scroll',close,true)
+    return()=>{window.removeEventListener('click',close);window.removeEventListener('keydown',key);window.removeEventListener('scroll',close,true)}
+  },[])
+
   const [search,setSearch]=useState(''),[onlyActive,setOnlyActive]=useState(false),[projectsOpen,setProjectsOpen]=useState(true),[recentOpen,setRecentOpen]=useState(true),[remoteOpen,setRemoteOpen]=useState(false)
   const [projectDirs,setProjectDirs]=useState<string[]>(loadProjectDirs),[openProject,setOpenProject]=useState<string|null>(null)
   const [sending,setSending]=useState(false),[sendError,setSendError]=useState('')
@@ -122,9 +157,10 @@ export function SessionsWorkspace(){
   const lines=useMemo(()=>conversationTranscript(history.data,historySettled?[]:freshEvents,task,!historySettled),[history.data,freshEvents,task,historySettled])
   const rows=groups.map(group=>({binding:{...group.binding,task_id:group.root.id,ax_session_id:group.key,member_id:group.root.assigned_member,device_id:group.root.assigned_device},task:group.root,latest:group.latest,latestAt:group.latest.created_at,key:group.key}))
   const visibleRows=rows.filter(row=>{
-    const label=`${row.task?.title??''} ${row.binding.ax_session_id}`.toLowerCase()
+    if (!!meta(row.key).deleted !== showDeleted) return false
+    const label=`${meta(row.key).title??row.task?.title??''} ${row.binding.ax_session_id}`.toLowerCase()
     return label.includes(search.toLowerCase())&&(!onlyActive||!!row.task&&isActiveTask(row.latest))
-  })
+  }).sort((a,b)=>Number(!!meta(b.key).marked)-Number(!!meta(a.key).marked)||b.latestAt-a.latestAt)
   // Conversations that already exist in the local AX store are listed next to the
   // Crew ones; they are read in place and only adopted when the user continues them.
   const localId=params.get('local'),localMode=!!localId&&!id
@@ -159,13 +195,15 @@ export function SessionsWorkspace(){
     const known=new Set(project.sessions.map(session=>session.id))
     const crew=rows.filter(row=>{
       if(known.has(row.binding.ax_session_id))return false
+      if(meta(row.key).project) return normalizePath(meta(row.key).project!)===normalizePath(project.root)
       const member=members.data?.find(item=>item.id===row.binding.member_id)
       return !!member&&normalizePath(member.cwd)===normalizePath(project.root)
     })
     return [
-      ...project.sessions.map(session=>({key:`local:${session.id}`,title:session.title||t('session.untitled'),at:session.updated_at,active:false,attached:!!session.task_id,open:()=>openLocal(session)})),
-      ...crew.map(row=>({key:`crew:${row.binding.ax_session_id}`,title:row.task?.title??t('session.recentSession'),at:row.latestAt,active:isActiveTask(row.latest),attached:true,open:()=>navigate(`/sessions/${row.binding.task_id}`)})),
-    ].sort((a,b)=>b.at-a.at)
+      ...project.sessions.filter(session=>!meta(session.id).project||normalizePath(meta(session.id).project!)===normalizePath(project.root)).map(session=>({key:`local:${session.id}`,title:session.title||t('session.untitled'),at:session.updated_at,active:false,attached:!!session.task_id,open:()=>openLocal(session)})),
+      ...(localAx.data?.projects??[]).filter(group=>normalizePath(group.root)!==normalizePath(project.root)).flatMap(group=>group.sessions.filter(session=>meta(session.id).project&&normalizePath(meta(session.id).project!)===normalizePath(project.root)).map(session=>({key:`local:${session.id}`,title:session.title,at:session.updated_at,active:false,attached:!!session.task_id,open:()=>openLocal(session)}))),
+      ...crew.map(row=>({key:`${row.binding.device_id}:${row.binding.ax_session_id}`,title:row.task?.title??t('session.recentSession'),at:row.latestAt,active:isActiveTask(row.latest),attached:true,open:()=>navigate(`/sessions/${row.binding.task_id}`)})),
+    ].filter(item=>!!meta(item.key).deleted===showDeleted).sort((a,b)=>Number(!!meta(b.key).marked)-Number(!!meta(a.key).marked)||b.at-a.at)
   }
   const persistProjects=(next:string[])=>{setProjectDirs(next);try{localStorage.setItem(PROJECT_KEY,JSON.stringify(next))}catch{/* a local convenience only */}}
   const startInProject=(root:string)=>{ui.setSelectedCwd(root);newSession()}
@@ -237,7 +275,8 @@ export function SessionsWorkspace(){
     }
     if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing){event.preventDefault();void send()}
   }
-  const title=localMode?(localMatch?.session.title||t('session.localAxSession')):id?(current?.root.title??task?.title??t('session.loading')):t('session.new')
+  const originalTitle=localMode?(localMatch?.session.title||t('session.localAxSession')):id?(current?.root.title??task?.title??t('session.loading')):t('session.new')
+  const title=meta(localId??current?.key??'').title??originalTitle
   const permissionLabel=t(`session.permission.${permissionMode}`)
   const thinkingLabel=thinkingEffort?t(`session.thinking.${thinkingEffort}`):t('session.thinking.auto')
   const thinkingOptions=[['',t('session.thinking.auto')],['low',t('session.thinking.low')],['medium',t('session.thinking.medium')],['high',t('session.thinking.high')]] as const
@@ -327,8 +366,8 @@ export function SessionsWorkspace(){
                   ]}/>
                 </div>
                 {opened&&<div className="session-project-sessions">
-                  {sessions.map(item=><button key={item.key} className={`session-project-session ${item.active?'is-active':''}`} onClick={item.open}>
-                    <span className="session-project-title">{item.title}</span>
+                  {sessions.map(item=><button key={item.key} onContextMenu={event=>contextSession(event,item.key,item.title,item.active)} className={`session-project-session ${item.active?'is-active':''}`} onClick={item.open}>
+                    <span className="session-project-title">{label(item.key,item.title)}</span>
                     {item.active?<span className="session-project-flag">{t('session.replying')}</span>:<small>{timeLabel(item.at)}</small>}
                   </button>)}
                   {!sessions.length&&<div className="session-local-note">{t('session.emptyProject')}</div>}
@@ -341,10 +380,10 @@ export function SessionsWorkspace(){
         </section>
         <section className="session-section" aria-label={t('session.sectionRecent')}>
           <button className="session-section-head" aria-label={t('session.sectionRecent')} aria-expanded={recentOpen} onClick={()=>setRecentOpen(value=>!value)}><strong>{t('session.sectionRecent')}</strong><ChevronRight size={16} className={recentOpen?'rotate-90':''}/></button>
-          {recentOpen&&<div className="session-section-body">
-            {visibleRows.map(row=><button key={row.binding.ax_session_id} className={`session-recent-row ${current?.key===row.key?'is-selected':''}`} onClick={()=>navigate(`/sessions/${row.binding.task_id}`)}>
+          {recentOpen&&<div className="session-section-body">{(showDeleted||Object.values(ui.metadata).some(value=>value.deleted))&&<button className="session-add-project" onClick={()=>setShowDeleted(!showDeleted)}>{showDeleted?t('session.showRecent'):t('session.showDeleted')}</button>}
+            {visibleRows.map(row=><button key={row.binding.ax_session_id} onContextMenu={event=>contextSession(event,row.key,row.task?.title??t('session.untitled'),isActiveTask(row.latest))} className={`session-recent-row ${current?.key===row.key?'is-selected':''}`} onClick={()=>navigate(`/sessions/${row.binding.task_id}`)}>
               {isActiveTask(row.latest)&&<span className="session-recent-dot"/>}
-              <span className="session-project-title">{row.task?.title||t('session.untitled')}</span>
+              <span className="session-project-title">{label(row.key,row.task?.title||t('session.untitled'))}</span>
               <small>{timeLabel(row.latestAt)}</small>
             </button>)}
             {!visibleRows.length&&<div className="session-list-empty">{sessions.isLoading?t('session.loadingSessions'):search||onlyActive?t('session.noMatch'):t('session.noSessionsYet')}</div>}
@@ -354,12 +393,12 @@ export function SessionsWorkspace(){
           <button className="session-section-head" aria-label={t('session.remoteProjects')} aria-expanded={remoteOpen} onClick={()=>setRemoteOpen(value=>!value)}><Laptop size={16}/><strong>{t('session.remoteProjects')}</strong><span className="session-section-count">{remoteDevices.length||''}</span><ChevronRight size={16} className={remoteOpen?'rotate-90':''}/></button>
           {remoteOpen&&<div className="session-section-body">
             {remoteDevices.map(device=>{
-              const deviceRows=rows.filter(row=>row.binding.device_id===device.id)
+              const deviceRows=rows.filter(row=>row.binding.device_id===device.id&&!!meta(row.key).deleted===showDeleted)
               return <div key={device.id} className="session-local-project">
                 <div className="session-remote-device"><span className={`session-remote-dot is-${device.status}`}/><strong>{device.name}</strong><small>{device.hostname||device.platform}</small><em>{device.status==='online'||device.status==='busy'?t('session.online'):t('session.offline')}</em></div>
-                {deviceRows.map(row=><button key={row.binding.ax_session_id} className={`session-list-row session-local-row ${current?.key===row.key?'is-selected':''}`} onClick={()=>navigate(`/sessions/${row.binding.task_id}`)}>
+                {deviceRows.map(row=><button key={row.binding.ax_session_id} onContextMenu={event=>contextSession(event,row.key,row.task?.title??t('session.untitled'),isActiveTask(row.latest))} className={`session-list-row session-local-row ${current?.key===row.key?'is-selected':''}`} onClick={()=>navigate(`/sessions/${row.binding.task_id}`)}>
                   <span className="session-row-top"><small>{t('session.remoteAx')}</small><small>{timeLabel(row.latestAt)}</small></span>
-                  <strong>{row.task?.title??t('session.recentSession')}</strong>
+                  <strong>{label(row.key,row.task?.title??t('session.recentSession'))}</strong>
                   <span className="session-row-preview">{isActiveTask(row.latest)?t('session.replying'):row.task?.description||'AX Session'}</span>
                 </button>)}
                 {!deviceRows.length&&<div className="session-local-note">{device.status==='online'||device.status==='busy'?t('session.emptyRemoteDevice'):t('session.deviceOffline')}</div>}
@@ -383,7 +422,7 @@ export function SessionsWorkspace(){
         {permissions.data?.filter(permission=>permission.request.sessionId===selectedBinding?.ax_session_id).map(permission=><div className="session-permission-request" key={permission.request_id}><strong>{permission.request.toolCall.title}</strong><span>{t('session.askConfirm')}</span><div>{permission.request.options.map(option=><Action key={option.optionId} run={()=>api(`/api/permissions/${permission.request_id}/resolve`,'POST',{option_id:option.optionId})}>{option.name}</Action>)}</div></div>)}
         {task&&<div className="session-run-status" role="status">{task.status==='waiting_permission'?t('session.waitingPermission'):busy?t('session.running'):task.status==='failed'?`${t('session.execFailed')}${task.output?.error??t('session.viewLinkedTask')}`:task.status==='cancelled'?t('session.stopped'):task.status==='waiting_user'?t('session.waitingUser'):''}</div>}
         {loopRun&&<div className={`session-loop-status is-${loopRun.status}`} role="status"><span className="session-loop-dot"/><strong>{loopRun.kind==='goal'?t('session.goalLoop'):t('session.prWatch')}</strong><span>{loopRun.status==='running'?t('session.roundProgress',{rounds:loopRun.rounds,seconds:loopRun.intervalSeconds}):(loopRun.detail||t('session.loopStopped'))}</span>{loopRun.status==='running'?<button type="button" onClick={stopLoop}>{t('session.stopLoop')}</button>:<button type="button" aria-label={t('session.clearLoop')} title={t('session.clearLoop')} onClick={clearLoop}><X size={13}/></button>}</div>}
-        {completions.length>0&&!completionClosed&&<div className="session-completions" role="listbox" aria-label={referenceToken!==undefined?t('session.fileSuggestions'):t('session.slashSuggestions')}>{completions.map((item,index)=><button type="button" role="option" aria-selected={index===completionIndex} className={index===completionIndex?"is-active":""} key={item.value} onMouseDown={event=>event.preventDefault()} onClick={()=>selectCompletion(item)}><strong>{item.label}</strong><small>{item.description}</small></button>)}</div>}<form className="session-composer" onSubmit={onSubmit} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void addImages([...event.dataTransfer.files])}}><input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={event=>{void addImages([...event.target.files??[]]);event.target.value=""}}/>{images.length>0&&<div className="session-image-previews">{images.map((image,index)=><div key={`${image.name}-${index}`} className="session-image-preview"><img src={`data:${image.mime};base64,${image.data}`} alt={image.name}/><button type="button" aria-label={t('session.removeImage',{index:index+1})} onClick={()=>setImagesByDraft(state=>({...state,[draftKey]:(state[draftKey]??[]).filter((_,position)=>position!==index)}))}><X size={13}/></button></div>)}</div>}<textarea ref={inputRef} aria-label={t('session.sendMessage')} value={draft} disabled={sending} onChange={event=>{setDraft(event.target.value);setCursor(event.target.selectionStart);setCompletionClosed(false);setCompletionIndex(0)}} onClick={event=>setCursor(event.currentTarget.selectionStart)} onKeyUp={event=>setCursor(event.currentTarget.selectionStart)} onPaste={event=>{const pasted=[...event.clipboardData.files].filter(file=>file.type.startsWith("image/"));if(pasted.length)void addImages(pasted)}} onKeyDown={onComposerKeyDown} placeholder={t('session.placeholder')} rows={2}/><div className="session-composer-actions"><Menu trigger={<button type="button" className="session-composer-icon" title={t('session.addContext')} aria-label={t('session.addContext')}><Plus size={20}/></button>} items={[{label:t('session.addImage'),action:()=>imageInputRef.current?.click()},{label:t('session.referenceFile'),action:()=>{setRightTab('files');setRightOpen(true)}},{label:t('session.details'),action:showDetails}]}/><button type="button" className="session-composer-icon" aria-label={t('session.setGoal')} title={t('session.setGoal')} onClick={()=>setGoalOpen(true)}><Target size={19}/></button><Menu trigger={<button type="button" className="session-composer-permission" aria-label={t('session.accessMode')} title={t('session.chooseAccess')}><ShieldCheck size={16}/>{permissionLabel}<ChevronDown size={13}/></button>} items={[{label:<><strong>{t('session.permission.ask')}</strong><small>{t('session.permission.askHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"ask")},{label:<><strong>{t('session.permission.read')}</strong><small>{t('session.permission.readHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"read")},{label:<><strong>{t('session.permission.trust')}</strong><small>{t('session.permission.trustHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"trust")},{label:<><strong>YOLO</strong><small>{t('session.permission.yoloHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"yolo")}]}/><div className="session-composer-spacer"/>{busy?<Action variant="danger" run={async()=>{await api(`/api/tasks/${task!.id}/cancel`,'POST',{});void queryClient.invalidateQueries({queryKey:['history',task!.id]})}}><Square size={15}/> {t('session.stop')}</Action>:<button className="session-send-button" type="submit" aria-label={t('session.sendMessage')} title={busy?t('session.sessionRunning'):t('session.sendMessage')} disabled={!canSend}><ArrowUp size={20}/></button>}</div></form>{sendError&&<div className="session-inline-error" role="alert">{t('session.failedKeptDraft')}{sendError}</div>}<div className="session-composer-footer"><button className="session-footer-path" type="button" aria-label={t('session.chooseWorkspace')} title={id?t('session.workspaceFixed'):workspace??t('session.chooseWorkspace')} disabled={!!id} onClick={()=>void chooseWorkspace()}><Folder size={14}/><span>{workspace??t('session.chooseWorkspace')}</span></button><Menu trigger={<button className="session-footer-thinking" type="button" aria-label={t('session.reasoningEffort')} title={t('session.chooseReasoning')}>{thinkingLabel}<ChevronDown size={13}/></button>} items={thinkingOptions.map(([value,label])=>({label,action:()=>setThinkingEffort(value)}))}/><Menu trigger={<button className="session-footer-auto" type="button" aria-label={t('session.chooseModel')} title={t('session.chooseModelTitle')}>{selectedModel?.id??'auto'}<ChevronDown size={13}/></button>} items={models.length?models.map(model=>({label:`${model.display_name} · ${model.provider}`,action:()=>{void chooseModel(model.provider,model.id)}})):[{label:t('session.connectModel'),action:()=>navigate('/settings')}]}/></div></div>}
+        {completions.length>0&&!completionClosed&&<div className="session-completions" role="listbox" aria-label={referenceToken!==undefined?t('session.fileSuggestions'):t('session.slashSuggestions')}>{completions.map((item,index)=><button type="button" role="option" aria-selected={index===completionIndex} className={index===completionIndex?"is-active":""} key={item.value} onMouseDown={event=>event.preventDefault()} onClick={()=>selectCompletion(item)}><strong>{item.label}</strong><small>{item.description}</small></button>)}</div>}<form className="session-composer" onSubmit={onSubmit} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void addImages([...event.dataTransfer.files])}}><input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={event=>{void addImages([...event.target.files??[]]);event.target.value=""}}/>{images.length>0&&<div className="session-image-previews">{images.map((image,index)=><div key={`${image.name}-${index}`} className="session-image-preview"><img src={`data:${image.mime};base64,${image.data}`} alt={image.name}/><button type="button" aria-label={t('session.removeImage',{index:index+1})} onClick={()=>setImagesByDraft(state=>({...state,[draftKey]:(state[draftKey]??[]).filter((_,position)=>position!==index)}))}><X size={13}/></button></div>)}</div>}<textarea ref={inputRef} aria-label={t('session.sendMessage')} value={draft} disabled={sending} onChange={event=>{setDraft(event.target.value);setCursor(event.target.selectionStart);setCompletionClosed(false);setCompletionIndex(0)}} onClick={event=>setCursor(event.currentTarget.selectionStart)} onKeyUp={event=>setCursor(event.currentTarget.selectionStart)} onPaste={event=>{const pasted=[...event.clipboardData.files].filter(file=>file.type.startsWith("image/"));if(pasted.length)void addImages(pasted)}} onKeyDown={onComposerKeyDown} placeholder={t('session.placeholder')} rows={2}/><div className="session-composer-actions"><Menu trigger={<button type="button" className="session-composer-icon" title={t('session.addContext')} aria-label={t('session.addContext')}><Plus size={20}/></button>} items={[{label:t('session.addImage'),action:()=>imageInputRef.current?.click()},{label:t('session.referenceFile'),action:()=>{setRightTab('files');setRightOpen(true)}},{label:t('session.details'),action:showDetails}]}/><button type="button" className="session-composer-icon" aria-label={t('session.setGoal')} title={t('session.setGoal')} onClick={()=>setGoalOpen(true)}><Target size={19}/></button><Menu trigger={<button type="button" className="session-composer-permission" aria-label={t('session.accessMode')} title={t('session.chooseAccess')}><ShieldCheck size={16}/>{permissionLabel}<ChevronDown size={13}/></button>} items={[{label:<><strong>{t('session.permission.ask')}</strong><small>{t('session.permission.askHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"ask")},{label:<><strong>{t('session.permission.read')}</strong><small>{t('session.permission.readHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"read")},{label:<><strong>{t('session.permission.trust')}</strong><small>{t('session.permission.trustHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"trust")},{label:<><strong>YOLO</strong><small>{t('session.permission.yoloHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"yolo")}]}/><div className="session-composer-spacer"/>{busy?<Action variant="danger" run={async()=>{await api(`/api/tasks/${task!.id}/cancel`,'POST',{});void queryClient.invalidateQueries({queryKey:['history',task!.id]})}}><Square size={15}/> {t('session.stop')}</Action>:<button className="session-send-button" type="submit" aria-label={t('session.sendMessage')} title={busy?t('session.sessionRunning'):t('session.sendMessage')} disabled={!canSend}><ArrowUp size={20}/></button>}</div></form>{sendError&&<div className="session-inline-error" role="alert">{t('session.failedKeptDraft')}{sendError}</div>}<div className="session-composer-footer"><button className="session-footer-path" type="button" aria-label={t('session.chooseWorkspace')} title={id?t('session.workspaceFixed'):workspace??t('session.chooseWorkspace')} disabled={!!id} onClick={()=>void chooseWorkspace()}><Folder size={14}/><span>{workspace??t('session.chooseWorkspace')}</span></button><span className="session-fast-control"><button className="session-footer-fast" type="button" aria-label={t('session.faster')} aria-describedby="session-fast-tooltip" aria-pressed={fastInference} disabled={!axAvailable||!ax.data||switchingInference} onClick={()=>void toggleInference()}><Zap size={16}/></button><span className="session-fast-tooltip" id="session-fast-tooltip" role="tooltip"><strong>{t('session.faster')}</strong><small>{t('session.moreUsage')}</small></span></span><Menu trigger={<button className="session-footer-thinking" type="button" aria-label={t('session.reasoningEffort')} title={t('session.chooseReasoning')}>{thinkingLabel}<ChevronDown size={13}/></button>} items={thinkingOptions.map(([value,label])=>({label,action:()=>setThinkingEffort(value)}))}/><Menu trigger={<button className="session-footer-auto" type="button" aria-label={t('session.chooseModel')} title={t('session.chooseModelTitle')}>{selectedModel?.id??'auto'}<ChevronDown size={13}/></button>} items={models.length?models.map(model=>({label:`${model.display_name} · ${model.provider}`,action:()=>{void chooseModel(model.provider,model.id)}})):[{label:t('session.connectModel'),action:()=>navigate('/settings')}]}/></div></div>}
     </section>
 
     {rightOpen&&<button className="session-right-backdrop" aria-label={t('session.rightBackdrop')} onClick={()=>setRightOpen(false)}/>}
@@ -392,8 +431,19 @@ export function SessionsWorkspace(){
         {rightOpen&&<><button className={rightTab==='files'?'active':''} onClick={()=>setRightTab('files')}><Folder size={17}/> {t('session.tabFiles')}</button><button className={rightTab==='details'?'active':''} onClick={()=>setRightTab('details')}><SlidersHorizontal size={17}/> {t('session.tabDetails')}</button></>}
         <button className="session-right-toggle" aria-label={rightOpen?t('session.closeRight'):t('session.openRight')} title={rightOpen?t('session.collapseRight'):t('session.expandRight')} aria-expanded={rightOpen} onClick={()=>setRightOpen(!rightOpen)}><PanelRight size={18}/></button>
       </div>
-      {rightOpen&&(rightTab==='files'?<WorkspaceFiles key={member?.id} member={member} onReference={path=>{setDraft(`${draft}${draft?'\n':''}@file ${path}`);inputRef.current?.focus()}}/>:<div className="session-right-details"><div><span>{t('session.deviceLabel')}</span><strong>{device?.name??member?.device_id??'—'}</strong></div><div><span>{t('session.taskStatus')}</span><strong>{task?.status??t('session.statusNew')}</strong></div><div><span>{t('session.axSessionId')}</span><strong className="session-detail-id">{selectedBinding?.ax_session_id??'—'}</strong></div>{id&&<Link to={`/tasks/${task?.id??id}`}>{t('session.viewTask')} <ExternalLink size={14}/></Link>}</div>)}
+      {rightOpen&&(rightTab==='files'?<WorkspaceFiles key={member?.id} member={member} onReference={path=>{setDraft(`${draft}${draft?'\n':''}@file ${path}`);inputRef.current?.focus()}}/>:<div className="session-right-details"><div><span>{t('session.deviceLabel')}</span><strong>{device?.name??member?.device_id??'—'}</strong></div><div><span>{t('session.taskStatus')}</span><strong>{task?.status?t('status.'+task.status):t('session.statusNew')}</strong></div><div><span>{t('session.axSessionId')}</span><strong className="session-detail-id">{selectedBinding?.ax_session_id??'—'}</strong></div>{id&&<Link to={`/tasks/${task?.id??id}`}>{t('session.viewTask')} <ExternalLink size={14}/></Link>}</div>)}
     </aside>
+    {context&&<div className="session-context-menu ax-menu" role="menu" style={{left:context.x,top:context.y}}>
+      <button role="menuitem" onClick={()=>setEditSession({id:context.id,kind:'title',value:context.title})}>{t('session.rename')}</button>
+      <button role="menuitem" onClick={()=>ui.setMetadata(context.id,{marked:!meta(context.id).marked})}>{meta(context.id).marked?t('session.unmark'):t('session.mark')}</button>
+      <button role="menuitem" onClick={()=>setEditSession({id:context.id,kind:'project',value:meta(context.id).project??''})}>{t('session.moveProject')}</button>
+      <button role="menuitem" disabled={context.active} onClick={()=>{ui.setMetadata(context.id,{deleted:!meta(context.id).deleted});if(!meta(context.id).deleted)newSession()}}>{meta(context.id).deleted?t('session.restore'):t('session.delete')}</button>
+    </div>}
+    {editSession&&<div className="session-dialog-backdrop" onClick={()=>setEditSession(null)}><form className="session-edit-dialog" role="dialog" aria-modal="true" aria-label={t(editSession.kind==='title'?'session.rename':'session.moveProject')} onClick={event=>event.stopPropagation()} onSubmit={event=>{event.preventDefault();ui.setMetadata(editSession.id,{[editSession.kind]:editSession.value.trim()||undefined});setEditSession(null)}}>
+      <h2>{t(editSession.kind==='title'?'session.rename':'session.moveProject')}</h2>
+      {editSession.kind==='title'?<input autoFocus aria-label={t('session.title')} value={editSession.value} onChange={event=>setEditSession({...editSession,value:event.target.value})}/>:<select autoFocus aria-label={t('session.moveProject')} value={editSession.value} onChange={event=>setEditSession({...editSession,value:event.target.value})}><option value="">{t('session.originalProject')}</option>{projects.map(project=><option key={project.key} value={project.root}>{project.name} · {project.root}</option>)}</select>}
+      <div><button type="button" onClick={()=>setEditSession(null)}>{t('common.cancel')}</button><button type="submit">{t('common.save')}</button></div>
+    </form></div>}
     <GoalLoopDialog open={goalOpen} onOpenChange={setGoalOpen} storeKey={loopKey??draftKey} run={loopRun} workspace={workspace} disabled={!axAvailable||!workspace} onStart={startLoop} onStop={stopLoop}/>
   </div>
 }

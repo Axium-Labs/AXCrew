@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { AxCatalog } from '../lib/ax'
 
-const fixture = vi.hoisted(() => ({ catalog: vi.fn() }))
-vi.mock('../lib/ax', () => ({ axAvailable: true, axCatalog: fixture.catalog }))
+const fixture = vi.hoisted(() => ({ catalog: vi.fn(), import:vi.fn(), open:vi.fn() }))
+vi.mock('../lib/ax', () => ({ axAvailable: true, axCatalog: fixture.catalog, axImportCapability:fixture.import }))
 
+vi.mock('@tauri-apps/plugin-dialog',()=>({open:fixture.open}))
 import { AxCapabilities } from './AxCapabilities'
 
 const catalog = (patch: Partial<AxCatalog> = {}): AxCatalog => ({
@@ -66,4 +67,12 @@ describe('AX 能力面板', () => {
     mount()
     expect((await screen.findByRole('alert')).textContent).toContain('AX 没有响应能力查询')
   })
+})
+
+it('imports a Skill into the selected scope and refreshes the AX catalog',async()=>{
+  fixture.catalog.mockResolvedValue(catalog());fixture.open.mockResolvedValue('C:/download/code-review');fixture.import.mockResolvedValue('Imported')
+  mount();await screen.findByText('code-review');fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:'导入 Skill 目录'}))
+  await waitFor(()=>expect(fixture.import).toHaveBeenCalledWith('C:/work/demo','C:/download/code-review','skill',true))
+  expect(await screen.findByRole('status')).toHaveProperty('textContent','Imported')
+  expect(fixture.catalog.mock.calls.length).toBeGreaterThan(1)
 })

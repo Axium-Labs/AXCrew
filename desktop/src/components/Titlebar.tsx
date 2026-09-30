@@ -2,7 +2,7 @@ import { useEffect, useState, type MouseEvent } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { ArrowLeft, ArrowRight, Copy, Languages, Menu, Minus, ScanLine, Square, X } from 'lucide-react'
-import { useLang, useT } from '../lib/i18n'
+import { useLang, useT , translate} from '../lib/i18n'
 
 type Props = {
   sidebarExpanded: boolean
@@ -20,6 +20,8 @@ type Props = {
 const desktopWindow = isTauri() ? getCurrentWindow() : null
 
 export function Titlebar({sidebarExpanded,canGoBack,canGoForward,focus,hidden,onFocus,onMenu,onBack,onForward,onCommand}: Props) {
+  useLang(state=>state.lang);
+
   const [maximized, setMaximized] = useState(false)
   const t = useT()
   const lang = useLang(state => state.lang)
@@ -56,7 +58,7 @@ export function Titlebar({sidebarExpanded,canGoBack,canGoForward,focus,hidden,on
     else void desktopWindow.startDragging().catch(console.error)
   }
 
-  return <header className="shell-titlebar" onMouseDown={handleTitlebarMouseDown} inert={hidden||undefined} aria-label="AX Crew window titlebar">
+  return <header className="shell-titlebar" onMouseDown={handleTitlebarMouseDown} inert={hidden||undefined} aria-label={translate("english.151")}>
     <div className="shell-titlebar-left">
       <button className="shell-icon-button" aria-label={sidebarExpanded?t('titlebar.collapseNav'):t('titlebar.expandNav')} aria-expanded={sidebarExpanded} title={sidebarExpanded?t('titlebar.collapseNav'):t('titlebar.expandNav')} onClick={onMenu}><Menu size={18}/></button>
       <button className="shell-icon-button" aria-label={t('titlebar.back')} title={t('titlebar.back')} disabled={!canGoBack} onClick={onBack}><ArrowLeft size={18}/></button>

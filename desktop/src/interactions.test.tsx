@@ -36,7 +36,7 @@ beforeEach(()=>{
   fixture.tasks=[];fixture.sessions=[];fixture.permissions=[];fixture.api.mockReset();fixture.history.mockReset().mockResolvedValue({updates:[]})
   queryClient.clear();queryClient.setDefaultOptions({queries:{retry:false}})
   useUi.setState({sidebar:true,palette:false,theme:'dark'})
-  useSessionUi.setState({listOpen:true,rightOpen:false,rightTab:'files',drafts:{},startingIds:[]})
+  useSessionUi.setState({listOpen:true,rightOpen:false,rightTab:'files',drafts:{},startingIds:[],metadata:{}})
   // The suite asserts the Chinese copy, so pin the language instead of inheriting
   // whatever `navigator.language` the test environment reports.
   useLang.setState({lang:'zh'})
@@ -159,13 +159,43 @@ describe('actions and failure recovery',()=>{
   it('filters all teams and preserves the selected status when changing teams',async()=>{
     fixture.tasks=[task('one',{status:'running'}),task('two',{crew_id:'crew2',status:'running'})]
     const user=userEvent.setup();await start();await user.click(screen.getByRole('button',{name:'运行命令'}));await user.click(screen.getByRole('option',{name:'任务'}))
-    await screen.findByText('Task list · 2')
+    await screen.findByText('任务列表 · 2')
     const [crew,status]=screen.getAllByRole('combobox')
     await user.selectOptions(status,'running')
     await user.selectOptions(crew,'crew2')
     expect((status as HTMLSelectElement).value).toBe('running')
-    await screen.findByText('Task list · 1')
+    await screen.findByText('任务列表 · 1')
     await user.selectOptions(crew,'')
-    await screen.findByText('Task list · 2')
+    await screen.findByText('任务列表 · 2')
+  })
+})
+
+describe('conversation context menu',()=>{
+  const seed=()=>{fixture.tasks=[task('one')];fixture.sessions=[{task_id:'one',ax_session_id:'one',device_id:'local',member_id:'member'}]}
+  it('renames, marks, deletes and restores a conversation without erasing history',async()=>{
+    seed();const user=userEvent.setup();await start('/sessions/one')
+    fireEvent.contextMenu(await screen.findByRole('button',{name:/会话 one/}),{clientX:100,clientY:100})
+    await user.click(screen.getByRole('menuitem',{name:'重命名'}))
+    await user.clear(screen.getByLabelText('会话名称'));await user.type(screen.getByLabelText('会话名称'),'Renamed')
+    await user.click(screen.getByRole('button',{name:'保存'}))
+    expect(useSessionUi.getState().metadata['local:one'].title).toBe('Renamed')
+    fireEvent.contextMenu(document.querySelector('.session-recent-row')!)
+    await user.click(screen.getByRole('menuitem',{name:'标记'}))
+    expect(useSessionUi.getState().metadata['local:one'].marked).toBe(true)
+    fireEvent.contextMenu(document.querySelector('.session-recent-row')!)
+    await user.click(screen.getByRole('menuitem',{name:'项目'}))
+    await user.selectOptions(screen.getByRole('combobox',{name:'项目'}),'C:/workspace')
+    await user.click(screen.getByRole('button',{name:'保存'}))
+    expect(useSessionUi.getState().metadata['local:one'].project).toBe('C:/workspace')
+
+    fireEvent.contextMenu(document.querySelector('.session-recent-row')!)
+    await user.click(screen.getByRole('menuitem',{name:'删除'}))
+    expect(useSessionUi.getState().metadata['local:one'].deleted).toBe(true)
+    expect(screen.queryByRole('button',{name:/★ Renamed/})).toBeNull()
+    await user.click(screen.getByRole('button',{name:'查看已删除'}))
+    fireEvent.contextMenu(document.querySelector('.session-recent-row')!)
+    await user.click(screen.getByRole('menuitem',{name:'恢复'}))
+    expect(useSessionUi.getState().metadata['local:one'].deleted).toBe(false)
+    expect(fixture.api.mock.calls.some(call=>call[1]==='DELETE')).toBe(false)
   })
 })

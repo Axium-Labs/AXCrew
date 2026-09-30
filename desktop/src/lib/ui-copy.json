@@ -1,0 +1,2498 @@
+{
+  "copy.0": {
+    "zh": "概览",
+    "en": "Overview"
+  },
+  "copy.1": {
+    "zh": "本地 AX",
+    "en": "Local AX"
+  },
+  "copy.2": {
+    "zh": "AX 能力",
+    "en": "AX capabilities"
+  },
+  "copy.3": {
+    "zh": "模型与登录",
+    "en": "Models & sign-in"
+  },
+  "copy.4": {
+    "zh": "偏好设置",
+    "en": "Preferences"
+  },
+  "copy.5": {
+    "zh": "导入 / 导出",
+    "en": "Import / Export"
+  },
+  "copy.6": {
+    "zh": "显示",
+    "en": "Display"
+  },
+  "copy.7": {
+    "zh": "语音识别",
+    "en": "Speech recognition"
+  },
+  "copy.8": {
+    "zh": "连接",
+    "en": "Connections"
+  },
+  "copy.9": {
+    "zh": "系统",
+    "en": "System"
+  },
+  "copy.10": {
+    "zh": "已保存到本地 AX。",
+    "en": "Saved to local AX."
+  },
+  "copy.11": {
+    "zh": "凭据已保存；在线模型发现未完成：{v0}",
+    "en": "Credentials saved; online model discovery failed: {v0}"
+  },
+  "copy.12": {
+    "zh": "凭据已保存；已发现并缓存 {v0} 个模型。列表成功不代表推理已验证。",
+    "en": "Credentials saved; discovered and cached {v0} models. Inference access is still unverified."
+  },
+  "copy.13": {
+    "zh": "在线刷新未完成：{v0}",
+    "en": "Online refresh failed: {v0}"
+  },
+  "copy.14": {
+    "zh": "在线发现完成：{v0} 个模型。模型列表可用不代表推理权限或余额已验证。",
+    "en": "Discovered {v0} models online. Inference access and balance are still unverified."
+  },
+  "copy.15": {
+    "zh": "请填写完整的 APPID / APIKey / APISecret。",
+    "en": "Enter APPID, APIKey and APISecret."
+  },
+  "copy.16": {
+    "zh": "已保存，手机端将使用讯飞识别。",
+    "en": "Saved. Your phone will use iFlytek recognition."
+  },
+  "copy.17": {
+    "zh": "已保存到本机（网关未确认）。",
+    "en": "Saved locally (gateway has not confirmed)."
+  },
+  "copy.18": {
+    "zh": "本地已保存；网关暂不可用（{v0}），连接后请重新保存以同步到手机。",
+    "en": "Saved locally; gateway unavailable ({v0}). Save again after reconnecting to sync your phone."
+  },
+  "copy.19": {
+    "zh": "AX 或工作目录尚未就绪。",
+    "en": "AX or the workspace is not ready."
+  },
+  "copy.20": {
+    "zh": "请先关闭一个终端标签。",
+    "en": "Close a terminal tab first."
+  },
+  "copy.21": {
+    "zh": "已打开 AX 终端。输入 {v0}，完成后返回设置刷新状态。",
+    "en": "AX terminal opened. Enter {v0}, then return to settings and refresh."
+  },
+  "copy.22": {
+    "zh": "在终端点击或复制登录 URL，授权成功后点击刷新模型列表。",
+    "en": "Click or copy the login URL in the terminal, then refresh models after authorization."
+  },
+  "copy.23": {
+    "zh": "请先选择工作目录。",
+    "en": "Choose a workspace first."
+  },
+  "copy.24": {
+    "zh": "AX 备份",
+    "en": "AX backup"
+  },
+  "copy.25": {
+    "zh": "已导出到 {v0}{v1}",
+    "en": "Exported to {v0}{v1}"
+  },
+  "copy.26": {
+    "zh": "导入完成。{v0}",
+    "en": "Import complete. {v0}"
+  },
+  "copy.27": {
+    "zh": "设置分类",
+    "en": "Settings categories"
+  },
+  "copy.28": {
+    "zh": "设置",
+    "en": "Settings"
+  },
+  "copy.29": {
+    "zh": "系统状态、会话与本地 AX 一览",
+    "en": "System status, sessions and local AX"
+  },
+  "copy.30": {
+    "zh": "使用 AX 已登录的提供商与模型",
+    "en": "Providers and models signed in through AX"
+  },
+  "copy.31": {
+    "zh": "配置讯飞实时语音听写，用于手机语音输入",
+    "en": "Configure iFlytek streaming speech recognition for your phone"
+  },
+  "copy.32": {
+    "zh": "AX 已装的技能、MCP 服务器与内置工具",
+    "en": "Skills, MCP servers and built-in AX tools"
+  },
+  "copy.33": {
+    "zh": "AX Crew 与本地 AX 设置",
+    "en": "AX Crew and local AX settings"
+  },
+  "copy.34": {
+    "zh": "搜索设置",
+    "en": "Search settings"
+  },
+  "copy.35": {
+    "zh": "搜索设置…",
+    "en": "Search settings…"
+  },
+  "copy.36": {
+    "zh": "本地服务运行中",
+    "en": "Local service running"
+  },
+  "copy.37": {
+    "zh": "正在连接本地服务",
+    "en": "Connecting to local service"
+  },
+  "copy.38": {
+    "zh": "会话",
+    "en": "Sessions"
+  },
+  "copy.39": {
+    "zh": "任务",
+    "en": "Tasks"
+  },
+  "copy.40": {
+    "zh": "已配置提供商",
+    "en": "Configured providers"
+  },
+  "copy.41": {
+    "zh": "AX 模型",
+    "en": "AX model"
+  },
+  "copy.42": {
+    "zh": "正在检测…",
+    "en": "Detecting…"
+  },
+  "copy.43": {
+    "zh": "仅桌面应用可检测 AX",
+    "en": "AX detection requires the desktop app"
+  },
+  "copy.44": {
+    "zh": "查看详情",
+    "en": "View details"
+  },
+  "copy.45": {
+    "zh": "使用 AX 的自动模型选择",
+    "en": "Use automatic AX model selection"
+  },
+  "copy.46": {
+    "zh": "管理模型",
+    "en": "Manage models"
+  },
+  "copy.47": {
+    "zh": "记忆与会话备份",
+    "en": "Memory & session backups"
+  },
+  "copy.48": {
+    "zh": "使用 AX 的 .axpack 格式导入或导出工作目录中的记忆和会话。",
+    "en": "Import or export workspace memory and sessions using AX .axpack archives."
+  },
+  "copy.49": {
+    "zh": "安装检测",
+    "en": "Installation"
+  },
+  "copy.50": {
+    "zh": "系统中安装的 AX",
+    "en": "AX installed on this system"
+  },
+  "copy.51": {
+    "zh": "未找到已安装的 AX",
+    "en": "No AX installation found"
+  },
+  "copy.52": {
+    "zh": "安装版本",
+    "en": "Installed version"
+  },
+  "copy.53": {
+    "zh": "Crew 协议",
+    "en": "Crew protocol"
+  },
+  "copy.54": {
+    "zh": "可直接使用",
+    "en": "Ready to use"
+  },
+  "copy.55": {
+    "zh": "当前安装不支持 ACP，请更新 AX",
+    "en": "This installation does not support ACP. Update AX."
+  },
+  "copy.56": {
+    "zh": "重新检测",
+    "en": "Detect again"
+  },
+  "copy.57": {
+    "zh": "当前运行环境",
+    "en": "Runtime"
+  },
+  "copy.58": {
+    "zh": "AX 可执行文件",
+    "en": "AX executable"
+  },
+  "copy.59": {
+    "zh": "AX 尚未就绪",
+    "en": "AX is not ready"
+  },
+  "copy.60": {
+    "zh": "版本",
+    "en": "Version"
+  },
+  "copy.61": {
+    "zh": "默认工作目录",
+    "en": "Default workspace"
+  },
+  "copy.62": {
+    "zh": "前往会话选择目录",
+    "en": "Choose a workspace in Sessions"
+  },
+  "copy.63": {
+    "zh": "AX 默认模型",
+    "en": "Default AX model"
+  },
+  "copy.64": {
+    "zh": "目录由当前运行的 AX 提供，仅展示支持工具调用的模型；本地目录不代表账号已获得访问权限。",
+    "en": "The running AX supplies this catalog. Only models supporting tool calls appear. A local entry does not prove account access."
+  },
+  "copy.65": {
+    "zh": "会话中的 auto 使用 AX 已保存的默认模型。选择模型会更新 AX 的本地配置。",
+    "en": "Auto uses the default model saved in AX. Choosing a model updates the local AX configuration."
+  },
+  "copy.66": {
+    "zh": "选择模型（按提供商区分）",
+    "en": "Choose a model by provider"
+  },
+  "copy.67": {
+    "zh": "尚无可选模型",
+    "en": "No models available"
+  },
+  "copy.68": {
+    "zh": "连接模型提供商",
+    "en": "Connect a model provider"
+  },
+  "copy.69": {
+    "zh": "选择与密钥匹配的厂商、区域及套餐。普通 API 与 Token Plan 的密钥和地址可能不同。",
+    "en": "Match the provider, region and plan to your key. Standard API and Token Plan credentials and endpoints may differ."
+  },
+  "copy.70": {
+    "zh": "保存后自动向厂商请求模型列表；不提供列表接口时仍可从 AX 本地目录选择模型。",
+    "en": "Saving requests the provider's model list. If discovery is unavailable, AX can use its local catalog."
+  },
+  "copy.71": {
+    "zh": "模型提供商",
+    "en": "Model provider"
+  },
+  "copy.72": {
+    "zh": " · AX 不支持",
+    "en": " · Unsupported by AX"
+  },
+  "copy.73": {
+    "zh": " · 凭据已保存",
+    "en": " · Credentials saved"
+  },
+  "copy.74": {
+    "zh": "打开 AX 登录终端",
+    "en": "Open AX sign-in terminal"
+  },
+  "copy.75": {
+    "zh": "点击或复制终端中的登录 URL，完成授权后刷新模型列表。",
+    "en": "Click or copy the terminal's login URL, then refresh models after authorization."
+  },
+  "copy.76": {
+    "zh": "此提供商使用环境凭据，请按厂商要求配置本机环境。",
+    "en": "This provider uses environment credentials. Configure your environment as required by the provider."
+  },
+  "copy.77": {
+    "zh": "{v0} API Key",
+    "en": "{v0} API Key"
+  },
+  "copy.78": {
+    "zh": "保存并发现模型",
+    "en": "Save & discover models"
+  },
+  "copy.79": {
+    "zh": "AX 目前驱动不了该提供商：",
+    "en": "AX cannot use this provider yet:"
+  },
+  "copy.80": {
+    "zh": "移除 AX 凭据",
+    "en": "Remove AX credentials"
+  },
+  "copy.81": {
+    "zh": "已检测到",
+    "en": "Detected"
+  },
+  "copy.82": {
+    "zh": "凭据 · 尚未验证推理",
+    "en": "credentials · Inference unverified"
+  },
+  "copy.83": {
+    "zh": "已配置的提供商",
+    "en": "Configured providers"
+  },
+  "copy.84": {
+    "zh": "不受支持 · {v0}",
+    "en": "Unsupported · {v0}"
+  },
+  "copy.85": {
+    "zh": "{v0} 凭据 · {v1} 个{v2}模型 · 推理未验证",
+    "en": "{v0} credentials · {v1} {v2} models · Inference unverified"
+  },
+  "copy.86": {
+    "zh": "在线刷新",
+    "en": "Refresh online"
+  },
+  "copy.87": {
+    "zh": "尚未检测到 AX 的登录凭据。可以保存 API Key，或在 AX 登录终端中连接 OAuth 模型。",
+    "en": "No AX credentials found. Save an API key or connect an OAuth provider through AX sign-in."
+  },
+  "copy.88": {
+    "zh": "工作目录",
+    "en": "Workspace"
+  },
+  "copy.89": {
+    "zh": "AX 的项目记忆与会话按工作目录保存；当前操作目标：",
+    "en": "AX stores project memory and sessions by workspace. Current destination:"
+  },
+  "copy.90": {
+    "zh": "未选择",
+    "en": "Not selected"
+  },
+  "copy.91": {
+    "zh": "在会话中选择工作目录",
+    "en": "Choose a workspace in Sessions"
+  },
+  "copy.92": {
+    "zh": "导出 AX 数据",
+    "en": "Export AX data"
+  },
+  "copy.93": {
+    "zh": "创建新的 .axpack 文件。AX 不会覆盖已有备份。",
+    "en": "Create a new .axpack archive. AX does not overwrite existing backups."
+  },
+  "copy.94": {
+    "zh": "导出内容",
+    "en": "Export scope"
+  },
+  "copy.95": {
+    "zh": "记忆与会话",
+    "en": "Memory & sessions"
+  },
+  "copy.96": {
+    "zh": "仅记忆",
+    "en": "Memory only"
+  },
+  "copy.97": {
+    "zh": "仅会话",
+    "en": "Sessions only"
+  },
+  "copy.98": {
+    "zh": "导出",
+    "en": "Export"
+  },
+  "copy.99": {
+    "zh": "导入 AX 数据",
+    "en": "Import AX data"
+  },
+  "copy.100": {
+    "zh": "先让 AX 检查存档并显示合并计划，再确认导入。",
+    "en": "AX validates the archive and previews the merge before importing."
+  },
+  "copy.101": {
+    "zh": "选择 .axpack 并预览",
+    "en": "Choose .axpack & preview"
+  },
+  "copy.102": {
+    "zh": "确认导入到当前工作目录",
+    "en": "Import into this workspace"
+  },
+  "copy.103": {
+    "zh": "外观",
+    "en": "Appearance"
+  },
+  "copy.104": {
+    "zh": "主题",
+    "en": "Theme"
+  },
+  "copy.105": {
+    "zh": "深色",
+    "en": "Dark"
+  },
+  "copy.106": {
+    "zh": "浅色",
+    "en": "Light"
+  },
+  "copy.107": {
+    "zh": "跟随系统",
+    "en": "System"
+  },
+  "copy.108": {
+    "zh": "开发者模式",
+    "en": "Developer mode"
+  },
+  "copy.109": {
+    "zh": "在动态页面显示原始 CrewEvent",
+    "en": "Show raw CrewEvent data in Activity"
+  },
+  "copy.110": {
+    "zh": "讯飞语音识别",
+    "en": "iFlytek speech recognition"
+  },
+  "copy.111": {
+    "zh": "手机端「按住说话」将使用讯飞实时语音听写 API 识别，密钥保存在本机，用于向讯飞服务认证。在讯飞开放平台（www.xfyun.cn）创建应用后，在「语音听写（流式版）」服务中获取以下三项。",
+    "en": "Your phone uses iFlytek streaming speech recognition. Credentials are stored locally and used to authenticate with iFlytek. Create an app at www.xfyun.cn and obtain these three values from the streaming speech recognition service."
+  },
+  "copy.112": {
+    "zh": "在讯飞控制台「我的应用」中查看",
+    "en": "Find this in My Applications in the iFlytek console"
+  },
+  "copy.113": {
+    "zh": "讯飞「语音听写」服务密钥",
+    "en": "iFlytek speech recognition service credential"
+  },
+  "copy.114": {
+    "zh": "保存密钥",
+    "en": "Save credentials"
+  },
+  "copy.115": {
+    "zh": "已保存（",
+    "en": "Saved ("
+  },
+  "copy.116": {
+    "zh": "配对远程 AX 设备",
+    "en": "Pair a remote AX device"
+  },
+  "copy.117": {
+    "zh": "公共网关 URL",
+    "en": "Public gateway URL"
+  },
+  "copy.118": {
+    "zh": "此地址用于将另一台 AX 电脑加入 Crew。手机连接在下方单独配置。",
+    "en": "Use this address to add another AX computer to Crew. Phone connections are configured separately below."
+  },
+  "copy.119": {
+    "zh": "本地服务",
+    "en": "Local service"
+  },
+  "copy.120": {
+    "zh": "后端",
+    "en": "Backend"
+  },
+  "copy.121": {
+    "zh": "未连接",
+    "en": "Disconnected"
+  },
+  "copy.122": {
+    "zh": "事件流",
+    "en": "Event stream"
+  },
+  "copy.123": {
+    "zh": "协议版本",
+    "en": "Protocol version"
+  },
+  "copy.124": {
+    "zh": "桌面行为",
+    "en": "Desktop behavior"
+  },
+  "copy.125": {
+    "zh": "关闭窗口会隐藏到系统托盘；本地服务继续运行。可从托盘重新打开或退出。",
+    "en": "Closing the window hides it to the system tray while the local service keeps running. Reopen or quit from the tray."
+  },
+  "copy.126": {
+    "zh": "在 AX 中发现更多模型",
+    "en": "Discover more models in AX"
+  },
+  "copy.127": {
+    "zh": "刷新模型列表",
+    "en": "Refresh model list"
+  },
+  "copy.128": {
+    "zh": "AX 状态读取失败：",
+    "en": "Could not read AX status:"
+  },
+  "copy.129": {
+    "zh": "隐藏密钥",
+    "en": "Hide credential"
+  },
+  "copy.130": {
+    "zh": "显示密钥",
+    "en": "Show credential"
+  },
+  "copy.131": {
+    "zh": "配对设备",
+    "en": "Pair device"
+  },
+  "copy.132": {
+    "zh": "本地 AX 设备已自动就绪。输入另一台机器可访问的 HTTPS 网关地址，在那台机器上执行下方命令，把它加入 Crew（与手机连接无关，手机连接请使用「连接手机」）。",
+    "en": "Local AX is ready automatically. Enter an HTTPS gateway reachable from the other machine, then run the commands there to join Crew. For a phone, use Connect phone."
+  },
+  "copy.133": {
+    "zh": "正在加载设备…",
+    "en": "Loading devices…"
+  },
+  "copy.134": {
+    "zh": "无法加载设备",
+    "en": "Could not load devices"
+  },
+  "copy.135": {
+    "zh": "设备不存在",
+    "en": "Device not found"
+  },
+  "copy.136": {
+    "zh": "正在加载团队…",
+    "en": "Loading teams…"
+  },
+  "copy.137": {
+    "zh": "无法加载团队",
+    "en": "Could not load teams"
+  },
+  "copy.138": {
+    "zh": "团队不存在",
+    "en": "Team not found"
+  },
+  "copy.139": {
+    "zh": "正在加载成员…",
+    "en": "Loading members…"
+  },
+  "copy.140": {
+    "zh": "无法加载成员",
+    "en": "Could not load members"
+  },
+  "copy.141": {
+    "zh": "成员不存在",
+    "en": "Member not found"
+  },
+  "copy.142": {
+    "zh": "正在加载任务…",
+    "en": "Loading tasks…"
+  },
+  "copy.143": {
+    "zh": "无法加载任务",
+    "en": "Could not load tasks"
+  },
+  "copy.144": {
+    "zh": "任务不存在或已被删除",
+    "en": "Task missing or deleted"
+  },
+  "copy.145": {
+    "zh": "一",
+    "en": "Mon"
+  },
+  "copy.146": {
+    "zh": "二",
+    "en": "Tue"
+  },
+  "copy.147": {
+    "zh": "三",
+    "en": "Wed"
+  },
+  "copy.148": {
+    "zh": "四",
+    "en": "Thu"
+  },
+  "copy.149": {
+    "zh": "五",
+    "en": "Fri"
+  },
+  "copy.150": {
+    "zh": "六",
+    "en": "Sat"
+  },
+  "copy.151": {
+    "zh": "日",
+    "en": "Sun"
+  },
+  "copy.152": {
+    "zh": "每晚构建监控",
+    "en": "Nightly build monitor"
+  },
+  "copy.153": {
+    "zh": "每晚构建并测试 main；报告失败和可能的修复。",
+    "en": "Build and test main nightly; report failures and possible fixes."
+  },
+  "copy.154": {
+    "zh": "每日 · 02:00",
+    "en": "Daily · 02:00"
+  },
+  "copy.155": {
+    "zh": "构建并测试 main 分支，报告失败项以及可能的修复方案。",
+    "en": "Build and test the main branch. Report failures and possible fixes."
+  },
+  "copy.156": {
+    "zh": "错误摘要",
+    "en": "Error digest"
+  },
+  "copy.157": {
+    "zh": "把新的生产错误聚类，并给出每一类的可疑原因。",
+    "en": "Group new production errors and identify likely causes."
+  },
+  "copy.158": {
+    "zh": "每 6 小时",
+    "en": "Every 6 hours"
+  },
+  "copy.159": {
+    "zh": "汇总上次运行以来新增的生产错误，按类型聚类，并为每一类给出简短摘要和可疑原因。",
+    "en": "Summarize new production errors since the last run, group them by type and identify likely causes."
+  },
+  "copy.160": {
+    "zh": "站会简报",
+    "en": "Standup brief"
+  },
+  "copy.161": {
+    "zh": "站会前汇总你的提交、PR、CI 状态和阻塞项。",
+    "en": "Summarize commits, PRs, CI status and blockers before standup."
+  },
+  "copy.162": {
+    "zh": "工作日 · 08:45",
+    "en": "Weekdays · 08:45"
+  },
+  "copy.163": {
+    "zh": "汇总昨天的提交、待审 PR、CI 状态和阻塞项，写成站会可用的简报。",
+    "en": "Summarize yesterday's commits, pending PR reviews, CI status and blockers for standup."
+  },
+  "copy.164": {
+    "zh": "部署验证",
+    "en": "Deployment checks"
+  },
+  "copy.165": {
+    "zh": "运行部署后冒烟检查，并给出放行 / 不放行结论。",
+    "en": "Run post-deployment smoke checks and give a go/no-go decision."
+  },
+  "copy.166": {
+    "zh": "每 30 分钟",
+    "en": "Every 30 minutes"
+  },
+  "copy.167": {
+    "zh": "运行部署后的冒烟检查，并给出放行或不放行的结论。",
+    "en": "Run post-deployment smoke checks and give a go/no-go decision."
+  },
+  "copy.168": {
+    "zh": "依赖巡检",
+    "en": "Dependency review"
+  },
+  "copy.169": {
+    "zh": "检查依赖是否有新版本和安全公告。",
+    "en": "Check dependencies for updates and security advisories."
+  },
+  "copy.170": {
+    "zh": "每日 · 09:00",
+    "en": "Daily · 09:00"
+  },
+  "copy.171": {
+    "zh": "检查项目依赖的新版本与安全公告，列出需要升级的条目。",
+    "en": "Check dependency updates and security advisories. List packages needing an upgrade."
+  },
+  "copy.172": {
+    "zh": "日志清理",
+    "en": "Log cleanup"
+  },
+  "copy.173": {
+    "zh": "归档并清理过期日志，保持工作区干净。",
+    "en": "Archive expired logs and clean the workspace."
+  },
+  "copy.174": {
+    "zh": "每周 · 周日 23:00",
+    "en": "Weekly · Sun 23:00"
+  },
+  "copy.175": {
+    "zh": "归档并清理过期日志，报告释放的空间。",
+    "en": "Archive and clean expired logs. Report the space recovered."
+  },
+  "copy.176": {
+    "zh": "指标快照",
+    "en": "Metrics snapshot"
+  },
+  "copy.177": {
+    "zh": "记录关键指标快照，便于对比趋势。",
+    "en": "Record key metrics to compare trends."
+  },
+  "copy.178": {
+    "zh": "每小时",
+    "en": "Hourly"
+  },
+  "copy.179": {
+    "zh": "记录当前的关键指标快照，并和上一次快照对比差异。",
+    "en": "Record key metrics and compare them with the previous snapshot."
+  },
+  "copy.180": {
+    "zh": "收尾检查",
+    "en": "End-of-day review"
+  },
+  "copy.181": {
+    "zh": "一天结束时整理未完成的改动并给出下一步。",
+    "en": "Organize unfinished work and identify next steps."
+  },
+  "copy.182": {
+    "zh": "工作日 · 18:30",
+    "en": "Weekdays · 18:30"
+  },
+  "copy.183": {
+    "zh": "整理今天未完成的改动、未通过的测试和未回复的评审，给出明天的下一步。",
+    "en": "Review unfinished changes, failing tests and pending reviews. Identify tomorrow's next steps."
+  },
+  "copy.184": {
+    "zh": "每 {v0} 天",
+    "en": "Every {v0} days"
+  },
+  "copy.185": {
+    "zh": "每 {v0} 小时",
+    "en": "Every {v0} hours"
+  },
+  "copy.186": {
+    "zh": "每 {v0} 分钟",
+    "en": "Every {v0} minutes"
+  },
+  "copy.187": {
+    "zh": "工作日",
+    "en": "Weekdays"
+  },
+  "copy.188": {
+    "zh": "周{v0}",
+    "en": "{v0}"
+  },
+  "copy.189": {
+    "zh": "每周",
+    "en": "Weekly"
+  },
+  "copy.190": {
+    "zh": "{v0} · {v1}",
+    "en": "{v0} · {v1}"
+  },
+  "copy.191": {
+    "zh": "不到 1 分钟",
+    "en": "Less than a minute"
+  },
+  "copy.192": {
+    "zh": "{v0} 分钟",
+    "en": "{v0} minutes"
+  },
+  "copy.193": {
+    "zh": "{v0} 小时 {v1} 分",
+    "en": "{v0}h {v1}m"
+  },
+  "copy.194": {
+    "zh": "{v0} 天",
+    "en": "{v0} days"
+  },
+  "copy.195": {
+    "zh": "{v0}后",
+    "en": "in {v0}"
+  },
+  "copy.196": {
+    "zh": "{v0}前",
+    "en": "{v0} ago"
+  },
+  "copy.197": {
+    "zh": "名称和消息都不能为空",
+    "en": "Name and message are required"
+  },
+  "copy.198": {
+    "zh": "每周计划至少要选择一天",
+    "en": "Select at least one weekday"
+  },
+  "copy.199": {
+    "zh": "名称",
+    "en": "Name"
+  },
+  "copy.200": {
+    "zh": "此任务的简短标签",
+    "en": "A short label for this task"
+  },
+  "copy.201": {
+    "zh": "例如：每晚构建监控",
+    "en": "For example: nightly build monitor"
+  },
+  "copy.202": {
+    "zh": "消息",
+    "en": "Message"
+  },
+  "copy.203": {
+    "zh": "此任务触发时发送给代理的提示词或任务",
+    "en": "The prompt or task sent to the agent each run"
+  },
+  "copy.204": {
+    "zh": "描述代理每次运行时要完成的事情",
+    "en": "Describe what the agent should do each run"
+  },
+  "copy.205": {
+    "zh": "计划",
+    "en": "Schedule"
+  },
+  "copy.206": {
+    "zh": "此任务的运行频率",
+    "en": "How often this task runs"
+  },
+  "copy.207": {
+    "zh": "固定间隔",
+    "en": "Fixed interval"
+  },
+  "copy.208": {
+    "zh": "每天",
+    "en": "Daily"
+  },
+  "copy.209": {
+    "zh": "间隔数值",
+    "en": "Interval"
+  },
+  "copy.210": {
+    "zh": "分钟",
+    "en": "Minutes"
+  },
+  "copy.211": {
+    "zh": "小时",
+    "en": "Hours"
+  },
+  "copy.212": {
+    "zh": "天",
+    "en": "Days"
+  },
+  "copy.213": {
+    "zh": "运行时间",
+    "en": "Run time"
+  },
+  "copy.214": {
+    "zh": "运行日期",
+    "en": "Run days"
+  },
+  "copy.215": {
+    "zh": "代理",
+    "en": "Agent"
+  },
+  "copy.216": {
+    "zh": "由哪个代理处理此任务。保持默认则使用主代理。",
+    "en": "Choose an agent. Default uses the primary agent."
+  },
+  "copy.217": {
+    "zh": "default（主代理）",
+    "en": "Default (primary agent)"
+  },
+  "copy.218": {
+    "zh": "模型",
+    "en": "Model"
+  },
+  "copy.219": {
+    "zh": "为此任务覆盖模型。保持“继承”则使用代理或全局默认值。",
+    "en": "Override the model for this task. Inherit uses the agent or global default."
+  },
+  "copy.220": {
+    "zh": "继承代理设置",
+    "en": "Inherit agent settings"
+  },
+  "copy.221": {
+    "zh": "审批",
+    "en": "Approval"
+  },
+  "copy.222": {
+    "zh": "执行期间工具调用的审批方式",
+    "en": "How tool calls are approved during execution"
+  },
+  "copy.223": {
+    "zh": "默认",
+    "en": "Default"
+  },
+  "copy.224": {
+    "zh": "自动批准",
+    "en": "Approve automatically"
+  },
+  "copy.225": {
+    "zh": "每次都询问",
+    "en": "Always ask"
+  },
+  "copy.226": {
+    "zh": "静默模式",
+    "en": "Silent mode"
+  },
+  "copy.227": {
+    "zh": "禁止自动发送消息。由代理决定何时通知。",
+    "en": "Disable automatic delivery. Let the agent decide when to notify you."
+  },
+  "copy.228": {
+    "zh": "严格计划",
+    "en": "Strict schedule"
+  },
+  "copy.229": {
+    "zh": "严格按计划触发，不加抖动。默认情况下任务会随机分散，以减少流量峰值。",
+    "en": "Run at the exact scheduled time. Otherwise runs are staggered to reduce traffic peaks."
+  },
+  "copy.230": {
+    "zh": "在聊天中隐藏",
+    "en": "Hide in chats"
+  },
+  "copy.231": {
+    "zh": "不在活动会话列表中显示此任务的运行。适用于无需关注的任务（摘要、清理）— 结果仍会送达通知和历史标签页。",
+    "en": "Hide these runs from active chats. Results still appear in notifications and history."
+  },
+  "copy.232": {
+    "zh": "聊天文件夹",
+    "en": "Chat folder"
+  },
+  "copy.233": {
+    "zh": "把此任务聊天标签页放进聊天侧边栏某个文件夹，方便集中查找它的运行记录。归档不会隐藏任何内容：通知和投递均不受影响。",
+    "en": "Group this task's chats in a sidebar folder. Grouping does not affect notifications or delivery."
+  },
+  "copy.234": {
+    "zh": "不归档运行记录",
+    "en": "Do not group runs"
+  },
+  "copy.235": {
+    "zh": "文件夹已就绪，创建后即可在侧边栏中集中查找运行记录。",
+    "en": "The folder is ready. Runs will appear together in the sidebar after creation."
+  },
+  "copy.236": {
+    "zh": "还没有文件夹。请先保存此任务；在聊天侧边栏中创建一个文件夹，然后重新打开此任务再选择它。",
+    "en": "No folders yet. Save the task, create a sidebar folder, then reopen the task to choose it."
+  },
+  "copy.237": {
+    "zh": "精简上下文",
+    "en": "Minimal context"
+  },
+  "copy.238": {
+    "zh": "每次运行都跳过记忆、经验、引导规则、技能和过往会话历史，让例行任务不再为从不读取的上下文付费。如果任务需要你保存的上下文，或者要调用技能，请保持关闭。",
+    "en": "Skip memory, experience, bootstrap rules, skills and previous history for each run. Leave this off if the task needs saved context or skills."
+  },
+  "copy.239": {
+    "zh": "取消",
+    "en": "Cancel"
+  },
+  "copy.240": {
+    "zh": "保存",
+    "en": "Save"
+  },
+  "copy.241": {
+    "zh": "创建",
+    "en": "Create"
+  },
+  "copy.242": {
+    "zh": "周",
+    "en": "Week"
+  },
+  "copy.243": {
+    "zh": "还没有执行记录。定时任务每次运行时都会在这里留下一条记录。",
+    "en": "No runs yet. Each scheduled run will appear here."
+  },
+  "copy.244": {
+    "zh": "已删除的计划",
+    "en": "Deleted schedule"
+  },
+  "copy.245": {
+    "zh": " · 用时 {v0}",
+    "en": " · Duration {v0}"
+  },
+  "copy.246": {
+    "zh": " · 进行中",
+    "en": " · In progress"
+  },
+  "copy.247": {
+    "zh": "已完成",
+    "en": "Completed"
+  },
+  "copy.248": {
+    "zh": "运行中",
+    "en": "Running"
+  },
+  "copy.249": {
+    "zh": "失败",
+    "en": "Failed"
+  },
+  "copy.250": {
+    "zh": "已取消",
+    "en": "Cancelled"
+  },
+  "copy.251": {
+    "zh": "查看运行",
+    "en": "View run"
+  },
+  "copy.252": {
+    "zh": "加载更多",
+    "en": "Load more"
+  },
+  "copy.253": {
+    "zh": "已删除的代理",
+    "en": "Deleted agent"
+  },
+  "copy.254": {
+    "zh": "管理周期性定时任务和计划任务",
+    "en": "Manage recurring tasks and schedules"
+  },
+  "copy.255": {
+    "zh": "列表",
+    "en": "List"
+  },
+  "copy.256": {
+    "zh": "日历",
+    "en": "Calendar"
+  },
+  "copy.257": {
+    "zh": "执行记录",
+    "en": "Run history"
+  },
+  "copy.258": {
+    "zh": "无法加载计划：",
+    "en": "Could not load schedules:"
+  },
+  "copy.259": {
+    "zh": "重试",
+    "en": "Retry"
+  },
+  "copy.260": {
+    "zh": "正在加载计划…",
+    "en": "Loading schedules…"
+  },
+  "copy.261": {
+    "zh": "尚无定时任务",
+    "en": "No scheduled tasks"
+  },
+  "copy.262": {
+    "zh": "安排周期性任务自动运行 — 检查流水线、生成报告、监控服务，或任何代理能做的事。",
+    "en": "Run recurring tasks automatically: check pipelines, generate reports, monitor services or anything your agent can do."
+  },
+  "copy.263": {
+    "zh": "创建你的第一个任务",
+    "en": "Create your first task"
+  },
+  "copy.264": {
+    "zh": "或：在聊天中询问 — 试试“提醒我每天早上检查流水线”",
+    "en": "Or ask in chat: “Remind me to check the pipeline every morning”"
+  },
+  "copy.265": {
+    "zh": "从预设计划开始",
+    "en": "Start from a preset"
+  },
+  "copy.266": {
+    "zh": "浏览全部模板",
+    "en": "Browse all templates"
+  },
+  "copy.267": {
+    "zh": "筛选任务",
+    "en": "Filter tasks"
+  },
+  "copy.268": {
+    "zh": "筛选任务…",
+    "en": "Filter tasks…"
+  },
+  "copy.269": {
+    "zh": "新建文件夹",
+    "en": "New folder"
+  },
+  "copy.270": {
+    "zh": "添加任务",
+    "en": "Add task"
+  },
+  "copy.271": {
+    "zh": "定时任务",
+    "en": "Scheduled task"
+  },
+  "copy.272": {
+    "zh": "类型",
+    "en": "Type"
+  },
+  "copy.273": {
+    "zh": "状态",
+    "en": "Status"
+  },
+  "copy.274": {
+    "zh": "上次运行",
+    "en": "Last run"
+  },
+  "copy.275": {
+    "zh": "下次运行",
+    "en": "Next run"
+  },
+  "copy.276": {
+    "zh": "操作",
+    "en": "Actions"
+  },
+  "copy.277": {
+    "zh": "个任务",
+    "en": "tasks"
+  },
+  "copy.278": {
+    "zh": "没有匹配的任务",
+    "en": "No matching tasks"
+  },
+  "copy.279": {
+    "zh": "新建定时任务",
+    "en": "New scheduled task"
+  },
+  "copy.280": {
+    "zh": "编辑定时任务",
+    "en": "Edit scheduled task"
+  },
+  "copy.281": {
+    "zh": "全部预设计划",
+    "en": "All schedule presets"
+  },
+  "copy.282": {
+    "zh": "文件夹名称",
+    "en": "Folder name"
+  },
+  "copy.283": {
+    "zh": "用于在聊天侧边栏里集中查找某个计划的运行记录",
+    "en": "Group a schedule's runs in the chat sidebar"
+  },
+  "copy.284": {
+    "zh": "未归档",
+    "en": "Ungrouped"
+  },
+  "copy.285": {
+    "zh": "隐藏消息",
+    "en": "Hide messages"
+  },
+  "copy.286": {
+    "zh": "显示消息",
+    "en": "Show messages"
+  },
+  "copy.287": {
+    "zh": "就绪",
+    "en": "Ready"
+  },
+  "copy.288": {
+    "zh": "已暂停",
+    "en": "Paused"
+  },
+  "copy.289": {
+    "zh": "运行",
+    "en": "Run"
+  },
+  "copy.290": {
+    "zh": "删除",
+    "en": "Delete"
+  },
+  "copy.291": {
+    "zh": "{v0} 的更多操作",
+    "en": "More actions for {v0}"
+  },
+  "copy.292": {
+    "zh": "暂停计划",
+    "en": "Pause schedule"
+  },
+  "copy.293": {
+    "zh": "恢复计划",
+    "en": "Resume schedule"
+  },
+  "copy.294": {
+    "zh": "编辑任务",
+    "en": "Edit task"
+  },
+  "copy.295": {
+    "zh": "关闭静默模式",
+    "en": "Disable silent mode"
+  },
+  "copy.296": {
+    "zh": "开启静默模式",
+    "en": "Enable silent mode"
+  },
+  "copy.297": {
+    "zh": "文档",
+    "en": "Documents"
+  },
+  "copy.298": {
+    "zh": "代码",
+    "en": "Code"
+  },
+  "copy.299": {
+    "zh": "表格",
+    "en": "Spreadsheets"
+  },
+  "copy.300": {
+    "zh": "图片",
+    "en": "Images"
+  },
+  "copy.301": {
+    "zh": "未分组",
+    "en": "Ungrouped"
+  },
+  "copy.302": {
+    "zh": "打开关联任务",
+    "en": "Open linked task"
+  },
+  "copy.303": {
+    "zh": "归档到「{v0}」",
+    "en": "Move to “{v0}”"
+  },
+  "copy.304": {
+    "zh": "移出文件夹",
+    "en": "Remove from folder"
+  },
+  "copy.305": {
+    "zh": "产物",
+    "en": "Artifacts"
+  },
+  "copy.306": {
+    "zh": "代码片段、文档与表格 — 集中查看会话和任务生成的内容。",
+    "en": "View code, documents and spreadsheets generated by sessions and tasks."
+  },
+  "copy.307": {
+    "zh": "你的产物",
+    "en": "Your artifacts"
+  },
+  "copy.308": {
+    "zh": "新建产物",
+    "en": "New artifact"
+  },
+  "copy.309": {
+    "zh": "在聊天中生成",
+    "en": "Generate in chat"
+  },
+  "copy.310": {
+    "zh": "查看全部任务",
+    "en": "View all tasks"
+  },
+  "copy.311": {
+    "zh": "产物视图",
+    "en": "Artifact view"
+  },
+  "copy.312": {
+    "zh": "画廊",
+    "en": "Gallery"
+  },
+  "copy.313": {
+    "zh": "筛选产物",
+    "en": "Filter artifacts"
+  },
+  "copy.314": {
+    "zh": "按名称、内容筛选…",
+    "en": "Filter by name or content…"
+  },
+  "copy.315": {
+    "zh": "所有类型",
+    "en": "All types"
+  },
+  "copy.316": {
+    "zh": "所有标签",
+    "en": "All tags"
+  },
+  "copy.317": {
+    "zh": "无法加载产物：",
+    "en": "Could not load artifacts:"
+  },
+  "copy.318": {
+    "zh": "没有匹配的产物",
+    "en": "No matching artifacts"
+  },
+  "copy.319": {
+    "zh": "暂无产物",
+    "en": "No artifacts yet"
+  },
+  "copy.320": {
+    "zh": "换个关键词或清空筛选条件再试。",
+    "en": "Try another keyword or clear the filters."
+  },
+  "copy.321": {
+    "zh": "完成一次会话或任务后，生成的内容会自动出现在这里。",
+    "en": "Generated content appears here after a session or task finishes."
+  },
+  "copy.322": {
+    "zh": "标签",
+    "en": "Tags"
+  },
+  "copy.323": {
+    "zh": "更新时间",
+    "en": "Updated"
+  },
+  "copy.324": {
+    "zh": "查看",
+    "en": "View"
+  },
+  "copy.325": {
+    "zh": "连接手机",
+    "en": "Connect phone"
+  },
+  "copy.326": {
+    "zh": "用局域网或远程方式，把手机接入桌面 Gateway，控制同一套 AX Crew",
+    "en": "Connect your phone to the desktop Gateway over LAN to control the same AX Crew"
+  },
+  "copy.327": {
+    "zh": "连接流程",
+    "en": "Connection steps"
+  },
+  "copy.328": {
+    "zh": "选择连接方式",
+    "en": "Choose connection method"
+  },
+  "copy.329": {
+    "zh": "获取连接凭证",
+    "en": "Get connection credentials"
+  },
+  "copy.330": {
+    "zh": "手机连接",
+    "en": "Connect phone"
+  },
+  "copy.331": {
+    "zh": "连接遇到问题？",
+    "en": "Troubleshooting"
+  },
+  "copy.332": {
+    "zh": "手机和电脑必须连在同一个 Wi-Fi（同一局域网）。",
+    "en": "Your phone and computer must use the same Wi-Fi network."
+  },
+  "copy.333": {
+    "zh": "Windows 防火墙需放行 Gateway 端口（默认 53413），否则手机无法访问。",
+    "en": "Allow the Gateway port (default 53413) through Windows Firewall."
+  },
+  "copy.334": {
+    "zh": "页面显示的局域网地址是当前电脑的 IP，若网络变化会变，请以页面为准。",
+    "en": "The LAN address is this computer's current IP. Refresh it after a network change."
+  },
+  "copy.335": {
+    "zh": "配对码 5 分钟有效、一次性使用；手机扫码后需在本页「已授权设备」中点「允许」才完成授权。",
+    "en": "Pairing codes expire after five minutes and can be used once. Allow the phone under Authorized devices after scanning."
+  },
+  "copy.336": {
+    "zh": "HTTPS / 远程连接需要单独配置反向代理，当前版本尚未开放。",
+    "en": "HTTPS/remote connections require a reverse proxy and are not available yet."
+  },
+  "copy.337": {
+    "zh": "正在启动…",
+    "en": "Starting…"
+  },
+  "copy.338": {
+    "zh": "刷新",
+    "en": "Refresh"
+  },
+  "copy.339": {
+    "zh": "打开会话",
+    "en": "Open session"
+  },
+  "copy.340": {
+    "zh": "停止",
+    "en": "Stop"
+  },
+  "copy.341": {
+    "zh": "无法读取会话：",
+    "en": "Could not read session:"
+  },
+  "copy.342": {
+    "zh": "你",
+    "en": "You"
+  },
+  "copy.343": {
+    "zh": "工具",
+    "en": "Tool"
+  },
+  "copy.344": {
+    "zh": "思考",
+    "en": "Thinking"
+  },
+  "copy.345": {
+    "zh": "会话启动失败",
+    "en": "Session failed to start"
+  },
+  "copy.346": {
+    "zh": "正在加载会话…",
+    "en": "Loading session…"
+  },
+  "copy.347": {
+    "zh": "等待 AX Session",
+    "en": "Waiting for AX session"
+  },
+  "copy.348": {
+    "zh": "发送消息，继续此会话",
+    "en": "Send a message to continue this session"
+  },
+  "copy.349": {
+    "zh": "发送",
+    "en": "Send"
+  },
+  "copy.350": {
+    "zh": "Enter 发送 · Shift+Enter 换行",
+    "en": "Enter to send · Shift+Enter for a new line"
+  },
+  "copy.351": {
+    "zh": "请先在会话页选择工作目录。",
+    "en": "Choose a workspace in Sessions first."
+  },
+  "copy.352": {
+    "zh": "MCP 配置",
+    "en": "MCP configuration"
+  },
+  "copy.353": {
+    "zh": "直接读 AX 的只读目录扩展：技能来自项目根的",
+    "en": "Read the AX catalog directly. Project skills are in"
+  },
+  "copy.354": {
+    "zh": "与全局",
+    "en": "and global skills in"
+  },
+  "copy.355": {
+    "zh": "，MCP 服务器来自项目根的",
+    "en": ". MCP servers are configured in"
+  },
+  "copy.356": {
+    "zh": "，工具是 AX 自带的内置工具。",
+    "en": ". Tools are built into AX."
+  },
+  "copy.357": {
+    "zh": "查询目录",
+    "en": "Catalog workspace"
+  },
+  "copy.358": {
+    "zh": "未选择工作目录",
+    "en": "No workspace selected"
+  },
+  "copy.359": {
+    "zh": "重新读取",
+    "en": "Reload catalog"
+  },
+  "copy.360": {
+    "zh": "个技能 ·",
+    "en": "skills ·"
+  },
+  "copy.361": {
+    "zh": "个 MCP 服务器 ·",
+    "en": "MCP servers ·"
+  },
+  "copy.362": {
+    "zh": "个内置工具",
+    "en": "built-in tools"
+  },
+  "copy.363": {
+    "zh": "导入 Skill / MCP",
+    "en": "Import Skill / MCP"
+  },
+  "copy.364": {
+    "zh": "Skill 选择包含 SKILL.md 的目录；MCP 支持 AX TOML 或 mcpServers JSON。已有同名配置不会被覆盖，导入时不会运行脚本或启动服务器。新会话会读取导入的配置。",
+    "en": "Choose a Skill directory containing SKILL.md. MCP supports AX TOML or mcpServers JSON. Existing names are preserved. Importing does not execute scripts or start servers. New sessions read the imported configuration."
+  },
+  "copy.365": {
+    "zh": "安装到全局 AX（所有项目）",
+    "en": "Install globally in AX (all projects)"
+  },
+  "copy.366": {
+    "zh": "导入 Skill 目录",
+    "en": "Import Skill directory"
+  },
+  "copy.367": {
+    "zh": "导入 MCP 配置",
+    "en": "Import MCP configuration"
+  },
+  "copy.368": {
+    "zh": "仅桌面应用可以读取 AX 能力。",
+    "en": "Reading AX capabilities requires the desktop app."
+  },
+  "copy.369": {
+    "zh": "AX 能力读取失败：",
+    "en": "Could not read AX capabilities:"
+  },
+  "copy.370": {
+    "zh": "正在读取 AX 能力…",
+    "en": "Reading AX capabilities…"
+  },
+  "copy.371": {
+    "zh": "技能",
+    "en": "Skills"
+  },
+  "copy.372": {
+    "zh": "AX 没有找到技能。把带 SKILL.md 的技能目录放进全局目录",
+    "en": "No skills found. Place a directory containing SKILL.md in"
+  },
+  "copy.373": {
+    "zh": "，或当前工作目录的",
+    "en": "or the workspace's"
+  },
+  "copy.374": {
+    "zh": "缺少工具：",
+    "en": "Missing tools:"
+  },
+  "copy.375": {
+    "zh": "MCP 服务器",
+    "en": "MCP servers"
+  },
+  "copy.376": {
+    "zh": "没有配置 MCP 服务器。在项目根的",
+    "en": "No MCP servers configured. Add them to"
+  },
+  "copy.377": {
+    "zh": "里添加（格式见 AX 仓库的",
+    "en": "using the format in the AX repository's"
+  },
+  "copy.378": {
+    "zh": "已停用",
+    "en": "Disabled"
+  },
+  "copy.379": {
+    "zh": "内置工具",
+    "en": "Built-in tools"
+  },
+  "copy.380": {
+    "zh": "AX 没有返回内置工具列表。",
+    "en": "AX returned no built-in tools."
+  },
+  "copy.381": {
+    "zh": "更新会把 {v0} 替换为 {v1}，继续？",
+    "en": "Replace {v0} with {v1}?"
+  },
+  "copy.382": {
+    "zh": "下载并安装 AX",
+    "en": "Download & install AX"
+  },
+  "copy.383": {
+    "zh": "更新到 {v0}",
+    "en": "Update to {v0}"
+  },
+  "copy.384": {
+    "zh": "已是最新版本",
+    "en": "Up to date"
+  },
+  "copy.385": {
+    "zh": "AX 更新",
+    "en": "AX updates"
+  },
+  "copy.386": {
+    "zh": "从 GitHub Releases 检查最新版本，并下载或更新系统中安装的 AX。下载由 AX 官方安装脚本或",
+    "en": "Check GitHub Releases and install or update AX. Downloads use the official installer or"
+  },
+  "copy.387": {
+    "zh": "完成，两者都会按 release 的 SHA256SUMS 校验。",
+    "en": ". Both verify release SHA256SUMS."
+  },
+  "copy.388": {
+    "zh": "线上最新版本",
+    "en": "Latest release"
+  },
+  "copy.389": {
+    "zh": "尚未检查",
+    "en": "Not checked"
+  },
+  "copy.390": {
+    "zh": "本机 AX",
+    "en": "Installed AX"
+  },
+  "copy.391": {
+    "zh": "未安装",
+    "en": "Not installed"
+  },
+  "copy.392": {
+    "zh": "本机版本",
+    "en": "Installed version"
+  },
+  "copy.393": {
+    "zh": "检查更新",
+    "en": "Check for updates"
+  },
+  "copy.394": {
+    "zh": "将安装到",
+    "en": "Install to"
+  },
+  "copy.395": {
+    "zh": "已是最新版本。",
+    "en": "Up to date."
+  },
+  "copy.396": {
+    "zh": "有新版本：",
+    "en": "New version:"
+  },
+  "copy.397": {
+    "zh": "仅桌面应用可以检查或更新 AX。",
+    "en": "Checking or updating AX requires the desktop app."
+  },
+  "copy.398": {
+    "zh": "AX Crew 使用系统安装的 AX。安装或更新后，请等待任务结束，再重启 AX Crew 以启用新版本。",
+    "en": "AX Crew uses the system AX installation. Wait for tasks to finish, then restart Crew after an update."
+  },
+  "copy.399": {
+    "zh": "重启会中断正在执行的本地任务。确定现在重启 AX Crew？",
+    "en": "Restarting interrupts local tasks. Restart AX Crew now?"
+  },
+  "copy.400": {
+    "zh": "重启 AX Crew，使用系统 AX",
+    "en": "Restart Crew to use system AX"
+  },
+  "copy.401": {
+    "zh": "更新会退出 AX Crew 并打开安装向导。请先等待正在执行的任务结束，继续？",
+    "en": "Updating exits Crew and opens the installer. Wait for tasks to finish. Continue?"
+  },
+  "copy.402": {
+    "zh": "AX Crew 版本更新",
+    "en": "AX Crew updates"
+  },
+  "copy.403": {
+    "zh": "当前版本",
+    "en": "Current version"
+  },
+  "copy.404": {
+    "zh": "最新正式版本",
+    "en": "Latest stable release"
+  },
+  "copy.405": {
+    "zh": "从官方 GitHub Release 下载 Windows 安装包，校验 SHA256 后打开安装向导。更新保留现有设置和会话。",
+    "en": "Download the official Windows installer, verify SHA256 and open the installer. Settings and sessions are preserved."
+  },
+  "copy.406": {
+    "zh": "正在处理…",
+    "en": "Working…"
+  },
+  "copy.407": {
+    "zh": "检查 AX Crew 更新",
+    "en": "Check Crew updates"
+  },
+  "copy.408": {
+    "zh": "下载并更新到",
+    "en": "Download & update to"
+  },
+  "copy.409": {
+    "zh": "无法读取桌面 Gateway 连接",
+    "en": "Could not read desktop Gateway connection"
+  },
+  "copy.410": {
+    "zh": "生成配对码失败",
+    "en": "Could not generate pairing code"
+  },
+  "copy.411": {
+    "zh": "确认失败",
+    "en": "Confirmation failed"
+  },
+  "copy.412": {
+    "zh": "拒绝失败",
+    "en": "Rejection failed"
+  },
+  "copy.413": {
+    "zh": "撤销这台设备的访问？撤销后它将无法再连接 Gateway。",
+    "en": "Revoke this device's access? It will no longer be able to connect to the Gateway."
+  },
+  "copy.414": {
+    "zh": "撤销失败",
+    "en": "Revocation failed"
+  },
+  "copy.415": {
+    "zh": "连接方式",
+    "en": "Connection method"
+  },
+  "copy.416": {
+    "zh": "局域网连接",
+    "en": "LAN connection"
+  },
+  "copy.417": {
+    "zh": "HTTPS / 远程连接",
+    "en": "HTTPS / Remote"
+  },
+  "copy.418": {
+    "zh": "手机扫码配对二维码",
+    "en": "Scan the pairing QR code with your phone"
+  },
+  "copy.419": {
+    "zh": "生成配对码后，可用手机扫码配对",
+    "en": "Generate a pairing code for your phone to scan"
+  },
+  "copy.420": {
+    "zh": "配对码将在",
+    "en": "Pairing code expires in"
+  },
+  "copy.421": {
+    "zh": "后失效",
+    "en": "remaining"
+  },
+  "copy.422": {
+    "zh": "配对码 5 分钟有效、一次性使用",
+    "en": "Pairing codes expire after five minutes and can be used once"
+  },
+  "copy.423": {
+    "zh": "连接新设备",
+    "en": "Connect a new device"
+  },
+  "copy.424": {
+    "zh": "生成一次性配对码，手机扫码后请在下方授权确认。",
+    "en": "Generate a one-time code, scan it with your phone, then confirm authorization below."
+  },
+  "copy.425": {
+    "zh": "刷新配对码",
+    "en": "Refresh pairing code"
+  },
+  "copy.426": {
+    "zh": "生成配对码",
+    "en": "Generate pairing code"
+  },
+  "copy.427": {
+    "zh": "短配对码",
+    "en": "Short pairing code"
+  },
+  "copy.428": {
+    "zh": "复制配对码",
+    "en": "Copy pairing code"
+  },
+  "copy.429": {
+    "zh": "复制连接信息",
+    "en": "Copy connection details"
+  },
+  "copy.430": {
+    "zh": "Gateway 地址",
+    "en": "Gateway address"
+  },
+  "copy.431": {
+    "zh": "复制地址",
+    "en": "Copy address"
+  },
+  "copy.432": {
+    "zh": "上一个配对码已失效，请刷新重新生成。",
+    "en": "The previous pairing code expired. Generate a new one."
+  },
+  "copy.433": {
+    "zh": "HTTPS / 远程连接功能尚未开放。局域网连接已就绪，无需额外配置即可使用。",
+    "en": "HTTPS/remote connections are not available yet. LAN connections are ready without extra setup."
+  },
+  "copy.434": {
+    "zh": "已授权设备",
+    "en": "Authorized devices"
+  },
+  "copy.435": {
+    "zh": "待确认",
+    "en": "Pending confirmation"
+  },
+  "copy.436": {
+    "zh": "还没有已授权设备。生成配对码后让手机扫码，再在此确认授权。",
+    "en": "No authorized devices yet. Generate a code, scan it with your phone, then authorize it here."
+  },
+  "copy.437": {
+    "zh": "新设备",
+    "en": "New device"
+  },
+  "copy.438": {
+    "zh": "未知平台",
+    "en": "Unknown platform"
+  },
+  "copy.439": {
+    "zh": "允许",
+    "en": "Allow"
+  },
+  "copy.440": {
+    "zh": "拒绝",
+    "en": "Reject"
+  },
+  "copy.441": {
+    "zh": "在线",
+    "en": "Online"
+  },
+  "copy.442": {
+    "zh": "离线",
+    "en": "Offline"
+  },
+  "copy.443": {
+    "zh": "· 首次授权",
+    "en": "· First authorized"
+  },
+  "copy.444": {
+    "zh": "· 最后活动",
+    "en": "· Last active"
+  },
+  "copy.445": {
+    "zh": "撤销访问",
+    "en": "Revoke access"
+  },
+  "copy.446": {
+    "zh": "撤销",
+    "en": "Revoke"
+  },
+  "copy.447": {
+    "zh": "设备授权确认",
+    "en": "Confirm device authorization"
+  },
+  "copy.448": {
+    "zh": "一台新设备请求连接",
+    "en": "A new device wants to connect"
+  },
+  "copy.449": {
+    "zh": "平台：",
+    "en": "Platform:"
+  },
+  "copy.450": {
+    "zh": "未知",
+    "en": "Unknown"
+  },
+  "copy.451": {
+    "zh": "允许后，这台设备将获得 Gateway 访问权限，可随时撤销。",
+    "en": "Allowing grants Gateway access. You can revoke it at any time."
+  },
+  "copy.builtin": {
+    "zh": "内置",
+    "en": "built-in"
+  },
+  "copy.cached": {
+    "zh": "缓存",
+    "en": "cached"
+  },
+  "copy.provider": {
+    "zh": "提供商",
+    "en": "Provider"
+  },
+  "english.0": {
+    "zh": "事件总线",
+    "en": "Event bus"
+  },
+  "english.1": {
+    "zh": "动态",
+    "en": "Activity"
+  },
+  "english.2": {
+    "zh": "实时 Crew 事件与分页、脱敏的历史记录",
+    "en": "Live Crew events with paged, redacted history"
+  },
+  "english.3": {
+    "zh": "所有团队",
+    "en": "All Crews"
+  },
+  "english.4": {
+    "zh": "所有设备",
+    "en": "All devices"
+  },
+  "english.5": {
+    "zh": "所有代理",
+    "en": "All agents"
+  },
+  "english.6": {
+    "zh": "所有任务",
+    "en": "All tasks"
+  },
+  "english.7": {
+    "zh": "所有事件类型",
+    "en": "All event types"
+  },
+  "english.8": {
+    "zh": "事件流 · ",
+    "en": "Event stream · "
+  },
+  "english.9": {
+    "zh": "已加载",
+    "en": "loaded"
+  },
+  "english.10": {
+    "zh": "任务",
+    "en": "Task"
+  },
+  "english.11": {
+    "zh": "设备",
+    "en": "Device"
+  },
+  "english.12": {
+    "zh": "产物",
+    "en": "Artifacts"
+  },
+  "english.13": {
+    "zh": "工作区",
+    "en": "Workspaces"
+  },
+  "english.14": {
+    "zh": "团队",
+    "en": "Crews"
+  },
+  "english.15": {
+    "zh": "跨设备的 AX 代理团队",
+    "en": "Persistent groups of AX agents across devices"
+  },
+  "english.16": {
+    "zh": "创建团队",
+    "en": "Create Crew"
+  },
+  "english.17": {
+    "zh": "个活动任务",
+    "en": "active tasks"
+  },
+  "english.18": {
+    "zh": "暂无团队",
+    "en": "No Crews yet"
+  },
+  "english.19": {
+    "zh": "创建团队来组织 AX 成员、会话和任务。",
+    "en": "Create a Crew to organize AX members, sessions and tasks."
+  },
+  "english.20": {
+    "zh": "团队名称",
+    "en": "Crew name"
+  },
+  "english.21": {
+    "zh": "开发团队",
+    "en": "Dev Crew"
+  },
+  "english.22": {
+    "zh": "名称",
+    "en": "Name"
+  },
+  "english.23": {
+    "zh": "后端",
+    "en": "Backend"
+  },
+  "english.24": {
+    "zh": "角色",
+    "en": "Role"
+  },
+  "english.25": {
+    "zh": "实现与评审",
+    "en": "Implementation and review"
+  },
+  "english.26": {
+    "zh": "工作目录",
+    "en": "Working directory"
+  },
+  "english.27": {
+    "zh": "所选设备上的绝对路径",
+    "en": "Absolute path on selected device"
+  },
+  "english.28": {
+    "zh": "AX 能力查询失败：",
+    "en": "AX capability lookup failed:"
+  },
+  "english.29": {
+    "zh": "提供商",
+    "en": "Provider"
+  },
+  "english.30": {
+    "zh": "AX 默认",
+    "en": "AX default"
+  },
+  "english.31": {
+    "zh": "模型",
+    "en": "Model"
+  },
+  "english.32": {
+    "zh": "技能",
+    "en": "Skills"
+  },
+  "english.33": {
+    "zh": "此 AX 设备已安装的技能",
+    "en": "Installed skills on this AX device"
+  },
+  "english.34": {
+    "zh": "未返回技能",
+    "en": "No skills reported"
+  },
+  "english.35": {
+    "zh": "MCP 服务器",
+    "en": "MCP servers"
+  },
+  "english.36": {
+    "zh": "此设备 AX MCP 配置中的服务器名称",
+    "en": "Names from this device's AX MCP config"
+  },
+  "english.37": {
+    "zh": "未返回 MCP 服务器",
+    "en": "No MCP servers reported"
+  },
+  "english.38": {
+    "zh": "权限配置",
+    "en": "Permission profile"
+  },
+  "english.39": {
+    "zh": "询问",
+    "en": "Ask"
+  },
+  "english.40": {
+    "zh": "允许",
+    "en": "Allow"
+  },
+  "english.41": {
+    "zh": "拒绝",
+    "en": "Deny"
+  },
+  "english.42": {
+    "zh": "最大并发数",
+    "en": "Maximum concurrency"
+  },
+  "english.43": {
+    "zh": "团队工作区",
+    "en": "Crew workspace"
+  },
+  "english.44": {
+    "zh": "添加代理",
+    "en": "Add Agent"
+  },
+  "english.45": {
+    "zh": "打开任务依赖图",
+    "en": "Open Task DAG"
+  },
+  "english.46": {
+    "zh": "代理",
+    "en": "Agents"
+  },
+  "english.47": {
+    "zh": "此团队暂无代理",
+    "en": "No agents in this Crew"
+  },
+  "english.48": {
+    "zh": "成员使用所选设备上的 AX 运行时。",
+    "en": "Members use real AX runtimes on selected devices."
+  },
+  "english.49": {
+    "zh": "最近任务",
+    "en": "Recent tasks"
+  },
+  "english.50": {
+    "zh": "暂无任务",
+    "en": "No tasks yet"
+  },
+  "english.51": {
+    "zh": "代理工作区",
+    "en": "Agent workspace"
+  },
+  "english.52": {
+    "zh": "团队概览",
+    "en": "Crew overview"
+  },
+  "english.53": {
+    "zh": "执行记录",
+    "en": "Executions"
+  },
+  "english.54": {
+    "zh": "暂无执行记录",
+    "en": "No executions yet"
+  },
+  "english.55": {
+    "zh": "暂无 AX 会话",
+    "en": "No AX Session"
+  },
+  "english.56": {
+    "zh": "为该成员分配任务，打开持久化执行工作区。",
+    "en": "Assign a task to this member to open a persistent execution workspace."
+  },
+  "english.57": {
+    "zh": "基础设施",
+    "en": "Infrastructure"
+  },
+  "english.58": {
+    "zh": "设备",
+    "en": "Devices"
+  },
+  "english.59": {
+    "zh": "Crew 可用的 AX 运行时",
+    "en": "AX runtimes available to Crew"
+  },
+  "english.60": {
+    "zh": "本地 AX",
+    "en": "local AX"
+  },
+  "english.61": {
+    "zh": "· AX",
+    "en": "· AX"
+  },
+  "english.62": {
+    "zh": "尚无已注册设备",
+    "en": "No devices registered"
+  },
+  "english.63": {
+    "zh": "远程网关 URL",
+    "en": "Remote gateway URL"
+  },
+  "english.64": {
+    "zh": "复制配对码",
+    "en": "Copy code"
+  },
+  "english.65": {
+    "zh": "有效期剩余",
+    "en": "Expires in"
+  },
+  "english.66": {
+    "zh": "在远程 AX 设备上执行：",
+    "en": "On the remote AX device:"
+  },
+  "english.70": {
+    "zh": "输入可访问的网关地址，查看完整的配对命令。",
+    "en": "Enter a reachable gateway URL to see the exact pairing commands."
+  },
+  "english.71": {
+    "zh": "等待设备心跳。连接后设备将自动出现。",
+    "en": "Waiting for the device heartbeat. Devices appear automatically after connection."
+  },
+  "english.72": {
+    "zh": "生成新配对码",
+    "en": "Generate new code"
+  },
+  "english.73": {
+    "zh": "重命名",
+    "en": "Rename"
+  },
+  "english.74": {
+    "zh": "撤销",
+    "en": "Revoke"
+  },
+  "english.75": {
+    "zh": "身份与连接",
+    "en": "Identity and connection"
+  },
+  "english.76": {
+    "zh": "能力目录",
+    "en": "Capability catalog"
+  },
+  "english.77": {
+    "zh": "此设备上的工作目录",
+    "en": "Working directory on this device"
+  },
+  "english.78": {
+    "zh": "设备上的绝对路径",
+    "en": "Absolute path on device"
+  },
+  "english.79": {
+    "zh": "正在读取 AX 目录…",
+    "en": "Reading AX catalog…"
+  },
+  "english.80": {
+    "zh": "提供商：",
+    "en": "Providers:"
+  },
+  "english.81": {
+    "zh": "技能：",
+    "en": "Skills:"
+  },
+  "english.82": {
+    "zh": "MCP：",
+    "en": "MCP:"
+  },
+  "english.83": {
+    "zh": "运行中的任务",
+    "en": "Running tasks"
+  },
+  "english.84": {
+    "zh": "暂无运行中的任务",
+    "en": "No running tasks"
+  },
+  "english.85": {
+    "zh": "设备上的会话",
+    "en": "Sessions on device"
+  },
+  "english.86": {
+    "zh": "尚无绑定会话",
+    "en": "No sessions bound"
+  },
+  "english.87": {
+    "zh": "重命名设备",
+    "en": "Rename device"
+  },
+  "english.88": {
+    "zh": "设备名称",
+    "en": "Device name"
+  },
+  "english.89": {
+    "zh": "保存名称",
+    "en": "Save name"
+  },
+  "english.90": {
+    "zh": "概览",
+    "en": "Overview"
+  },
+  "english.91": {
+    "zh": "AX Crew 当前状态",
+    "en": "Now in AX Crew"
+  },
+  "english.92": {
+    "zh": "本机与已连接 AX 设备上的实时工作",
+    "en": "Live work across your local and connected AX devices"
+  },
+  "english.93": {
+    "zh": "待审批权限 · ",
+    "en": "Pending permissions · "
+  },
+  "english.94": {
+    "zh": "允许一次",
+    "en": "Allow once"
+  },
+  "english.95": {
+    "zh": "运行中的代理与任务",
+    "en": "Running agents and tasks"
+  },
+  "english.96": {
+    "zh": "暂无活动任务",
+    "en": "No active tasks"
+  },
+  "english.97": {
+    "zh": "创建团队并启动任务依赖图，开始工作。",
+    "en": "Create a Crew and start a Task DAG to begin."
+  },
+  "english.98": {
+    "zh": "创建任务",
+    "en": "Create task"
+  },
+  "english.99": {
+    "zh": "最近动态",
+    "en": "Recent activity"
+  },
+  "english.100": {
+    "zh": "暂无动态",
+    "en": "No activity yet"
+  },
+  "english.101": {
+    "zh": "在线设备",
+    "en": "Online devices"
+  },
+  "english.102": {
+    "zh": "暂无在线设备",
+    "en": "No devices online"
+  },
+  "english.103": {
+    "zh": "权限",
+    "en": "Permissions"
+  },
+  "english.104": {
+    "zh": "个请求需要处理",
+    "en": "requests need attention"
+  },
+  "english.105": {
+    "zh": "暂无需要处理的请求。",
+    "en": "No requests need attention."
+  },
+  "english.106": {
+    "zh": "AX 工具需要审批时，请求会出现在上方。",
+    "en": "Pending requests appear above when an AX tool needs approval."
+  },
+  "english.107": {
+    "zh": "自动任务",
+    "en": "Automations"
+  },
+  "english.108": {
+    "zh": "AX 会话 · ",
+    "en": "AX Session · "
+  },
+  "english.110": {
+    "zh": "团队",
+    "en": "Crew"
+  },
+  "english.111": {
+    "zh": "执行代理",
+    "en": "Assigned Agent"
+  },
+  "english.112": {
+    "zh": "选择成员",
+    "en": "Select member"
+  },
+  "english.113": {
+    "zh": "任务标题",
+    "en": "Task title"
+  },
+  "english.114": {
+    "zh": "描述",
+    "en": "Description"
+  },
+  "english.115": {
+    "zh": "发送给 AX 的提示词",
+    "en": "Prompt to AX"
+  },
+  "english.116": {
+    "zh": "父任务",
+    "en": "Parent task"
+  },
+  "english.117": {
+    "zh": "无",
+    "en": "None"
+  },
+  "english.118": {
+    "zh": "优先级",
+    "en": "Priority"
+  },
+  "english.119": {
+    "zh": "依赖",
+    "en": "Dependencies"
+  },
+  "english.120": {
+    "zh": "所选前置任务全部完成后，此任务才会就绪",
+    "en": "This task becomes ready when all selected predecessors complete"
+  },
+  "english.121": {
+    "zh": "此团队尚无前置任务",
+    "en": "No previous tasks in this Crew"
+  },
+  "english.122": {
+    "zh": "在 AX 提示词中包含前置任务输出",
+    "en": "Include predecessor outputs in AX prompt"
+  },
+  "english.123": {
+    "zh": "此团队暂无任务",
+    "en": "No tasks in this Crew"
+  },
+  "english.124": {
+    "zh": "执行",
+    "en": "Execution"
+  },
+  "english.125": {
+    "zh": "任务",
+    "en": "Tasks"
+  },
+  "english.126": {
+    "zh": "将确定性任务依赖图调度到 AX 会话",
+    "en": "Deterministic DAGs scheduled onto AX sessions"
+  },
+  "english.127": {
+    "zh": "创建任务",
+    "en": "Create Task"
+  },
+  "english.128": {
+    "zh": "所有状态",
+    "en": "All statuses"
+  },
+  "english.129": {
+    "zh": "启动根任务",
+    "en": "Start root tasks"
+  },
+  "english.130": {
+    "zh": "依赖图",
+    "en": "Dependency graph"
+  },
+  "english.131": {
+    "zh": "任务列表 · ",
+    "en": "Task list · "
+  },
+  "english.132": {
+    "zh": "个前置任务",
+    "en": "predecessors"
+  },
+  "english.133": {
+    "zh": "没有匹配的任务",
+    "en": "No tasks match"
+  },
+  "english.134": {
+    "zh": "任务执行",
+    "en": "Task execution"
+  },
+  "english.135": {
+    "zh": "启动",
+    "en": "Start"
+  },
+  "english.136": {
+    "zh": "取消",
+    "en": "Cancel"
+  },
+  "english.137": {
+    "zh": "重试",
+    "en": "Retry"
+  },
+  "english.138": {
+    "zh": "编辑 / 重新分配",
+    "en": "Edit / Reassign"
+  },
+  "english.139": {
+    "zh": "删除",
+    "en": "Delete"
+  },
+  "english.140": {
+    "zh": "AX 提示词",
+    "en": "AX prompt"
+  },
+  "english.141": {
+    "zh": "代理执行",
+    "en": "Agent execution"
+  },
+  "english.142": {
+    "zh": "详情",
+    "en": "Details"
+  },
+  "english.143": {
+    "zh": "创建时间",
+    "en": "Created"
+  },
+  "english.144": {
+    "zh": "开始 / 结束",
+    "en": "Started / finished"
+  },
+  "english.145": {
+    "zh": "尝试次数",
+    "en": "Attempt"
+  },
+  "english.146": {
+    "zh": "结果",
+    "en": "Result"
+  },
+  "english.147": {
+    "zh": "编辑任务",
+    "en": "Edit task"
+  },
+  "english.151": {
+    "zh": "AX Crew 窗口标题栏",
+    "en": "AX Crew window titlebar"
+  },
+  "detail.0": {
+    "zh": "保存成员",
+    "en": "Save member"
+  },
+  "detail.1": {
+    "zh": "添加成员",
+    "en": "Add member"
+  },
+  "detail.2": {
+    "zh": "添加代理",
+    "en": "Add agent"
+  },
+  "detail.3": {
+    "zh": "编辑代理",
+    "en": "Edit agent"
+  },
+  "detail.4": {
+    "zh": "保存任务",
+    "en": "Save task"
+  },
+  "detail.5": {
+    "zh": "创建任务",
+    "en": "Create task"
+  },
+  "detail.6": {
+    "zh": "系统",
+    "en": "System"
+  },
+  "detail.7": {
+    "zh": "无",
+    "en": "None"
+  },
+  "detail.8": {
+    "zh": "尚未配置",
+    "en": "None configured"
+  },
+  "detail.9": {
+    "zh": "尚未安装",
+    "en": "None installed"
+  },
+  "detail.10": {
+    "zh": "开发者模式 · 显示原始数据",
+    "en": "Developer mode · raw payload visible"
+  },
+  "detail.11": {
+    "zh": "元数据视图 · AX 内容保留在会话中",
+    "en": "Metadata view · AX content stays in its session"
+  },
+  "detail.12": {
+    "zh": "AX 版本",
+    "en": "AX version"
+  },
+  "detail.13": {
+    "zh": "协议",
+    "en": "Protocol"
+  },
+  "detail.14": {
+    "zh": "最后在线",
+    "en": "Last seen"
+  },
+  "detail.15": {
+    "zh": "指纹",
+    "en": "Fingerprint"
+  },
+  "detail.16": {
+    "zh": "状态",
+    "en": "Status"
+  },
+  "detail.17": {
+    "zh": "本地设备",
+    "en": "Local device"
+  },
+  "models.auth.oauth": {
+    "zh": "账号登录（OAuth）",
+    "en": "Account sign-in (OAuth)"
+  },
+  "models.auth.api_key": {
+    "zh": "API Key",
+    "en": "API key"
+  },
+  "models.auth.ambient": {
+    "zh": "环境凭据",
+    "en": "Environment credentials"
+  },
+  "models.workbuddyIntl": {
+    "zh": "WorkBuddy 国际版",
+    "en": "WorkBuddy International"
+  },
+  "models.workbuddyCn": {
+    "zh": "WorkBuddy 国区",
+    "en": "WorkBuddy China"
+  },
+  "models.environment": {
+    "zh": "环境变量",
+    "en": "environment"
+  }
+}

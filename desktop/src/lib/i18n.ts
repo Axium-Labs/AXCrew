@@ -1,3 +1,4 @@
+import uiCopy from './ui-copy.json'
 import { useCallback } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -215,6 +216,10 @@ const zh: Record<string, string> = {
   'session.permission.readHint': '可读取信息，修改前需要确认',
   'session.permission.trustHint': '当前会话无需逐项确认',
   'session.permission.yoloHint': '默认自动授权后续会话',
+  'session.faster': '更快',
+  'session.moreUsage': '用量更多',
+  'models.loadingProviders': '正在读取 AX 模型提供商…',
+  'models.noProviders': '暂无模型提供商，请检查或更新本地 AX',
   'session.thinking.auto': '自动',
   'session.thinking.low': '快速',
   'session.thinking.medium': '标准',
@@ -518,6 +523,10 @@ const en: Record<string, string> = {
   'session.permission.readHint': 'Reading is allowed; changes need confirmation',
   'session.permission.trustHint': 'No step-by-step confirmation in this session',
   'session.permission.yoloHint': 'Auto-approve future sessions by default',
+  'session.faster': 'Faster',
+  'session.moreUsage': 'More usage',
+  'models.loadingProviders': 'Loading AX providers…',
+  'models.noProviders': 'No providers available; check or update local AX',
   'session.thinking.auto': 'Auto',
   'session.thinking.low': 'Fast',
   'session.thinking.medium': 'Standard',
@@ -612,6 +621,30 @@ const en: Record<string, string> = {
   'loop.startMonitor': 'Start watching',
 }
 
+for (const [key, values] of Object.entries(uiCopy)) { zh[key] = values.zh; en[key] = values.en }
+const sessionActions = {
+  'session.rename':['重命名','Rename'], 'session.mark':['标记','Mark'], 'session.unmark':['取消标记','Unmark'],
+  'session.moveProject':['项目','Project'], 'session.delete':['删除','Delete'], 'session.restore':['恢复','Restore'],
+  'session.title':['会话名称','Session title'], 'session.originalProject':['原项目','Original project'],
+  'session.showDeleted':['查看已删除','Show deleted'], 'session.showRecent':['返回最近会话','Back to recent'],
+  'common.cancel':['取消','Cancel'], 'common.save':['保存','Save'],
+}
+for (const [key, values] of Object.entries(sessionActions)) { zh[key] = values[0]; en[key] = values[1] }
+const statusCopy: Record<string,[string,string]> = {
+ online:['在线','Online'],offline:['离线','Offline'],busy:['忙碌','Busy'],running:['运行中','Running'],
+ completed:['已完成','Completed'],failed:['失败','Failed'],cancelled:['已取消','Cancelled'],ready:['就绪','Ready'],
+ waiting_permission:['等待审批','Waiting for approval'],waiting_user:['等待用户','Waiting for user'],pending:['待处理','Pending'],
+ Connected:['已连接','Connected'],Connecting:['连接中','Connecting'],Reconnecting:['重新连接中','Reconnecting'],Disconnected:['未连接','Disconnected'],error:['错误','Error'],
+ healthy:['正常','Healthy'],ok:['正常','OK'],new:['新建','New'],blocked:['受阻','Blocked'],paused:['已暂停','Paused'],
+}
+for(const [key, values] of Object.entries(statusCopy)){zh['status.'+key]=values[0];en['status.'+key]=values[1]}
+const loginCopy:Record<string,[string,string]>={
+ 'title':['登录账号','Sign in'], 'instructions':['点击下面的链接，或复制 URL 到浏览器登录。AX 会等待授权并保存凭据。','Click the link below or copy its URL into your browser. AX waits for authorization and saves your credentials.'],
+ 'copyUrl':['复制登录 URL','Copy login URL'],'copyCode':['复制一次性代码','Copy one-time code'],'preparing':['正在生成登录请求…','Preparing sign-in…'],
+ 'waiting':['等待浏览器授权…','Waiting for browser authorization…'],'success':['登录成功，模型列表已刷新。','Signed in. The model list has refreshed.'],
+ 'failed':['登录未完成或已过期，请重新尝试。','Sign-in failed or expired. Try again.'],'close':['完成','Done'],
+}
+for(const [key,values] of Object.entries(loginCopy)){zh['login.'+key]=values[0];en['login.'+key]=values[1]}
 export const dictionaries: Record<Lang, Record<string, string>> = { zh, en }
 
 export type LangState = { lang: Lang; setLang: (lang: Lang) => void; toggleLang: () => void }
@@ -640,7 +673,7 @@ function interpolate(text: string, vars?: Record<string, string | number>) {
 }
 
 /**
- * Translation for non-component callers. Components must use `useT` so they
+ * Translation for non-component callers. Components subscribe through `useT` or `useLang` so they
  * re-render when the language changes.
  */
 export function translate(key: string, vars?: Record<string, string | number>) {

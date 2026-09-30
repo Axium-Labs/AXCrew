@@ -11,12 +11,13 @@ pub struct AxModel { pub provider: String, pub id: String, pub display_name: Str
 #[derive(Serialize)]
 pub struct AxDiscovery { pub provider: String, pub models: usize, pub warning: Option<String> }
 #[derive(Deserialize, Serialize)]
-pub struct AxProvider { pub id: String, pub name: String, pub configured: bool, pub source: Option<String>, pub supported: bool, pub unsupported_reason: Option<String>, pub models: Vec<AxModel>, pub model_source: String }
+pub struct AxProvider { #[serde(default)] pub auth_kind: String, pub id: String, pub name: String, pub configured: bool, pub source: Option<String>, pub supported: bool, pub unsupported_reason: Option<String>, pub models: Vec<AxModel>, pub model_source: String }
 #[derive(Serialize)]
 pub struct AxLocalState {
     pub installed_path: Option<String>, pub installed_version: Option<String>, pub installed_compatible: bool,
     pub active_path: String, pub active_version: Option<String>, pub home: String,
     pub selected_model: Option<AxModel>, pub providers: Vec<AxProvider>,
+    pub inference_mode: String,
     /// Only set by `ax_store_api_key`, so the UI can say whether the new
     /// credential actually produced models instead of silently showing none.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -142,7 +143,7 @@ pub fn acp_replies(ax: &Path, cwd: Option<&Path>, requests: &str, wanted: &[i64]
     command.arg("acp").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
     if let Some(cwd) = cwd { command.current_dir(cwd); }
     let Ok(mut child) = command.spawn() else { return HashMap::new() };
-    if child.stdin.as_mut().is_none_or(|stdin| stdin.write_all(requests.as_bytes()).is_err()) {
+    if child.stdin.as_mut().map_or(true, |stdin| stdin.write_all(requests.as_bytes()).is_err()) {
         let _ = child.kill();
         return HashMap::new();
     }
@@ -252,6 +253,7 @@ fn state(active: &Path) -> Result<AxLocalState, String> {
         installed_compatible: installed.as_deref().is_some_and(supports_acp),
         active_path: active.to_string_lossy().into_owned(), active_version: version(active),
         home: home.to_string_lossy().into_owned(), selected_model: selected, providers, discovery: None, runtime_warning,
+        inference_mode: config.pointer("/inference/mode").and_then(Value::as_str).unwrap_or("standard").to_owned(),
     })
 }
 
@@ -264,6 +266,32 @@ pub async fn ax_local_state(desktop: State<'_, DesktopState>) -> Result<AxLocalS
     tauri::async_runtime::spawn_blocking(move || state(&ax)).await.map_err(|error| error.to_string())?
 }
 
+fn require_api_key_provider(provider: &AxProvider) -> Result<(), String> {
+    if provider.auth_kind != "api_key" { return Err("This provider requires account login or environment credentials; update AX if authentication metadata is missing".into()); }
+    if !provider.supported { return Err(provider.unsupported_reason.clone().unwrap_or("Unsupported provider".into())); }
+    Ok(())
+}
+
+fn set_inference_mode(config: &mut Value, mode: &str) -> Result<(), String> {
+    if !matches!(mode, "standard" | "fast") { return Err("Invalid AX inference mode".into()); }
+    let object = config.as_object_mut().ok_or("Invalid AX config.json")?;
+    let inference = object.entry("inference").or_insert_with(|| json!({}));
+    if inference.is_null() { *inference = json!({}); }
+    inference.as_object_mut().ok_or("Invalid AX inference settings")?.insert("mode".into(), json!(mode));
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn ax_select_inference_mode(mode: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = ax_home().join("config.json");
+        let mut config = read_json(&path)?;
+        set_inference_mode(&mut config, &mode)?;
+        write_private_json(&path, &config)?;
+        Ok(mode)
+    }).await.map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 pub async fn ax_store_api_key(desktop: State<'_, DesktopState>, provider: String, key: String) -> Result<AxLocalState, String> {
     if provider == "openai-codex" { return Err("Provider does not support API key login".into()); }
@@ -272,7 +300,7 @@ pub async fn ax_store_api_key(desktop: State<'_, DesktopState>, provider: String
     tauri::async_runtime::spawn_blocking(move || {
         let catalog = provider_catalog(&ax)?;
         let selected = catalog.iter().find(|item| item.id == provider).ok_or("Unknown provider")?;
-        if !selected.supported { return Err(selected.unsupported_reason.clone().unwrap_or("Unsupported provider".into())); }
+        require_api_key_provider(selected)?;
         let path = ax_home().join("auth.json");
         let mut auth = read_json(&path)?;
         auth.as_object_mut().ok_or("Invalid AX auth.json")?.insert(provider.clone(), json!({"type":"api_key","key":key.trim()}));
@@ -392,9 +420,47 @@ pub async fn ax_import(desktop: State<'_, DesktopState>, cwd: String, path: Stri
     }).await.map_err(|error| error.to_string())?
 }
 
+
+#[tauri::command]
+pub async fn ax_import_capability(desktop: State<'_, DesktopState>, cwd: String, path: String, kind: String, global: bool) -> Result<String, String> {
+    if !["skill", "mcp"].contains(&kind.as_str()) { return Err("Invalid capability type".into()); }
+    let ax = desktop.ax.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let source = PathBuf::from(&path);
+        if !source.is_absolute() || !source.exists() { return Err("Choose an existing absolute path".into()); }
+        let mut args = vec![OsStr::new(&kind), OsStr::new("import"), source.as_os_str()];
+        if global { args.push(OsStr::new("--global")); }
+        backup_command(&ax, &cwd, &args)
+    }).await.map_err(|error| error.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn inference_toggle_preserves_model_and_fast_overrides() {
+        let mut config = json!({"model":{"provider":"deepseek","model":"deepseek-chat"},"inference":{"mode":"standard","fast":{"max_parallel":3}}});
+        let original_model = config["model"].clone();
+        for mode in ["fast", "standard"] {
+            set_inference_mode(&mut config, mode).unwrap();
+            assert_eq!(config["inference"]["mode"], mode);
+            assert_eq!(config["model"], original_model);
+            assert_eq!(config["inference"]["fast"]["max_parallel"], 3);
+        }
+        let previous = config.clone();
+        assert!(set_inference_mode(&mut config, "invalid").is_err());
+        assert_eq!(config, previous);
+        let mut empty = json!({"inference":null});
+        set_inference_mode(&mut empty, "fast").unwrap();
+        assert_eq!(empty["inference"]["mode"], "fast");
+    }
+    #[test]
+    fn api_key_storage_rejects_account_and_unknown_authentication_types() {
+        for kind in ["oauth", "ambient", "", "api_key"] {
+            let provider: AxProvider = serde_json::from_value(json!({"id":"example","name":"Example","auth_kind":kind,"configured":true,"supported":true,"models":[],"model_source":"none"})).unwrap();
+            assert_eq!(require_api_key_provider(&provider).is_ok(),kind=="api_key");
+        }
+    }
     #[test]
     fn updates_existing_ax_json_without_touching_user_data() {
         let root = std::env::temp_dir().join(format!("ax-crew-auth-test-{}", uuid::Uuid::new_v4()));

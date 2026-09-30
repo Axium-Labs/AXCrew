@@ -125,7 +125,7 @@
 .session-transcript-user .session-transcript-time{margin-left:0}
 /* Activity: a hairline rail with one compact row per step. No cards, no fills —
    size, weight and indent carry the hierarchy so the answer keeps the weight. */
-.session-activity{margin:8px 0 12px 43px;min-width:0}
+.session-activity{margin:8px 0 12px 0;min-width:0}
 .session-activity-head{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:transparent;color:var(--session-muted);text-align:left;font-size:11.5px;font-weight:500}
 .session-activity-head:hover{color:var(--session-text)}
 .session-activity.is-running .session-activity-head{color:var(--session-accent)}
@@ -205,7 +205,15 @@
 .session-footer-path span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .session-footer-auto{flex:none}
 /* Thinking-effort picker: a compact rounded chip sitting left of the model picker. */
-.session-composer-footer button.session-footer-thinking{margin-left:auto;flex:none;padding:3px 10px;border-radius:9px;background:var(--session-selected);color:var(--session-text)}
+.session-composer-footer button.session-footer-thinking{margin-left:auto;flex:none;padding:3px 10px;border-radius:9px}
+.session-composer-footer button.session-footer-thinking:hover,.session-composer-footer button.session-footer-thinking:focus-visible,.session-composer-footer button.session-footer-thinking[data-state="open"],.session-composer-footer button.session-footer-auto:focus-visible,.session-composer-footer button.session-footer-auto[data-state="open"]{background:var(--session-selected);color:var(--session-text)}
+.session-fast-control{position:relative;display:inline-flex}
+.session-composer-footer button.session-footer-fast{padding:5px;border-radius:9px}
+.session-composer-footer button.session-footer-fast[aria-pressed="true"]{color:var(--session-accent);background:var(--session-selected)}
+.session-fast-tooltip{display:none;position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);padding:9px 13px;border-radius:15px;background:#191b1e;color:#fff;white-space:nowrap;font-size:13px;line-height:1.45;box-shadow:0 4px 18px #0002;pointer-events:none;z-index:20}
+.session-fast-tooltip strong,.session-fast-tooltip small{display:block;font-weight:400;font-size:inherit}
+.session-fast-tooltip small{color:#c5c6c8}
+.session-fast-control:hover .session-fast-tooltip,.session-fast-control:focus-within .session-fast-tooltip{display:block}
 
 .session-right-panel{width:380px;min-width:0;flex:none;display:flex;flex-direction:column;border:1px solid var(--session-border);border-radius:20px;background:var(--session-panel);overflow:hidden;transition:width .26s cubic-bezier(.22,1,.36,1),background-color .2s ease,border-color .2s ease}
 .session-right-tabs{height:54px;flex:none;display:flex;align-items:center;gap:4px;padding:0 12px;white-space:nowrap}
@@ -352,3 +360,7 @@
 .session-add-project{display:flex;align-items:center;gap:10px;height:34px;margin:2px 0 4px;padding:0 9px;border:0;border-radius:10px;background:transparent;color:var(--session-muted);font-size:12.5px;text-align:left;transition:background-color var(--dur-quick) ease,color var(--dur-quick) ease}
 .session-add-project:hover{background:var(--session-hover);color:var(--session-accent)}
 .session-local-note{padding:5px 9px 5px 11px;color:var(--session-muted);font-size:11.5px}
+
+.session-context-menu{position:fixed;z-index:120;display:flex;flex-direction:column;min-width:210px;padding:6px;background:var(--shell-bg);border:1px solid var(--shell-border);border-radius:10px;box-shadow:0 8px 28px #0003}.session-context-menu button{padding:9px 12px;text-align:left;background:transparent;border:0;color:var(--shell-text);border-radius:6px;cursor:pointer}.session-context-menu button:hover{background:var(--shell-active)}.session-context-menu button:disabled{opacity:.4;cursor:default}.session-dialog-backdrop{position:fixed;inset:0;z-index:130;background:#0005;display:grid;place-items:center}.session-edit-dialog{width:min(460px,90vw);padding:24px;background:var(--shell-bg);color:var(--shell-text);border:1px solid var(--shell-border);border-radius:14px}.session-edit-dialog input,.session-edit-dialog select{width:100%;padding:10px;background:var(--shell-bg);color:inherit;border:1px solid var(--shell-border);border-radius:7px}.session-edit-dialog>div{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}.session-edit-dialog button{padding:8px 14px;border-radius:7px;border:1px solid var(--shell-border);background:var(--shell-active);color:inherit}
+
+.session-transcript-body>.session-transcript-time{display:block;margin:6px 0 0;text-align:right}

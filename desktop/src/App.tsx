@@ -14,7 +14,7 @@ import { useCrews, useDevices, useSessions, useTasks } from './lib/query'
 import { useUi } from './store/ui'
 import { useTerminalDock } from './store/terminal'
 import { useSessionUi } from './store/sessions'
-import { useT } from './lib/i18n'
+import { useLang, useT } from './lib/i18n'
 import { Home } from './pages/Home'
 import { Crews, CrewDetail, MemberWorkspace } from './pages/Crews'
 import { Tasks, TaskDetail } from './pages/Tasks'
@@ -34,6 +34,8 @@ const nav=[...primaryNav,...utilityNav,['/overview','nav.overview',House],['/cre
 function Shell(){
   const {sidebar,setSidebar,palette,setPalette,theme,focus,setFocus}=useUi()
   const t=useT()
+  const lang=useLang(state=>state.lang)
+  useEffect(()=>{document.documentElement.lang=lang==='zh'?'zh-CN':'en'},[lang])
   const terminal=useTerminalDock()
   const terminalCwd=useSessionUi(state=>state.selectedCwd)
   const crews=useCrews(),sessions=useSessions(),tasks=useTasks(),devices=useDevices(),backend=useQuery({queryKey:['settings'],queryFn:endpoints.settings,retry:1})
@@ -45,7 +47,7 @@ function Shell(){
     const [target,query]=path.split('?')
     const wanted=new URLSearchParams(query??'')
     const current=new URLSearchParams(location.search)
-    return location.pathname===target&&[...wanted.keys()].every(key=>current.has(key))
+    return (location.pathname===target||(target==='/settings'&&location.pathname.startsWith('/settings/')))&&[...wanted.keys()].every(key=>current.has(key))
   }
   const navigationType=useNavigationType(),historyIndex=Number(window.history.state?.idx??0),maxHistory=useRef(historyIndex)
   if(navigationType==='PUSH')maxHistory.current=historyIndex
@@ -87,7 +89,7 @@ function Shell(){
       </nav>
     </aside>
     <div className={`main ${terminalDockClass(terminal.position)}`}>
-      <main className={`content ${sessionView?'content-session':''}`}><Routes><Route path="/" element={<Navigate to="/sessions" replace/>}/><Route path="/overview" element={<Home/>}/><Route path="/crews" element={<Crews/>}/><Route path="/crews/:id" element={<CrewDetail/>}/><Route path="/crews/:id/members/:memberId" element={<MemberWorkspace/>}/><Route path="/tasks" element={<Tasks/>}/><Route path="/tasks/:id" element={<TaskDetail/>}/><Route path="/devices" element={<Devices/>}/><Route path="/devices/:id" element={<DeviceDetail/>}/><Route path="/connect" element={<ConnectPhone/>}/><Route path="/sessions/:id?" element={<SessionsWorkspace/>}/><Route path="/schedule" element={<Schedule/>}/><Route path="/artifacts" element={<Artifacts/>}/><Route path="/activity" element={<ActivityPage/>}/><Route path="/settings" element={<Settings/>}/></Routes></main>
+      <main className={`content ${sessionView?'content-session':''}`}><Routes><Route path="/" element={<Navigate to="/sessions" replace/>}/><Route path="/overview" element={<Home/>}/><Route path="/crews" element={<Crews/>}/><Route path="/crews/:id" element={<CrewDetail/>}/><Route path="/crews/:id/members/:memberId" element={<MemberWorkspace/>}/><Route path="/tasks" element={<Tasks/>}/><Route path="/tasks/:id" element={<TaskDetail/>}/><Route path="/devices" element={<Devices/>}/><Route path="/devices/:id" element={<DeviceDetail/>}/><Route path="/connect" element={<ConnectPhone/>}/><Route path="/sessions/:id?" element={<SessionsWorkspace/>}/><Route path="/schedule" element={<Schedule/>}/><Route path="/artifacts" element={<Artifacts/>}/><Route path="/activity" element={<ActivityPage/>}/><Route path="/settings/:section?" element={<Settings/>}/></Routes></main>
       <TerminalDock cwd={terminalCwd??backend.data?.default_cwd} theme={theme==='light'||theme==='system'&&!window.matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'}/>
     </div>
     </div>

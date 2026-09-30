@@ -41,6 +41,7 @@
 .settings-card select,.settings-card input:not([type=checkbox]){height:33px;min-width:0;padding:0 10px;border:1px solid var(--shell-border);border-radius:10px;outline:0;background:var(--shell-input);color:var(--shell-text);transition:border-color var(--dur-quick) ease,box-shadow var(--dur-quick) ease}
 .settings-card select:focus-visible,.settings-card input:focus-visible,.settings-search:focus-within{border-color:var(--shell-accent);outline:0;box-shadow:0 0 0 3px color-mix(in srgb,var(--shell-accent) 22%,transparent)}
 .settings-card select{max-width:100%}
+.settings-login-row>select{width:min(100%,460px);min-width:200px}
 .settings-login-row,.settings-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:10px 0}
 .settings-login-row input{flex:1;min-width:180px}
 .settings-actions span{color:var(--shell-muted);font-size:12px}
@@ -75,3 +76,7 @@
 .settings-capability-warning{color:#e56a73;font-size:11px;font-style:normal}
 .settings-capability-tag{padding:1px 7px;border-radius:999px;background:var(--shell-panel);color:var(--shell-muted);font-size:11px}
 .settings-notice.is-inline{display:flex;align-items:center;gap:7px}
+
+.settings-secret{display:flex;align-items:center;gap:6px}.settings-secret input{flex:1;min-width:0}.settings-secret button{flex:none;display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--shell-border);border-radius:8px;background:transparent;color:inherit}
+
+.settings-oauth-url{display:flex;flex-direction:column;gap:12px;margin:18px 0}.settings-oauth-url a{overflow-wrap:anywhere;color:var(--shell-accent);display:flex;gap:8px;align-items:flex-start}.settings-oauth-url svg{flex:none}.settings-oauth-url button{display:flex;gap:8px;align-items:center;align-self:flex-start;padding:8px 12px;border:1px solid var(--shell-border);border-radius:8px;background:var(--shell-active);color:inherit}

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test.beforeEach(async({page})=>{
+  await page.addInitScript(()=>{if(!localStorage.getItem('ax-crew-language'))localStorage.setItem('ax-crew-language',JSON.stringify({state:{lang:'zh'},version:0}))})
   // Exercise the real UI and CSS with isolated API data, without changing the desktop database.
   await page.route(/\/src\/lib\/api\.ts(?:\?.*)?$/,route=>route.fulfill({contentType:'application/javascript',body:`
     export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
@@ -237,7 +238,7 @@ test('the session panel mirrors the reference list and reads local AX in place',
   await page.getByRole('button',{name:'项目',exact:true}).click()
   await expect(page.locator('.session-project-session')).toHaveCount(1)
   await page.getByRole('button',{name:'远程项目',exact:true}).click()
-  await expect(page.locator('.session-section.is-remote .session-local-note')).toContainText('还没有配对的远程设备')
+  await expect(page.locator('.session-section.is-remote .session-local-note')).toContainText('还没有配对的远程 AX 设备')
   await page.getByRole('button',{name:'新聊天',exact:true}).click()
   await expect(page).toHaveURL(/#\/sessions$/)
   await expect(page.getByRole('textbox',{name:'发送消息'})).toBeVisible()
@@ -375,7 +376,7 @@ test('utility navigation highlights only the entry you are actually on',async({p
   const entry=(label:string)=>page.locator('.sidebar-utilities .nav-item').filter({hasText:label})
   await expect(entry('连接手机')).not.toHaveClass(/active/)
   await page.getByRole('link',{name:'连接手机',exact:true}).click()
-  await expect(page).toHaveURL(/\/devices\?pair=1/)
+  await expect(page).toHaveURL(/\/connect$/)
   await expect(entry('连接手机')).toHaveClass(/active/)
   await expect(entry('代理能力')).not.toHaveClass(/active/)
   await page.keyboard.press('Escape')
@@ -469,3 +470,91 @@ test('goal loop dialog mirrors the goal and PR-monitor fields',async({page})=>{
   await expect(page.getByLabel('目标描述')).toBeVisible()
 })
 
+
+test('settings separates connections and system and switches both languages',async({page})=>{
+  await page.goto('/#/settings/connections')
+  await expect(page.locator('.settings-page-top h1')).toHaveText('连接')
+  await expect(page.getByText('公共网关 URL')).toBeVisible()
+  await expect(page.getByText('桌面行为')).toHaveCount(0)
+  await page.getByRole('button',{name:'系统',exact:true}).click()
+  await expect(page).toHaveURL(/settings\/system/)
+  await expect(page.getByText('桌面行为')).toBeVisible()
+  await expect(page.getByText('公共网关 URL')).toHaveCount(0)
+  await page.getByRole('button',{name:'切换到英文'}).click()
+  await expect(page.locator('.settings-page-top h1')).toHaveText('System')
+  await expect(page.getByText('Desktop behavior')).toBeVisible()
+  await page.screenshot({path:'test-results/settings-system-en.png'})
+})
+
+test('conversation inference button toggles Fast and pickers highlight only on interaction',async({page})=>{
+  await page.route(/\/src\/lib\/ax\.ts(?:\?.*)?$/,route=>route.fulfill({contentType:'application/javascript',body:`
+    export const axAvailable=true; export const workspaceFileExists=async()=>false;
+    let mode='standard';
+    const state=()=>({active_path:'ax.exe',providers:[{id:'deepseek',name:'DeepSeek',auth_kind:'api_key',configured:true,supported:true,models:[{provider:'deepseek',id:'deepseek-chat',display_name:'DeepSeek Chat'}]}],selected_model:{provider:'deepseek',id:'deepseek-chat'},inference_mode:mode});
+    export const axLocalState=async()=>state();
+    export const axSelectInferenceMode=async(value)=>{mode=value;window.__inferenceMode=value;return mode};
+    export const axSelectModel=async()=>state();
+    export const axStoreApiKey=async()=>state(),axRefreshModels=async()=>state(),axRemoveCredential=async()=>state();
+    export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',axCatalog=async()=>({skills:[],mcp_servers:[],tools:[],warnings:[]});
+    export const axCheckUpdate=async()=>({action:'none'}),axApplyUpdate=axCheckUpdate;
+  `}))
+  await page.goto('/#/sessions')
+  const fast=page.getByRole('button',{name:'更快',exact:true})
+  await expect(fast).toHaveAttribute('aria-pressed','false')
+  await fast.hover()
+  await expect(page.getByRole('tooltip')).toHaveText('更快用量更多')
+  await fast.click()
+  await expect(fast).toHaveAttribute('aria-pressed','true')
+  await expect.poll(()=>page.evaluate(()=>(window as any).__inferenceMode)).toBe('fast')
+  await fast.click()
+  await expect(fast).toHaveAttribute('aria-pressed','false')
+  await expect.poll(()=>page.evaluate(()=>(window as any).__inferenceMode)).toBe('standard')
+  for(const selector of ['.session-footer-thinking','.session-footer-auto']){
+    const picker=page.locator(selector)
+    await page.getByRole('textbox',{name:'发送消息'}).click()
+    await page.mouse.move(0,0)
+    await expect(picker).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
+    await picker.hover()
+    expect(await picker.evaluate(node=>getComputedStyle(node).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+    await picker.click()
+    await page.mouse.move(0,0)
+    await expect(picker).toHaveAttribute('data-state','open')
+    expect(await picker.evaluate(node=>getComputedStyle(node).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+    await page.keyboard.press('Escape')
+  }
+  await fast.hover()
+  await page.screenshot({path:'test-results/session-fast-tooltip.png'})
+})
+
+test('terminal tabs reorder by pointer and scroll without replacing their IDs',async({page})=>{
+  await page.setViewportSize({width:960,height:900})
+  await page.goto('/#/sessions')
+  await page.evaluate(async()=>{
+    const {useTerminalDock}=await import('/src/store/terminal.ts')
+    const state=useTerminalDock.getState()
+    for(let i=0;i<8;i++)state.addTab('C:/workspace')
+    state.setPosition('right')
+  })
+  await expect.poll(()=>page.locator('.terminal-dock').evaluate(node=>node.clientWidth)).toBeGreaterThan(300)
+  const tabs=page.locator('.terminal-tab')
+  await expect(tabs).toHaveCount(8)
+  await expect(page.getByRole('tab',{name:'终端',exact:true})).toHaveCount(8)
+  await expect(page.locator('.session-list-panel')).toHaveClass(/is-closed/)
+  await expect.poll(()=>page.locator('.session-chat-panel').evaluate(node=>node.clientWidth)).toBeGreaterThan(250)
+  const before=await tabs.evaluateAll(nodes=>nodes.map(node=>(node as HTMLElement).dataset.terminalId))
+  const first=await tabs.nth(0).boundingBox(),second=await tabs.nth(1).boundingBox()
+  await page.mouse.move(first!.x+first!.width/3,first!.y+first!.height/2)
+  await page.mouse.down()
+  await page.mouse.move(second!.x+second!.width/2,second!.y+second!.height/2,{steps:8})
+  await page.mouse.up()
+  await expect.poll(()=>tabs.nth(1).getAttribute('data-terminal-id')).toBe(before[0])
+  const after=await tabs.evaluateAll(nodes=>nodes.map(node=>(node as HTMLElement).dataset.terminalId))
+  expect([...after].sort()).toEqual([...before].sort())
+  const strip=page.locator('.terminal-tabs')
+  await expect.poll(()=>strip.evaluate(node=>node.scrollWidth>node.clientWidth)).toBe(true)
+  const pageScroll=await page.evaluate(()=>window.scrollY)
+  await strip.hover();await page.mouse.wheel(0,160)
+  await expect.poll(()=>strip.evaluate(node=>node.scrollLeft)).toBeGreaterThan(0)
+  expect(await page.evaluate(()=>window.scrollY)).toBe(pageScroll)
+  await page.screenshot({path:'test-results/terminal-reordered.png'})
+})

@@ -122,7 +122,6 @@ export function ProcessBlock({ lines, end }: { lines: SessionLine[]; end?: numbe
  * produced it folds away, so the transcript reads as the result, not the log.
  */
 export function TranscriptLine({ line }: { line: SessionLine }) {
-  const t = useT()
   const lang = useLang(state => state.lang)
   const time = clock(line.at, lang)
 
@@ -136,10 +135,9 @@ export function TranscriptLine({ line }: { line: SessionLine }) {
   }
 
   return <div className={`session-transcript-line is-${line.type}`}>
-    <div className="session-transcript-avatar">AX</div>
     <div className="session-transcript-body">
-      <div className="session-transcript-author">{t('session.crew')}{time && <time className="session-transcript-time">{time}</time>}</div>
       <MessageMarkdown text={line.text}/>
+      {time&&<time className="session-transcript-time">{time}</time>}
     </div>
   </div>
 }

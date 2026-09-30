@@ -64,3 +64,31 @@ python tests/smoke.py C:\Users\14181\Desktop\axlab\ax\target\debug\ax.exe .\targ
 ```
 
 It covers ACP session setup, local-to-remote DAG execution, live event mapping, permission resolution, cancel/retry, disconnect/reconnect with the same AX Session, pairing, and revocation.
+
+## Desktop settings and imports
+
+Settings has separate Connections (`/settings/connections`) and System
+(`/settings/system`) pages. Connections contains remote AX pairing and phone
+access; System contains service status, desktop behavior and Crew updates.
+Model settings groups account sign-in, API-key and environment providers.
+WorkBuddy China and International are separate accounts. Account sign-in shows
+a URL to click or copy; closing the dialog cancels waiting. AX stores the
+credentials and refreshes models after authorization.
+
+Settings → AX capabilities imports local Skill directories and MCP TOML or
+JSON through the installed AX's `skill import` / `mcp import` commands. Choose
+project or global scope. An updated AX executable is required for these commands.
+
+Terminal tabs can be dragged to reorder, and scrolled horizontally. Right-click
+a conversation to rename, mark, group under a project or delete it from the
+list. These labels and groupings are saved on this desktop; moving a conversation
+does not change its execution directory. Deleted entries can be restored from
+Show deleted; AX history is preserved. Language switching translates interface
+controls while leaving user text, generated answers and package descriptions
+unchanged. Speech credentials have independent reveal buttons.
+
+To preview both workspace release builds without replacing your installed AX,
+quit the existing Crew from its tray, then run
+`desktop/scripts/start-workspace.ps1`. The script sets AX_CREW_AX and
+AX_CREW_BACKEND only while starting the app, then restores your shell environment.
+`-CheckOnly` verifies the three build paths without launching anything.

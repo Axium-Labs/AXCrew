@@ -1,5 +1,6 @@
 mod terminal;
 mod ax;
+mod ax_login;
 mod ax_catalog;
 mod ax_update;
 mod crew_update;
@@ -277,7 +278,7 @@ pub fn run() {
             .build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_export, ax::ax_import, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, desktop_restart, ax_catalog::ax_catalog])
+        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax_login::ax_begin_login, ax_login::ax_cancel_login, ax_login::ax_open_login_url, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_select_inference_mode, ax::ax_export, ax::ax_import, ax::ax_import_capability, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, desktop_restart, ax_catalog::ax_catalog])
         .setup(|app| {
             let root=PathBuf::from(env!("CARGO_MANIFEST_DIR"));
             let backend=binary(app,"ax-crew","AX_CREW_BACKEND",root.join("../../target/debug").join(executable("ax-crew")))?;
@@ -369,6 +370,7 @@ pub fn run() {
         .build(tauri::generate_context!()).expect("failed to build AX Crew desktop");
     app.run(|app,event| {
         if let tauri::RunEvent::Exit=event {
+            ax_login::cancel_all();
             if let Some(state)=app.try_state::<terminal::TerminalState>(){state.close_all();}
             if let Some(state)=app.try_state::<DesktopState>(){state.backend.lock().unwrap().kill().ok();}
         }

@@ -123,7 +123,8 @@ describe('tool labels',()=>{
 describe('agent turns',()=>{
   it('shows the answer immediately without a toggle',()=>{
     const { container } = render(<TranscriptLine line={{type:'agent',text:'我先看看环境',key:'a1'}}/>)
-    expect(screen.getByText('AX Crew')).toBeTruthy()
+    expect(container.querySelector('.session-transcript-avatar')).toBeNull()
+    expect(container.querySelector('.session-transcript-author')).toBeNull()
     expect(container.querySelector('.session-activity-row')).toBeNull()
     expect(screen.getByText('我先看看环境')).toBeTruthy()
   })

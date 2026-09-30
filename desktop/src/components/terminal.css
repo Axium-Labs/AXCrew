@@ -3,7 +3,7 @@
 .terminal-dock.is-dragging{transition:none}
 .terminal-dock.is-bottom{width:100%}
 .terminal-dock.is-right{height:100%}
-.terminal-dock-inner{display:flex;min-width:0;min-height:0}
+.terminal-dock-inner{display:flex;min-width:0;min-height:4px}
 .terminal-dock.is-bottom .terminal-dock-inner{flex-direction:column;width:100%}
 .terminal-dock.is-right .terminal-dock-inner{flex-direction:row;height:100%}
 .terminal-resize{flex:none;position:relative;touch-action:none}
@@ -12,10 +12,10 @@
 .terminal-resize:hover::before,.terminal-dock.is-dragging .terminal-resize::before{content:"";position:absolute;background:var(--shell-accent)}
 .terminal-dock.is-bottom .terminal-resize:hover::before,.terminal-dock.is-bottom.is-dragging .terminal-resize::before{top:0;left:0;right:0;height:2px}
 .terminal-dock.is-right .terminal-resize:hover::before,.terminal-dock.is-right.is-dragging .terminal-resize::before{top:0;bottom:0;left:0;width:2px}
-.terminal-panel-body{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
-.terminal-tabs{height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;white-space:nowrap;overflow-x:auto;scrollbar-width:none}
-.terminal-tabs::-webkit-scrollbar{height:0}
-.terminal-tab{display:flex;align-items:center;min-width:0;height:30px;border:1px solid transparent;border-radius:17px;color:var(--shell-muted);cursor:grab}
+.terminal-panel-body{display:flex;flex-direction:column;flex:1;min-width:0;min-height:4px}
+.terminal-tabs{height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;white-space:nowrap;overflow-x:auto;scrollbar-width:thin}
+.terminal-tabs::-webkit-scrollbar{height:4px}
+.terminal-tab{flex:none;touch-action:none;user-select:none;display:flex;align-items:center;min-width:0;height:30px;border:1px solid transparent;border-radius:17px;color:var(--shell-muted);cursor:grab}
 .terminal-tab.is-active{background:var(--shell-bg);border-color:var(--shell-border);color:var(--shell-text);box-shadow:0 1px 3px #0000000d}
 .terminal-tab.is-dragging{opacity:.45;cursor:grabbing}
 .terminal-tab.is-drop-target{border-color:var(--shell-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--shell-accent) 22%,transparent)}

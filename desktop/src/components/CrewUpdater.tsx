@@ -1,3 +1,4 @@
+import { translate, useLang } from '../lib/i18n'
 import { useState } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
 import { invoke } from '@tauri-apps/api/core'
@@ -7,12 +8,14 @@ import { axAvailable } from '../lib/ax'
 
 type Status = { current_version: string; latest_version: string; available: boolean }
 export function CrewUpdater() {
+  useLang(state=>state.lang);
+
   const version = useQuery({ queryKey: ['desktop-version'], queryFn: getVersion, enabled: axAvailable })
   const [status, setStatus] = useState<Status | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const run = async (install: boolean) => {
-    if (install && !window.confirm('更新会退出 AX Crew 并打开安装向导。请先等待正在执行的任务结束，继续？')) return
+    if (install && !window.confirm(translate("copy.401"))) return
     setBusy(true); setError('')
     try {
       if (install) await invoke('crew_apply_update')
@@ -21,15 +24,15 @@ export function CrewUpdater() {
     finally { setBusy(false) }
   }
   return <section className="settings-card">
-    <h2>AX Crew 版本更新</h2>
-    <div className="settings-field-row"><span>当前版本</span><strong>{version.data ?? '—'}</strong></div>
-    <div className="settings-field-row"><span>最新正式版本</span><strong>{status?.latest_version ?? '尚未检查'}</strong></div>
-    <p>从官方 GitHub Release 下载 Windows 安装包，校验 SHA256 后打开安装向导。更新保留现有设置和会话。</p>
+    <h2>{translate("copy.402")}</h2>
+    <div className="settings-field-row"><span>{translate("copy.403")}</span><strong>{version.data ?? '—'}</strong></div>
+    <div className="settings-field-row"><span>{translate("copy.404")}</span><strong>{status?.latest_version ?? translate("copy.389")}</strong></div>
+    <p>{translate("copy.405")}</p>
     <div className="settings-actions">
-      <button className="settings-secondary" disabled={!axAvailable || busy} onClick={() => void run(false)}><RefreshCw size={15}/> {busy ? '正在处理…' : '检查 AX Crew 更新'}</button>
-      {status?.available && <button className="settings-primary" disabled={busy} onClick={() => void run(true)}><Download size={16}/> 下载并更新到 {status.latest_version}</button>}
+      <button className="settings-secondary" disabled={!axAvailable || busy} onClick={() => void run(false)}><RefreshCw size={15}/> {busy ? translate("copy.406") : translate("copy.407")}</button>
+      {status?.available && <button className="settings-primary" disabled={busy} onClick={() => void run(true)}><Download size={16}/> {translate("copy.408")}{status.latest_version}</button>}
     </div>
-    {status && !status.available && <p role="status">已是最新版本。</p>}
+    {status && !status.available && <p role="status">{translate("copy.395")}</p>}
     {error && <p className="settings-notice is-error" role="alert">{error}</p>}
   </section>
 }

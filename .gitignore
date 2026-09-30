@@ -29,3 +29,6 @@
 /release/*.exe
 /release/*.apk
 /release/SHA256SUMS
+
+# Local copies of GitHub Release assets
+/release/

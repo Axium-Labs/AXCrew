@@ -1,7 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export type SessionMetadata = {title?: string; marked?: boolean; project?: string; deleted?: boolean}
+
 type SessionUi = {
+  metadata: Record<string, SessionMetadata>
+  setMetadata: (id: string, value: Partial<SessionMetadata>) => void
   listOpen: boolean
   rightOpen: boolean
   rightTab: 'files' | 'details'
@@ -22,6 +26,8 @@ type SessionUi = {
 }
 
 export const useSessionUi = create<SessionUi>()(persist(set => ({
+  metadata: {},
+  setMetadata: (id, value) => set(state => ({ metadata: { ...state.metadata, [id]: { ...state.metadata[id], ...value } } })),
   listOpen: true, rightOpen: false, rightTab: 'files', drafts: {}, startingIds: [], selectedCwd: null, permissionModes: {}, defaultPermission: 'ask', thinkingEffort: '',
   setListOpen: listOpen => set({ listOpen }),
   setRightOpen: rightOpen => set({ rightOpen }),
@@ -33,5 +39,5 @@ export const useSessionUi = create<SessionUi>()(persist(set => ({
   setThinkingEffort: thinkingEffort => set({ thinkingEffort }),
 }), {
   name: 'ax-crew-session-layout',
-  partialize: ({ listOpen, rightOpen, rightTab, selectedCwd, permissionModes, defaultPermission, thinkingEffort }) => ({ listOpen, rightOpen, rightTab, selectedCwd, permissionModes, defaultPermission, thinkingEffort }),
+  partialize: ({ metadata, listOpen, rightOpen, rightTab, selectedCwd, permissionModes, defaultPermission, thinkingEffort }) => ({ metadata, listOpen, rightOpen, rightTab, selectedCwd, permissionModes, defaultPermission, thinkingEffort }),
 }))
