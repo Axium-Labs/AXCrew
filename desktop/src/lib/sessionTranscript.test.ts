@@ -74,6 +74,26 @@ describe('current turn',()=>{
 })
 
 describe('tool rows',()=>{
+  it('deduplicates repeated starts and never changes an error to success',()=>{
+    const lines=transcript(history([
+      {sessionUpdate:'tool_call',toolCallId:'c1',title:'running exit 1',status:'pending'},
+      {sessionUpdate:'tool_call',toolCallId:'c1',status:'in_progress'},
+      {sessionUpdate:'tool_call_update',toolCallId:'c1',status:'completed',rawOutput:{status:'error',raw_output:'exit_code: 1\nerror: broken'}},
+      {sessionUpdate:'tool_call_update',toolCallId:'c1',status:'completed'},
+    ]))
+    expect(lines).toHaveLength(1)
+    expect(lines[0].status).toBe('failed')
+    expect(lines[0].output).toContain('error: broken')
+  })
+  it('retains raw output, compact search matches, file changes and finish time',()=>{
+    const raw=JSON.stringify({changed_files:[{path:'src/a.rs',additions:3,deletions:1}]})
+    const lines=transcript(history([
+      {sessionUpdate:'tool_call',toolCallId:'c1',title:'editing src/a.rs',kind:'patch',status:'pending',_ax:{createdAt:100}},
+      {sessionUpdate:'tool_call_update',toolCallId:'c1',status:'completed',rawOutput:{status:'success',raw_output:raw},_ax:{createdAt:171}},
+    ]))
+    expect(lines[0]).toMatchObject({toolKind:'patch',rawOutput:raw,at:100000,end:171000,changedFiles:[{path:'src/a.rs',additions:3,deletions:1}]})
+    expect(lines[0].output).toBe('src/a.rs +3 -1')
+  })
   it('carries the result of a replayed call so the row can be opened',()=>{
     const lines=transcript(history([{sessionUpdate:'tool_call_update',toolCallId:'call_00_abc',status:'completed',content:[{type:'content',content:{type:'text',text:'README.md\nsrc'}}]}]))
     expect(lines[0].output).toBe('README.md\nsrc')
@@ -107,6 +127,17 @@ describe('tool rows',()=>{
 })
 
 describe('blocks',()=>{
+  it('replays one final changes artifact without a second tool row',()=>{
+    const lines=transcript(history([
+      {sessionUpdate:'user_message_chunk',messageId:'u',content:{text:'fix'}},
+      {sessionUpdate:'tool_call',toolCallId:'c',title:'running git diff',status:'completed'},
+      {sessionUpdate:'turn_changes',changedFiles:[{path:'a.py',additions:2,deletions:1}]},
+      {sessionUpdate:'turn_changes',changedFiles:[{path:'a.py',additions:3,deletions:1}]},
+    ]))
+    expect(lines.filter(line=>line.type==='tool')).toHaveLength(1)
+    expect(lines.filter(line=>line.changedFiles)).toHaveLength(1)
+    expect(lines.at(-1)?.changedFiles?.[0].additions).toBe(3)
+  })
   const line=(type:'user'|'agent'|'tool'|'thought',key:string) => ({type,text:key,key})
 
   it('folds each turn into one process block plus its answer',()=>{
@@ -115,20 +146,20 @@ describe('blocks',()=>{
       line('thought','k1'),line('tool','t1'),line('agent','a1'),
       line('user','u2'),line('tool','t2'),
     ])
-    expect(blocks.map(block=>block.kind)).toEqual(['line','process','line','line','process'])
-    expect(blocks[1]).toMatchObject({kind:'process',lines:[{key:'k1'},{key:'t1'}]})
-    expect(blocks[2]).toMatchObject({kind:'line',line:{key:'a1'}})
+    expect(blocks.map(block=>block.kind)).toEqual(['line','line','line','line','line','line'])
+    expect(blocks[1]).toMatchObject({kind:'line',line:{key:'k1'}})
+    expect(blocks[3]).toMatchObject({kind:'line',line:{key:'a1'}})
   })
 
   it('keeps the last answer of a turn open even when steps follow it',()=>{
     const blocks=transcriptBlocks([line('agent','a1'),line('agent','a2'),line('tool','t1')])
-    expect(blocks.map(block=>block.kind)).toEqual(['process','line','process'])
+    expect(blocks.map(block=>block.kind)).toEqual(['line','line','line'])
     expect(blocks[1]).toMatchObject({kind:'line',line:{key:'a2'}})
   })
 
   it('does not invent an answer for a turn that only ran tools',()=>{
     const blocks=transcriptBlocks([line('user','u1'),line('tool','t1'),line('tool','t2')])
-    expect(blocks.map(block=>block.kind)).toEqual(['line','process'])
+    expect(blocks.map(block=>block.kind)).toEqual(['line','line','line'])
   })
 
   it('passes no end time when AX reported none',()=>{

@@ -172,7 +172,8 @@ impl Scheduler {
             priority: 0,
             input,
         })?;
-        self.db.start_automation_run(&automation.id, Some(&task.id))?;
+        self.db
+            .start_automation_run(&automation.id, Some(&task.id))?;
         if advance {
             self.db.schedule_next(&automation.id, "scheduled")?;
         } else {
@@ -271,7 +272,12 @@ impl Scheduler {
         }
         Ok(())
     }
-    async fn execute(&self, task: Task, mut member: crate::db::Member, cancel: watch::Receiver<bool>) {
+    async fn execute(
+        &self,
+        task: Task,
+        mut member: crate::db::Member,
+        cancel: watch::Receiver<bool>,
+    ) {
         let (tx, mut rx) = mpsc::unbounded_channel();
         let session = self.db.binding(&task.id).unwrap_or(None);
         let transport = self.transport.clone();
@@ -282,7 +288,8 @@ impl Scheduler {
                 "trust" | "yolo" => "allow",
                 "ask" | "read" => "ask",
                 _ => member.permission_profile.as_str(),
-            }.to_owned();
+            }
+            .to_owned();
         }
         let handle = tokio::spawn(async move {
             transport
@@ -421,9 +428,12 @@ impl Scheduler {
             match value["sessionUpdate"].as_str().unwrap_or("") {
                 "agent_message_chunk" => "agent.message.delta",
                 "tool_call" => "tool.started",
+                "tool_call_update" if value["rawOutput"]["status"] == "error" => "tool.failed",
                 "tool_call_update" => match value["status"].as_str() {
-                    Some("failed") => "tool.failed",
-                    _ => "tool.completed",
+                    Some("failed" | "error") => "tool.failed",
+                    Some("completed" | "success") => "tool.completed",
+                    Some("pending" | "in_progress" | "running") => "tool.progress",
+                    _ => "tool.updated",
                 },
                 _ => "agent.update",
             }

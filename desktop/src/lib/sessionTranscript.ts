@@ -5,7 +5,8 @@ import type { CrewEvent, SessionHistory, Task } from './types'
  * `output` is a tool result: history replay and live updates both carry it, and
  * the collapsed transcript only shows it once the row is opened.
  */
-export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; text:string; output?:string; status?:string; key:string; at?:number }
+export type ChangedFile = { path:string; additions:number; deletions:number }
+export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; text:string; operation?:string; output?:string; rawOutput?:string; toolKind?:string; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
 
 /**
  * The view keeps one transcript row per message, so a tool result is capped
@@ -15,14 +16,60 @@ export const MAX_TOOL_OUTPUT = 20000
 
 /** ACP tool content is a list of content blocks; flatten whatever text they carry. */
 function toolOutput(update:Record<string,unknown>):string|undefined{
+  const result=update.rawOutput as {summary?:string;diagnostics?:unknown[];raw_output?:string}|undefined
+  if(result?.raw_output!==undefined)return compactOutput(result.raw_output,result.diagnostics)
   const content=update.content
-  if(typeof content==='string')return content.slice(0,MAX_TOOL_OUTPUT)||undefined
+  if(typeof content==='string')return compactOutput(content)||undefined
   if(!Array.isArray(content))return undefined
   const text=content.map(block=>{
     const item=block as {content?:{text?:string};text?:string}|null
     return item?.content?.text??item?.text??''
   }).join('')
-  return text.slice(0,MAX_TOOL_OUTPUT)||undefined
+  return compactOutput(text)||undefined
+}
+
+export function compactOutput(raw:string,diagnostics:unknown[]=[]):string {
+  let text=raw
+  try{
+    const value=JSON.parse(raw)
+    if(value.matches)text=value.matches.map((m:{path:string;line:number;text:string})=>`${m.path}:${m.line}: ${m.text}`).join('\n')
+    else if(value.changed_files)text=value.changed_files.map((f:ChangedFile)=>`${f.path} +${f.additions} -${f.deletions}`).join('\n')
+    else text=Object.entries(value).map(([key,value])=>`${key}: ${typeof value==='string'?value:JSON.stringify(value)}`).join('\n')
+  }catch{/* plain stdout */}
+  const clean=text.split('\n').filter(line=>!line.trimStart().startsWith('warning:')).join('\n')
+  const errors=diagnostics.map(d=>typeof d==='string'?d:JSON.stringify(d)).join('\n')
+  return [clean.slice(0,6000),clean.length>6000?'… 输出已压缩':'',errors.slice(0,3000)].filter(Boolean).join('\n')
+}
+
+function toolFields(update:Record<string,unknown>):Partial<SessionLine>{
+  const raw=update.rawOutput as {status?:string;raw_output?:string}|undefined
+  const input=update.rawInput as {name?:string;arguments?:Record<string,unknown>}|undefined
+  const args=input?.arguments
+  let operation:string|undefined
+  let toolKind=input?.name??(update.kind?String(update.kind):undefined)
+  if(args){
+    const path=String(args.path??'')
+    if(toolKind==='shell')operation=String(args.command??'')
+    else if(toolKind==='filesystem'){
+      toolKind=String(args.operation??'read')
+      operation=`${toolKind} ${path}${args.start_line||args.end_line?`:${args.start_line??1}–${args.end_line??'…'}`:''}`
+    }else if(toolKind==='search')operation=`search '${args.query??''}' in ${path}`
+    else if(toolKind==='patch'){
+      const edits=Array.isArray(args.edits)?args.edits as {start_line?:number;delete_count?:number;expected_lines?:string[];new_text?:string}[]:[]
+      operation=[path,...edits.map(edit=>`@@ line ${edit.start_line}, remove ${edit.delete_count} @@\n${(edit.expected_lines??[]).map(line=>`- ${line}`).join('\n')}\n${(edit.new_text??'').split('\n').map(line=>`+ ${line}`).join('\n')}`)].join('\n')
+    }
+  }
+  let changedFiles:ChangedFile[]|undefined
+  try{changedFiles=JSON.parse(raw?.raw_output??'{}').changed_files}catch{/* not JSON */}
+  return {...(toolKind?{toolKind}:{}),...(operation?{operation}:{}),
+    ...(raw?.raw_output!==undefined?{rawOutput:raw.raw_output}:{}),...(changedFiles?{changedFiles}:{}),
+    ...(raw?.status==='error'?{status:'failed'}:{})}
+}
+
+function mergeStatus(previous:string|undefined,next:string|undefined):string|undefined{
+  if(previous==='failed'||next==='failed'||next==='error')return 'failed'
+  if(previous==='completed'&&(!next||next==='pending'||next==='in_progress'))return previous
+  return next??previous
 }
 
 /**
@@ -78,6 +125,14 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
   const lines:SessionLine[]=[]
   for(const {update,at} of entries){
     const kind=String(update.sessionUpdate??'')
+    if(kind==='turn_changes'){
+      const key=`changes-${lines.findLast(line=>line.type==='user')?.key??'current'}`
+      const previous=lines.find(line=>line.key===key)
+      const changedFiles=Array.isArray(update.changedFiles)?update.changedFiles as ChangedFile[]:[]
+      if(previous)previous.changedFiles=changedFiles
+      else lines.push({type:'agent',text:'',key,changedFiles,status:'completed'})
+      continue
+    }
     if(kind==='user_message_chunk'||kind==='agent_message_chunk'||kind==='agent_thought_chunk'){
       const type=kind==='user_message_chunk'?'user':kind==='agent_message_chunk'?'agent':'thought'
       const text=String((update.content as {text?:string}|undefined)?.text??'')
@@ -85,18 +140,18 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
       // A streamed message keeps the time of its first chunk, so the label does not drift.
       if(lines.at(-1)?.type===type&&(!key||lines.at(-1)?.key===key))lines[lines.length-1].text+=text
       else lines.push({type,text,key:key??`${lines.length}-${type}`,...(at===undefined?{}:{at})})
-    }else if(kind==='tool_call'){
-      const output=toolOutput(update)
-      lines.push({type:'tool',text:toolTitle(update),...(output?{output}:{}),status:String(update.status??'pending'),key:String(update.toolCallId??lines.length),...(at===undefined?{}:{at})})
-    }else if(kind==='tool_call_update'){
+    }else if(kind==='tool_call'||kind==='tool_call_update'){
       const call=lines.findLast(line=>line.key===update.toolCallId)
       const output=toolOutput(update)
       if(call){
-        call.status=String(update.status??'completed')
+        const fields=toolFields(update)
+        call.status=mergeStatus(call.status,fields.status??(update.status===undefined?undefined:String(update.status)))
+        if(call.status==='completed'||call.status==='failed')call.end=at??call.end
         if(call.at===undefined&&at!==undefined)call.at=at
         if(!call.text)call.text=toolTitle(update)
         call.output=mergeOutput(call.output,output)
-      }else lines.push({type:'tool',text:toolTitle(update),...(output?{output}:{}),status:String(update.status??'completed'),key:String(update.toolCallId??lines.length),...(at===undefined?{}:{at})})
+        Object.assign(call,{...fields,status:call.status})
+      }else lines.push({type:'tool',text:toolTitle(update),...(output?{output}:{}),status:String(update.status??'pending'),key:String(update.toolCallId??lines.length),...(at===undefined?{}:{at}),...toolFields(update)})
     }
   }
   return lines
@@ -122,7 +177,7 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
     if(match<0)body.push({...line})
     else{
       const previous=body[match],output=mergeOutput(previous.output,line.output)
-      body[match]={...previous,...line,text:previous.text.startsWith(line.text)?previous.text:line.text,...(output?{output}:{})}
+      body[match]={...previous,...line,at:previous.at??line.at,status:mergeStatus(previous.status,line.status),text:previous.text.startsWith(line.text)?previous.text:line.text,...(output?{output}:{})}
     }
   }
   const sentAt=task.created_at?task.created_at*1000:undefined
@@ -138,25 +193,5 @@ export type TranscriptBlock = { kind:'line'; key:string; line:SessionLine } | { 
 
 /** The turn's last answer stays open; every step before and after it folds away. */
 export function transcriptBlocks(lines:SessionLine[]):TranscriptBlock[]{
-  const blocks:TranscriptBlock[]=[]
-  let turn:SessionLine[]=[]
-  const flush=()=>{
-    if(!turn.length)return
-    const answer=turn.findLastIndex(line=>line.type==='agent')
-    const head=answer<0?turn:turn.slice(0,answer)
-    const tail=answer<0?[]:turn.slice(answer+1)
-    // The folded row is timed from its own first step to the end of the turn, so a
-    // block with one step still reports how long the turn took.
-    const end=turn.at(-1)?.at
-    if(head.length)blocks.push({kind:'process',key:`process-${head[0].key}`,lines:head,...(end===undefined?{}:{end})})
-    if(answer>=0)blocks.push({kind:'line',key:turn[answer].key,line:turn[answer]})
-    if(tail.length)blocks.push({kind:'process',key:`process-${tail[0].key}`,lines:tail,...(end===undefined?{}:{end})})
-    turn=[]
-  }
-  for(const line of lines){
-    if(line.type==='user'){flush();blocks.push({kind:'line',key:line.key,line})}
-    else turn.push(line)
-  }
-  flush()
-  return blocks
+  return lines.map(line=>({kind:'line',key:line.key,line}))
 }

@@ -113,6 +113,23 @@
 
 .session-transcript{max-width:990px;margin:0 auto;padding:26px 24px 36px}.session-transcript-meta{margin-bottom:18px;color:var(--session-muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .session-transcript-line{display:flex;gap:12px;margin:17px 0}
+.session-tool{margin:4px 0;min-width:0;color:var(--session-muted)}
+.session-tool-row{display:flex;align-items:center;gap:8px;width:100%;padding:5px 0;background:transparent;border:0;text-align:left;color:inherit;font-size:12px}
+.session-tool-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.session-tool-row small{white-space:nowrap;font-variant-numeric:tabular-nums}
+.session-tool-row svg{transition:transform .15s}.session-tool-row svg.is-open{transform:rotate(180deg)}
+.session-tool.is-failed>.session-tool-row{color:#e0505c}
+.session-tool-card{margin:4px 0 10px;border:1px solid var(--session-border);border-radius:12px;background:var(--session-panel);overflow:hidden;color:var(--session-text)}
+.session-tool-card header{padding:10px 14px;font-weight:600;font-size:12px;border-bottom:1px solid var(--session-border)}
+.session-tool-command,.session-tool-output{padding:10px 14px;margin:0;font:12px/1.6 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto}
+.session-tool-output{background:var(--session-bg);color:var(--session-muted)}
+.session-tool-card footer{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:8px 14px;font-size:11px}
+.session-tool-card footer button,.session-changes>button{border:0;background:transparent;color:var(--session-muted);font-size:11px}
+.session-tool-status.is-failed,.session-changes em{color:#e0505c}.session-tool-status.is-success,.session-changes b{color:#0ca966}
+.session-changes{border:1px solid var(--session-border);border-radius:14px;margin:18px 0;padding:14px;font-size:12px}
+.session-changes header{display:flex;justify-content:space-between;border-bottom:1px solid var(--session-border);padding-bottom:12px;font-weight:600}
+.session-change-file{display:flex;gap:8px;padding:10px 0;color:var(--session-muted)}
+.session-change-file>span{flex:1;overflow-wrap:anywhere}.session-changes b,.session-changes em{font-weight:400;font-style:normal}
 .session-transcript-avatar{width:31px;height:31px;flex:none;display:grid;place-items:center;border-radius:10px;background:var(--session-selected);color:var(--session-accent);font-size:11px;font-weight:700}
 .session-transcript-line.is-thought .session-transcript-avatar{background:transparent;color:var(--session-muted)}
 .session-transcript-body{min-width:0;flex:1;padding-top:4px;color:var(--session-text);font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}

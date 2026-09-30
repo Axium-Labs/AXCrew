@@ -188,11 +188,53 @@ fn to_update(session: &str, message: &Value) -> Option<Value> {
             json!({"sessionUpdate":"agent_message_chunk","messageId":id,"content":{"type":"text","text":content}})
         }
         "tool" => {
-            json!({"sessionUpdate":"tool_call_update","toolCallId":id,"status":"completed","content":[{"type":"content","content":{"type":"text","text":content}}]})
+            let result=serde_json::from_str::<Value>(&content).ok().filter(|value|value.get("raw_output").is_some()).unwrap_or_else(||json!({"status":if legacy_failed(&content){"error"}else{"success"},"raw_output":content}));
+            let call_id = message["metadata"]["tool_call_id"]
+                .as_str()
+                .map_or_else(|| id.clone(), str::to_owned);
+            json!({"sessionUpdate":"tool_call_update","toolCallId":call_id,"status":if result["status"]=="error"{"failed"}else{"completed"},"rawOutput":result})
+        }
+        "system" if content.starts_with("[ax-changes]\n") => {
+            json!({"sessionUpdate":"turn_changes","changedFiles":serde_json::from_str::<Value>(content.trim_start_matches("[ax-changes]\n")).unwrap_or(Value::Null)})
         }
         _ => return None,
     };
     Some(json!({"sessionId":session,"update":with_time(update, at)}))
+}
+
+fn legacy_failed(content: &str) -> bool {
+    content.lines().next().is_some_and(|line| {
+        line.strip_prefix("exit_code:")
+            .is_some_and(|code| code.trim().parse::<i32>().is_ok_and(|code| code != 0))
+    }) || [
+        "tool execution failed:",
+        "invalid tool input:",
+        "permission denied for tool:",
+        "unknown tool:",
+        "web fetch failed for every url:",
+        "Execution interrupted",
+    ]
+    .iter()
+    .any(|prefix| content.starts_with(prefix))
+}
+
+fn tool_starts(session: &str, message: &Value) -> Vec<Value> {
+    let Some(calls) = message["metadata"]["tool_calls"].as_array() else {
+        return vec![];
+    };
+    calls.iter().map(|call|{
+        let name=call["function"]["name"].as_str().unwrap_or("tool");
+        let args=call["function"]["arguments"].as_str().and_then(|text|serde_json::from_str::<Value>(text).ok()).unwrap_or(Value::Null);
+        let path=args["path"].as_str().unwrap_or("");
+        let title=match name {
+            "shell"=>format!("running {}",args["command"].as_str().unwrap_or("")),
+            "filesystem"=>format!("{} {path}",args["operation"].as_str().unwrap_or("read")),
+            "search"=>format!("searching {} in {path}",args["query"].as_str().unwrap_or("")),
+            "patch"=>format!("editing {path}"),
+            _=>name.to_owned(),
+        };
+        json!({"sessionId":session,"update":with_time(json!({"sessionUpdate":"tool_call","toolCallId":call["id"],"title":title,"kind":name,"rawInput":{"name":name,"arguments":args},"status":"pending"}),message["created_at"].as_i64().unwrap_or(0))})
+    }).collect()
 }
 
 fn with_time(mut update: Value, at: i64) -> Value {
@@ -219,6 +261,7 @@ pub fn transcript(session: &str) -> Result<Value> {
             if let Some(update) = to_update(session, &message) {
                 updates.push(update);
             }
+            updates.extend(tool_starts(session, &message));
         }
         return Ok(json!({
             "ax_session_id": session,
@@ -392,6 +435,20 @@ pub fn usage(days: i64, offset: i64, crew: &HashSet<String>) -> Result<Value> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn replay_uses_real_call_ids_failure_results_and_changes() {
+        let assistant = serde_json::json!({"role":"assistant","metadata":{"tool_calls":[{"id":"real-call","function":{"name":"shell","arguments":"{\"command\":\"exit 1\"}"}}]},"created_at":10});
+        let starts = super::tool_starts("s", &assistant);
+        assert_eq!(starts[0]["update"]["toolCallId"], "real-call");
+        assert_eq!(starts[0]["update"]["kind"], "shell");
+        let message = serde_json::json!({"id":12,"role":"tool","content":"{\"status\":\"error\",\"raw_output\":\"exit_code: 1\"}","metadata":{"tool_call_id":"real-call"},"created_at":12});
+        let finish = super::to_update("s", &message).unwrap();
+        assert_eq!(finish["update"]["toolCallId"], "real-call");
+        assert_eq!(finish["update"]["status"], "failed");
+        assert!(super::legacy_failed("exit_code: 1\nstdout:"));
+        let changes=super::to_update("s",&serde_json::json!({"role":"system","content":"[ax-changes]\n[{\"path\":\"a.rs\",\"additions\":1,\"deletions\":0}]"})).unwrap();
+        assert_eq!(changes["update"]["sessionUpdate"], "turn_changes");
+    }
     #[test]
     fn usage_counts_reported_tokens_and_keeps_cache_inside_input() {
         let row = serde_json::json!({"role":"assistant","metadata":{"usage":{"reported":{"prompt_tokens":100,"completion_tokens":20,"prompt_tokens_details":{"cached_tokens":80}}}}});

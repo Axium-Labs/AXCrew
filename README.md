@@ -1,5 +1,7 @@
 # AX Crew Backend
 
+聊天执行区使用逐调用紧凑行。说明和思考直接显示为正文，同一 call ID 的开始、成功、失败原地更新。点击工具行展开真实工具类型、操作、压缩结果；原始输出需要再次展开，长输出在卡片内部滚动。错误不会变成成功。超过一分钟的耗时显示为分钟，超过一小时显示为小时。每轮结束显示修改文件卡片；ACP `turn_changes` 优先于 patch 累计统计，历史回放保留该卡片。
+
 AX Crew now also includes a native [Android control client](android/README.md) in `android/`.
 It connects to the same computer-hosted Crew Gateway over HTTPS/WSS, with devices,
 Crews/Agents, task submission and streaming, session history, and mobile permission
