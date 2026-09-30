@@ -24,3 +24,8 @@
 
 # Android UI inspection build artifacts
 /android/uisnoop/
+
+# Published binaries are GitHub Release assets
+/release/*.exe
+/release/*.apk
+/release/SHA256SUMS

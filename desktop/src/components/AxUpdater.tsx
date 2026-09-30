@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Download, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { axApplyUpdate, axAvailable, axCheckUpdate, type AxUpdateStatus } from '../lib/ax'
+import { invoke } from '@tauri-apps/api/core'
 
 /**
  * 设置 → 本地 AX → AX 更新。
@@ -10,7 +11,7 @@ import { axApplyUpdate, axAvailable, axCheckUpdate, type AxUpdateStatus } from '
  * 「下载 / 更新」按情况跑 AX 官方安装脚本或 `ax --update`，两者都会按 release 的
  * SHA256SUMS 校验，所以这里只负责触发，并把原始输出贴出来。
  *
- * 管理对象是系统里安装的 AX；Crew 自己运行的那份 AX 在启动时选定，不受影响。
+ * 管理系统 AX，更新后重启 Crew，使网关和模型目录使用同一版本。
  */
 export function AxUpdater() {
   const query = useQueryClient()
@@ -18,6 +19,7 @@ export function AxUpdater() {
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(false)
   const [applying, setApplying] = useState(false)
+  const [restartNeeded, setRestartNeeded] = useState(false)
 
   const check = async () => {
     setChecking(true); setError('')
@@ -33,6 +35,7 @@ export function AxUpdater() {
     setApplying(true); setError('')
     try {
       setStatus(await axApplyUpdate())
+      setRestartNeeded(true)
       await query.invalidateQueries({ queryKey: ['ax-local'] })
     } catch (cause) { setError(String(cause)) }
     finally { setApplying(false) }
@@ -57,6 +60,9 @@ export function AxUpdater() {
     {status?.report && <pre className="settings-report">{status.report}</pre>}
     {error && <div className="settings-provider-status is-warning" role="alert"><ShieldAlert size={16}/> {error}</div>}
     {!axAvailable && <div className="settings-provider-status"><ShieldAlert size={16}/> 仅桌面应用可以检查或更新 AX。</div>}
-    <p>Crew 自己运行的 AX 见上方「当前运行环境」，不随这里更新。</p>
+    <p>AX Crew 使用系统安装的 AX。安装或更新后，请等待任务结束，再重启 AX Crew 以启用新版本。</p>
+    {restartNeeded && <button className="settings-primary" onClick={() => {
+      if (window.confirm('重启会中断正在执行的本地任务。确定现在重启 AX Crew？')) void invoke('desktop_restart').catch(cause => setError(String(cause)))
+    }}>重启 AX Crew，使用系统 AX</button>}
   </section>
 }

@@ -21,6 +21,7 @@ pub struct AxLocalState {
     /// credential actually produced models instead of silently showing none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discovery: Option<AxDiscovery>,
+    pub runtime_warning: Option<String>,
 }
 
 pub fn executable_name() -> &'static str {
@@ -45,7 +46,7 @@ pub fn installed_ax() -> Option<PathBuf> {
     let on_path = std::env::var_os("PATH").and_then(|path| std::env::split_paths(&path).map(|part| part.join(filename)).find(|candidate| candidate.is_file()));
     // 安装脚本会把 AX 装进固定目录并写进用户 PATH，但当前进程继承的是启动时的
     // PATH：刚装好时在标准目录兜一手，设置页不用重启就能看到它。
-    on_path.or_else(|| Some(install_dir().join(filename)).filter(|candidate| candidate.is_file()))
+    Some(install_dir().join(filename)).filter(|candidate| candidate.is_file()).or(on_path)
 }
 
 /// 丢弃某个 AX 路径的探测缓存（版本 / ACP 支持）。
@@ -237,13 +238,20 @@ fn state(active: &Path) -> Result<AxLocalState, String> {
         id: model.get("model")?.as_str()?.to_owned(),
         display_name: model.get("model")?.as_str()?.to_owned(),
     }));
-    let providers = provider_catalog(active)?;
+    let (providers, runtime_warning) = if !active.is_file() {
+        (Vec::new(), Some("尚未安装 AX，请下载并安装后重启 AX Crew。".into()))
+    } else {
+        match provider_catalog(active) {
+            Ok(providers) => (providers, None),
+            Err(error) => (Vec::new(), Some(error)),
+        }
+    };
     Ok(AxLocalState {
         installed_path: installed.as_ref().map(|path| path.to_string_lossy().into_owned()),
         installed_version: installed.as_deref().and_then(version),
         installed_compatible: installed.as_deref().is_some_and(supports_acp),
         active_path: active.to_string_lossy().into_owned(), active_version: version(active),
-        home: home.to_string_lossy().into_owned(), selected_model: selected, providers, discovery: None,
+        home: home.to_string_lossy().into_owned(), selected_model: selected, providers, discovery: None, runtime_warning,
     })
 }
 

@@ -48,6 +48,7 @@ describe('AX 更新面板', () => {
     await user.click(update)
     await waitFor(() => expect(fixture.apply).toHaveBeenCalledTimes(1))
     expect(await screen.findByText(/AX: updated/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /重启 AX Crew，使用系统 AX/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /已是最新版本/ })).toHaveProperty('disabled', true)
   })
 

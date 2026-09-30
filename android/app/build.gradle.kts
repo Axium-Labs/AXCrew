@@ -11,9 +11,21 @@ android {
         applicationId = "com.axcrew.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    val releaseStore = providers.environmentVariable("AXCREW_ANDROID_KEYSTORE")
+    if (releaseStore.isPresent) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseStore.get())
+                storePassword = providers.environmentVariable("AXCREW_ANDROID_STORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("AXCREW_ANDROID_KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("AXCREW_ANDROID_KEY_PASSWORD").get()
+            }
+        }
+        buildTypes { getByName("release") { signingConfig = signingConfigs.getByName("release") } }
     }
     buildFeatures { compose = true }
     compileOptions {

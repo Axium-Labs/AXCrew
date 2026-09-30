@@ -2,6 +2,7 @@ mod terminal;
 mod ax;
 mod ax_catalog;
 mod ax_update;
+mod crew_update;
 mod proc;
 
 use std::{fs, path::{Component, Path, PathBuf}, process::{Child, Stdio}, sync::{Mutex, atomic::{AtomicBool, Ordering}}};
@@ -246,20 +247,22 @@ fn binary(app: &tauri::App, name: &str, override_var: &str, development: PathBuf
     Err(format!("{name} binary not found; build AX and Crew or set {override_var}").into())
 }
 
-fn ax_binary(app: &tauri::App, development: PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn ax_binary(_app: &tauri::App, development: PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
     if let Ok(path) = std::env::var("AX_CREW_AX") { return Ok(PathBuf::from(path)); }
     // 优先使用「通过 GitHub 安装的 AX」：AX 官方安装脚本（scripts/install.ps1 /
     // install.sh）会把二进制装进固定目录（Windows 为 %LOCALAPPDATA%\Programs\AX\bin）
     // 并写入 PATH，设置页的「AX 更新」也更新这一份。优先用它，保证在设置页里
-    // 检测并更新 AX 后，Crew 立刻运行的就是新版本。
-    if let Some(installed) = ax::installed_ax().filter(|path| ax::supports_acp(path)) { return Ok(installed); }
-    let bundled = app.path().resource_dir()?.join("bin").join(executable("ax"));
+    // 检测并更新 AX 后，重启 Crew 就会使用新版本。
+    if let Some(installed) = ax::installed_ax() { return Ok(installed); }
     // 开发构建：直接用工作区里编译的 ax。
     if cfg!(debug_assertions) && development.exists() { return Ok(development); }
-    // 兜底：随包捆绑的 AX（便携包里没有这一份，只有开发产物里才可能残留）。
-    if bundled.exists() { return Ok(bundled); }
-    if development.exists() { return Ok(development); }
-    Err("No AX executable with Crew ACP support was found".into())
+    // 未安装时仍启动控制界面，用户可在设置里下载安装。正式包不运行工作区或捆绑 AX。
+    Ok(ax::install_dir().join(executable("ax")))
+}
+
+#[tauri::command]
+fn desktop_restart(app: tauri::AppHandle) {
+    app.restart();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -274,7 +277,7 @@ pub fn run() {
             .build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_export, ax::ax_import, ax_update::ax_check_update, ax_update::ax_apply_update, ax_catalog::ax_catalog])
+        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_export, ax::ax_import, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, desktop_restart, ax_catalog::ax_catalog])
         .setup(|app| {
             let root=PathBuf::from(env!("CARGO_MANIFEST_DIR"));
             let backend=binary(app,"ax-crew","AX_CREW_BACKEND",root.join("../../target/debug").join(executable("ax-crew")))?;

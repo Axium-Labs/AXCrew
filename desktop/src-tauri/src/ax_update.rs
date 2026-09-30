@@ -6,7 +6,7 @@
 //! 换文件）或官方安装脚本，这里不重复实现第二份升级器。
 //!
 //! 管理对象是**系统里安装的** AX（PATH 上的那一份，或官方安装目录里的那一份）。
-//! Crew 自己运行的 AX 由启动时选定，不在这里动它。
+//! Crew 在启动时使用系统 AX；安装或更新后重启 Crew 生效。
 
 use std::{
     fs,
@@ -60,7 +60,7 @@ fn normalize(text: &str) -> String {
     text.split_whitespace().last().unwrap_or(text).trim_start_matches('v').to_owned()
 }
 
-fn is_newer(latest: &str, local: &str) -> Option<bool> {
+pub(crate) fn is_newer(latest: &str, local: &str) -> Option<bool> {
     let (latest, local) = (parse_version(latest)?, parse_version(local)?);
     let width = latest.len().max(local.len());
     let pad = |mut parts: Vec<u64>| {
@@ -119,7 +119,7 @@ fn status(binary: Option<PathBuf>, latest: String, report: Option<String>) -> Ax
 pub async fn ax_check_update() -> Result<AxUpdateStatus, String> {
     let latest = latest_tag(&client()?).await?;
     // 探测版本要 spawn 进程，别占着异步运行时。
-    tauri::async_runtime::spawn_blocking(move || status(ax::installed_ax(), latest, None))
+    tauri::async_runtime::spawn_blocking(move || { let binary = ax::installed_ax(); if let Some(path) = binary.as_deref() { ax::forget_probes(path); } status(binary, latest, None) })
         .await
         .map_err(|error| error.to_string())
 }
@@ -132,6 +132,7 @@ pub async fn ax_apply_update() -> Result<AxUpdateStatus, String> {
 
 fn apply(latest: String) -> Result<AxUpdateStatus, String> {
     let existing = ax::installed_ax();
+    if let Some(path) = existing.as_deref() { ax::forget_probes(path); }
     let before = existing.as_deref().and_then(ax::version);
     // 已经有 AX 且它自带升级器：交给 AX 自己，它会校验 SHA256，并在 Windows 上让
     // 一个脱离的助手等进程退出后再替换文件。

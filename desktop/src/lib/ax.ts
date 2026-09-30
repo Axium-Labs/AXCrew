@@ -28,6 +28,7 @@ export type AxLocalState = {
   selected_model: AxModel | null
   providers: AxProvider[]
   discovery?: AxDiscovery
+  runtime_warning?: string | null
 }
 export type AxSkill = { name: string; description: string; missing_tools: string[] }
 export type AxMcpServer = { name: string; description: string; enabled: boolean; capabilities: string[] }

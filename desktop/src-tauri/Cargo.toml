@@ -1,6 +1,6 @@
 [package]
 name = "ax-crew-desktop"
-version = "0.1.0"
+version = "0.2.1"
 description = "AX Crew desktop control plane"
 authors = ["AX Crew contributors"]
 license = "MIT"
@@ -32,3 +32,4 @@ tauri-plugin-dialog = "2"
 # 仅用于「检查 AX 更新」那一次 GitHub Releases 查询；下载与安装交给 AX 自己的
 # 升级器和官方安装脚本，所以这里只要 json + rustls。
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy"] }
+sha2 = "0.10"
