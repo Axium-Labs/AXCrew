@@ -262,8 +262,31 @@ fn ax_binary(_app: &tauri::App, development: PathBuf) -> Result<PathBuf, Box<dyn
 }
 
 #[tauri::command]
-fn desktop_restart(app: tauri::AppHandle) {
+fn desktop_restart(app: tauri::AppHandle) -> Result<(), String> {
+    shutdown_runtime(&app)?;
     app.restart();
+}
+
+fn stop_backend(child: &mut Child) -> Result<(), String> {
+    if child.try_wait().map_err(|e| e.to_string())?.is_none() {
+        if let Err(error) = child.kill() {
+            // The child may have exited between try_wait and kill.
+            if child.try_wait().map_err(|e| e.to_string())?.is_none() { return Err(error.to_string()); }
+        }
+    }
+    child.wait().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Updates and restarts must release installed binaries before starting another process.
+pub(crate) fn shutdown_runtime(app: &tauri::AppHandle) -> Result<(), String> {
+    ax_login::cancel_all();
+    if let Some(state) = app.try_state::<terminal::TerminalState>() { state.close_all(); }
+    if let Some(state) = app.try_state::<DesktopState>() {
+        let mut backend = state.backend.lock().map_err(|e| e.to_string())?;
+        stop_backend(&mut backend).map_err(|e| format!("无法关闭 AX Crew 后台进程：{e}"))?;
+    }
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -357,7 +380,7 @@ pub fn run() {
             TrayIconBuilder::new().icon(app.default_window_icon().ok_or("default icon missing")?.clone()).menu(&menu)
                 .on_menu_event(|app,event|match event.id.as_ref(){
                     "show"=>{if let Some(w)=app.get_webview_window("main"){w.show().ok();w.set_focus().ok();}},
-                    "quit"=>{app.state::<DesktopState>().quitting.store(true,Ordering::SeqCst);app.exit(0);},
+                    "quit"=>{if shutdown_runtime(app).is_ok(){app.state::<DesktopState>().quitting.store(true,Ordering::SeqCst);app.exit(0);}},
                     _=>{},
                 }).build(app)?;
             Ok(())
@@ -370,9 +393,33 @@ pub fn run() {
         .build(tauri::generate_context!()).expect("failed to build AX Crew desktop");
     app.run(|app,event| {
         if let tauri::RunEvent::Exit=event {
-            ax_login::cancel_all();
-            if let Some(state)=app.try_state::<terminal::TerminalState>(){state.close_all();}
-            if let Some(state)=app.try_state::<DesktopState>(){state.backend.lock().unwrap().kill().ok();}
+            let _ = shutdown_runtime(app);
         }
     });
+}
+
+#[cfg(all(test, windows))]
+mod shutdown_tests {
+    use super::*;
+    #[test]
+    fn stopping_backend_releases_its_executable_for_update() {
+        if std::env::var_os("AXCREW_SHUTDOWN_TEST_CHILD").is_some() {
+            std::thread::sleep(std::time::Duration::from_secs(30));
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("axcrew-shutdown-{}", uuid::Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        let executable = dir.join("backend.exe");
+        fs::copy(std::env::current_exe().unwrap(), &executable).unwrap();
+        let mut child = proc::command(&executable)
+            .args(["--exact", "shutdown_tests::stopping_backend_releases_its_executable_for_update"])
+            .env("AXCREW_SHUTDOWN_TEST_CHILD", "1")
+            .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+        assert!(fs::OpenOptions::new().write(true).open(&executable).is_err());
+        stop_backend(&mut child).unwrap();
+        assert!(child.try_wait().unwrap().is_some());
+        drop(fs::OpenOptions::new().write(true).open(&executable).unwrap());
+        fs::remove_file(&executable).unwrap();
+        fs::remove_dir(&dir).unwrap();
+    }
 }

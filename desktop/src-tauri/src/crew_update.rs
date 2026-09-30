@@ -84,7 +84,20 @@ pub async fn crew_apply_update(app: tauri::AppHandle) -> Result<(), String> {
     let installer = dir.join(name);
     if installer.exists() { fs::remove_file(&installer).map_err(|e| e.to_string())?; }
     fs::rename(&temporary, &installer).map_err(|e| e.to_string())?;
-    crate::proc::command(installer).spawn().map_err(|e| format!("无法启动安装向导：{e}"))?;
+    crate::shutdown_runtime(&app)?;
+    let mut launch = crate::proc::command(installer);
+    launch.arg("/UPDATE");
+    #[cfg(windows)] {
+        use std::os::windows::process::CommandExt;
+        let executable = std::env::current_exe().map_err(|e| e.to_string())?;
+        let directory = executable.parent().filter(|path|path.join("uninstall.exe").is_file())
+            .map(std::path::Path::to_path_buf)
+            .or_else(|| std::env::var_os("LOCALAPPDATA").map(|path|std::path::PathBuf::from(path).join("AX Crew")))
+            .ok_or("无法确定 AX Crew 安装目录")?;
+        // NSIS requires /D as the final, unquoted command-line argument.
+        launch.raw_arg(format!("/D={}", directory.display()));
+    }
+    launch.spawn().map_err(|e| format!("无法启动安装向导：{e}"))?;
     app.exit(0);
     Ok(())
 }
