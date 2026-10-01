@@ -110,3 +110,5 @@ quit the existing Crew from its tray, then run
 `desktop/scripts/start-workspace.ps1`. The script sets AX_CREW_AX and
 AX_CREW_BACKEND only while starting the app, then restores your shell environment.
 `-CheckOnly` verifies the three build paths without launching anything.
+
+Windows 安装包在覆盖/卸载文件前按完整安装路径关闭遗留的 Crew 桌面和后台进程，并等待退出，避免旧版本遗留网关占用 `bin/ax-crew.exe`。安装器清理指令由 `desktop/scripts/prepare-binaries.mjs` 从可读 PowerShell 源码生成，使用 `desktop` 下的 `npm run tauri:build` 打包。

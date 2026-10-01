@@ -12,6 +12,7 @@
 
 # Bundled binary staging dir for tauri build (prepare-binaries output)
 /desktop/src-tauri/bin/
+/desktop/src-tauri/installer/runtime-stop-command.nsh
 
 # Packaged installer/binaries copied into repo root
 /AX-Crew*.exe
