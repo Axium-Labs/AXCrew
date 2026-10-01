@@ -19,6 +19,14 @@ AX Crew is a Rust control plane for the existing [AX](../ax) runtime. It schedul
 
 ## Build and start
 
+Desktop Settings > AX includes **Agent environment** (Windows native / WSL)
+and **Integrated terminal shell** (PowerShell / Command Prompt / Git Bash /
+WSL). These settings are shared with `ax environment` and the AX TUI's
+`/environment` menu. They apply to new AX processes and new terminal tabs.
+Install Linux AX at `~/.local/bin/ax` in the default WSL distribution before
+selecting WSL; Crew checks availability before saving. Desktop child processes
+use Crew's `AX_HOME` (by default `~/.ax`) so the launcher and settings agree.
+
 Build AX and Crew separately:
 
 ```powershell

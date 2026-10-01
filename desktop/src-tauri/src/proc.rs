@@ -15,7 +15,11 @@ pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// A [`Command`] that never opens a console window on Windows.
 pub fn command(program: impl AsRef<OsStr>) -> Command {
+    let program = program.as_ref();
     let mut command = Command::new(program);
+    if std::path::Path::new(program).file_stem().is_some_and(|name| name == "ax" || name == "ax-crew") {
+        command.env("AX_HOME", crate::ax::ax_home());
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

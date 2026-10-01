@@ -20,6 +20,9 @@ export type AxUpdateStatus = {
   report?: string
 }
 export type AxLocalState = {
+  agent_environment?: 'native' | 'wsl'
+  terminal_shell?: 'powershell' | 'cmd' | 'git_bash' | 'wsl'
+  windows?: boolean
   installed_path: string | null
   installed_version: string | null
   installed_compatible: boolean
@@ -48,6 +51,14 @@ export type AxCatalog = {
 
 export const axAvailable = isTauri()
 export const axLocalState = () => invoke<AxLocalState>('ax_local_state')
+export const axSelectExecution = (environment?: AxLocalState['agent_environment'], terminalShell?: AxLocalState['terminal_shell']) => invoke<void>('ax_select_execution', { environment: environment ?? null, terminalShell: terminalShell ?? null })
+
+export function axTuiCommand(path: string, shell: AxLocalState['terminal_shell'] = 'powershell'): string {
+  if (shell === 'cmd') return `"${path}" tui`
+  if (shell === 'git_bash') return `'${path.replaceAll('\\', '/').replaceAll("'", "'\\''")}' tui`
+  if (shell === 'wsl') return `"$(wslpath '${path.replaceAll("'", "'\\''")}')" tui`
+  return `& '${path.replaceAll("'", "''")}' tui`
+}
 export const axStoreApiKey = (provider: string, key: string) => invoke<AxLocalState>('ax_store_api_key', { provider, key })
 export const axRefreshModels = (provider?: string) => invoke<AxLocalState>('ax_refresh_models', { provider: provider ?? null })
 export const axRemoveCredential = (provider: string) => invoke<AxLocalState>('ax_remove_credential', { provider })

@@ -42,7 +42,20 @@ fn display_path(path: &Path) -> String {
 }
 
 fn normalized(path: &Path) -> PathBuf {
-    PathBuf::from(display_path(path))
+    PathBuf::from(host_path(&display_path(path)))
+}
+
+/// AX running through WSL records paths in Linux form in the shared AX home.
+fn host_path(path: &str) -> String {
+    if cfg!(windows) {
+        if let Some(mounted) = path.strip_prefix("/mnt/") {
+            let bytes = mounted.as_bytes();
+            if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b'/' {
+                return format!("{}:\\{}", char::from(bytes[0]).to_ascii_uppercase(), mounted[2..].replace('/', "\\"));
+            }
+        }
+    }
+    path.to_owned()
 }
 
 fn project_id(entry: &Value) -> Option<String> {
@@ -82,7 +95,7 @@ pub fn projects() -> Vec<LocalProject> {
                         id,
                         root: entry["root"]
                             .as_str()
-                            .map(str::to_owned)
+                            .map(host_path)
                             .unwrap_or_else(|| display_path(&data_dir)),
                         data_dir,
                     });
@@ -435,6 +448,16 @@ pub fn usage(days: i64, offset: i64, crew: &HashSet<String>) -> Result<Value> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn wsl_shared_project_paths_use_host_paths() {
+        if cfg!(windows) {
+            assert_eq!(super::host_path("/mnt/c/Users/A B/project"), "C:\\Users\\A B\\project");
+            assert_eq!(super::normalized(std::path::Path::new("/mnt/d/AX/.ax/projects/id")), std::path::PathBuf::from("D:\\AX\\.ax\\projects\\id"));
+        } else {
+            assert_eq!(super::host_path("/mnt/c/project"), "/mnt/c/project");
+        }
+        assert_eq!(super::host_path("/home/user/project"), "/home/user/project");
+    }
     #[test]
     fn replay_uses_real_call_ids_failure_results_and_changes() {
         let assistant = serde_json::json!({"role":"assistant","metadata":{"tool_calls":[{"id":"real-call","function":{"name":"shell","arguments":"{\"command\":\"exit 1\"}"}}]},"created_at":10});

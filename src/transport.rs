@@ -72,6 +72,7 @@ impl DeviceRouter {
         let mut updates = Vec::new();
         if device == "local" {
             let mut cmd = Command::new(&self.local.ax);
+            if let Some(home) = crate::local_ax::ax_home() { cmd.env("AX_HOME", home); }
             cmd.arg("acp")
                 .current_dir(cwd)
                 .stdin(std::process::Stdio::piped())
@@ -393,6 +394,7 @@ impl Transport for LocalTransport {
         events: mpsc::UnboundedSender<TransportEvent>,
     ) -> Result<Value> {
         let mut cmd = Command::new(&self.ax);
+        if let Some(home) = crate::local_ax::ax_home() { cmd.env("AX_HOME", home); }
         cmd.arg("acp")
             .current_dir(&member.cwd)
             .stdin(std::process::Stdio::piped())

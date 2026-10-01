@@ -18,6 +18,9 @@ pub struct AxLocalState {
     pub active_path: String, pub active_version: Option<String>, pub home: String,
     pub selected_model: Option<AxModel>, pub providers: Vec<AxProvider>,
     pub inference_mode: String,
+    pub agent_environment: String,
+    pub terminal_shell: String,
+    pub windows: bool,
     /// Only set by `ax_store_api_key`, so the UI can say whether the new
     /// credential actually produced models instead of silently showing none.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -90,14 +93,14 @@ pub fn supports_acp(path: &Path) -> bool {
     probed
 }
 
-fn ax_home() -> PathBuf {
+pub(crate) fn ax_home() -> PathBuf {
     std::env::var_os("AX_HOME").map(PathBuf::from).unwrap_or_else(|| {
         std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
             .map(PathBuf::from).unwrap_or_default().join(".ax")
     })
 }
 
-fn read_json(path: &Path) -> Result<Value, String> {
+pub(crate) fn read_json(path: &Path) -> Result<Value, String> {
     match fs::read(path) {
         Ok(bytes) => serde_json::from_slice(&bytes).map_err(|error| format!("{}: {error}", path.display())),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(json!({})),
@@ -254,6 +257,9 @@ fn state(active: &Path) -> Result<AxLocalState, String> {
         active_path: active.to_string_lossy().into_owned(), active_version: version(active),
         home: home.to_string_lossy().into_owned(), selected_model: selected, providers, discovery: None, runtime_warning,
         inference_mode: config.pointer("/inference/mode").and_then(Value::as_str).unwrap_or("standard").to_owned(),
+        agent_environment: config.pointer("/execution/environment").and_then(Value::as_str).unwrap_or("native").to_owned(),
+        terminal_shell: config.pointer("/execution/terminal_shell").and_then(Value::as_str).unwrap_or("powershell").to_owned(),
+        windows: cfg!(windows),
     })
 }
 
@@ -289,6 +295,31 @@ pub async fn ax_select_inference_mode(mode: String) -> Result<String, String> {
         set_inference_mode(&mut config, &mode)?;
         write_private_json(&path, &config)?;
         Ok(mode)
+    }).await.map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn ax_select_execution(desktop: State<'_, DesktopState>, environment: Option<String>, terminal_shell: Option<String>) -> Result<(), String> {
+    let active = desktop.ax.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if let Some(value) = environment.as_deref() {
+            if !matches!(value, "native" | "wsl") { return Err("Invalid agent environment".into()); }
+            if value == "wsl" && !cfg!(windows) { return Err("WSL is available only on Windows".into()); }
+        }
+        if let Some(value) = terminal_shell.as_deref() {
+            if !matches!(value, "powershell" | "cmd" | "git_bash" | "wsl") { return Err("Invalid terminal shell".into()); }
+            if !cfg!(windows) { return Err("Windows terminal choices are available only on Windows".into()); }
+            crate::terminal::validate_shell(value)?;
+        }
+        // AX owns validation and persistence. Older binaries reject this command
+        // rather than accepting a setting they cannot apply.
+        let mut process = command(active);
+        process.env("AX_HOME", ax_home()).arg("environment");
+        if let Some(value) = environment { process.arg(value); }
+        if let Some(value) = terminal_shell { process.args(["--terminal-shell", &value.replace('_', "-")]); }
+        let output = process.output().map_err(|error| error.to_string())?;
+        if !output.status.success() { return Err(String::from_utf8_lossy(&output.stderr).into_owned()); }
+        Ok(())
     }).await.map_err(|error| error.to_string())?
 }
 
