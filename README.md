@@ -105,6 +105,10 @@ Show deleted; AX history is preserved. Language switching translates interface
 controls while leaving user text, generated answers and package descriptions
 unchanged. Speech credentials have independent reveal buttons.
 
+停止任务后，聊天仍保留已收到的工具调用及输出；刷新历史时按调用 ID
+合并去重。长任务的子会话工具记录由更新后的 AX 历史回放提供，重启 Crew
+后也可查看。
+
 To preview both workspace release builds without replacing your installed AX,
 quit the existing Crew from its tray, then run
 `desktop/scripts/start-workspace.ps1`. The script sets AX_CREW_AX and
@@ -112,3 +116,18 @@ AX_CREW_BACKEND only while starting the app, then restores your shell environmen
 `-CheckOnly` verifies the three build paths without launching anything.
 
 Windows 安装包在覆盖/卸载文件前通过原生 Restart Manager API 注册安装目录中桌面与网关的完整文件路径，释放占用并等待退出，避免遗留网关锁住 `bin/ax-crew.exe`。此处理不启动 PowerShell、不使用编码脚本或 ExecutionPolicy Bypass。使用 `desktop` 下的 `npm run tauri:build` 打包。
+
+Desktop Settings > AX also includes the **Subagents** switch. It defaults off,
+saves through AX's `settings --subagent` command and applies on the next agent
+turn. Crew shows the persisted AX value and retains it when saving fails.
+
+### Scoped AX capabilities
+
+Settings → Capabilities switches between **Global configuration** and
+**Current project configuration**. Skills, MCP servers and named Agents show
+Name / Scope / Status, with add, enable, disable and remove actions. Project
+views include inherited globals; disabling/removing one there creates a project
+mask and leaves global configuration intact. Crew delegates all scope resolution
+and mutations to AX's shared registry via ACP/CLI. This requires an AX binary
+with `_ax/scopedCapabilities` support. Project capability files live under
+`<project>/.ax`, and named Agent instructions load only when delegated to.

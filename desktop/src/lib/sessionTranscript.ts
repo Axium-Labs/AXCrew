@@ -182,10 +182,12 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
   if(!prompt)return saved.map(userLine)
   const lastUser=saved.findLastIndex(line=>line.type==='user')
   const hasCurrent=lastUser>=0&&saved[lastUser].text===prompt&&(!history?.task_id||history.task_id===task.id)
-  if(!includeCurrent)return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
+  // Settled history can omit child tools or race with cancellation checkpoints.
+  // Keep those rows by call ID, while saved message prose remains authoritative.
+  if(!includeCurrent&&!events.some(event=>['tool_call','tool_call_update'].includes(String(event.payload.sessionUpdate))))return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
   const before=hasCurrent?saved.slice(0,lastUser):saved.length?saved:contextLines(prompt)
   const previous=hasCurrent?saved.slice(lastUser+1):[]
-  const streamed=transcript(undefined,events).filter(line=>line.type!=='user')
+  const streamed=transcript(undefined,events).filter(line=>includeCurrent?line.type!=='user':line.type==='tool')
   const body=previous.map(line=>({...line}))
   const offsets=new Map<string,number>()
   const category=(line:SessionLine)=>line.changedFiles&&!line.text&&line.type==='agent'?'changes':line.type

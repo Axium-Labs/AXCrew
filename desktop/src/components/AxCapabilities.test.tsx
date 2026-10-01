@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { AxCatalog } from '../lib/ax'
 
-const fixture = vi.hoisted(() => ({ catalog: vi.fn(), import:vi.fn(), open:vi.fn(), scan:vi.fn() }))
-vi.mock('../lib/ax', () => ({ axAvailable: true, axCatalog: fixture.catalog, axImportCapability:fixture.import, axScanCapabilitySources:fixture.scan }))
+const fixture = vi.hoisted(() => ({ catalog: vi.fn(), import:vi.fn(), open:vi.fn(), scan:vi.fn(), manage:vi.fn() }))
+vi.mock('../lib/ax', () => ({ axAvailable: true, axCatalog: fixture.catalog, axImportCapability:fixture.import, axScanCapabilitySources:fixture.scan, axManageCapability:fixture.manage }))
 
 vi.mock('@tauri-apps/plugin-dialog',()=>({open:fixture.open}))
 import { AxCapabilities } from './AxCapabilities'
@@ -40,7 +40,7 @@ describe('AX 能力面板', () => {
     expect(screen.getByText('运行命令')).toBeTruthy()
     expect(screen.getByText('1 个技能 · 1 个 MCP 服务器 · 1 个内置工具')).toBeTruthy()
     // 目录随工作目录变化：项目技能与 MCP 配置都按 cwd 解析。
-    expect(fixture.catalog).toHaveBeenCalledWith('C:/work/demo')
+    expect(fixture.catalog).toHaveBeenCalledWith('C:/work/demo', 'project')
   })
 
   it('没有 MCP 服务器时说明该在哪里配置', async () => {
@@ -91,3 +91,29 @@ it('imports a Skill into the selected scope and refreshes the AX catalog',async(
   expect((await screen.findByRole('status')).textContent).toContain('Name conflict')
   expect(screen.getByRole('button',{name:'导入所选（1）'})).toBeTruthy()
  })
+
+
+it('switches configuration scope and sends inherited disables only to the project', async () => {
+ fixture.catalog.mockResolvedValue(catalog({ skills: [{name:'reviewer',description:'Review',missing_tools:[],scope:'global',enabled:true,status:'enabled'}], agents:[{name:'rust-dev',description:'Rust',scope:'project',enabled:true,status:'enabled'}] }))
+ fixture.manage.mockResolvedValue('Saved')
+ mount()
+ const reviewer = (await screen.findByText('reviewer')).closest('tr')!
+ expect(within(reviewer).getByText('[global]')).toBeTruthy()
+ fireEvent.click(within(reviewer).getByRole('button',{name:'禁用'}))
+ await waitFor(()=>expect(fixture.manage).toHaveBeenCalledWith('C:/work/demo','skills','project','disable','reviewer',undefined))
+ await waitFor(()=>expect(within(reviewer).getByRole('button',{name:'禁用'}).hasAttribute('disabled')).toBe(false))
+ fireEvent.change(screen.getByLabelText('Configuration scope'),{target:{value:'global'}})
+ await waitFor(()=>expect(fixture.catalog).toHaveBeenLastCalledWith('C:/work/demo','global'))
+ fireEvent.click(within((await screen.findByText('reviewer')).closest('tr')!).getByRole('button',{name:'禁用'}))
+ await waitFor(()=>expect(fixture.manage).toHaveBeenLastCalledWith('C:/work/demo','skills','global','disable','reviewer',undefined))
+})
+
+it('shows disabled here and enables an inherited MCP through the same manager', async () => {
+ fixture.catalog.mockResolvedValue(catalog({mcp_servers:[{name:'browser',description:'Browser',capabilities:[],scope:'global',enabled:false,status:'disabled here'}]}))
+ fixture.manage.mockResolvedValue('Saved')
+ mount()
+ const row = (await screen.findByText('browser')).closest('tr')!
+ expect(within(row).getByText('disabled here')).toBeTruthy()
+ fireEvent.click(within(row).getByRole('button',{name:'启用'}))
+ await waitFor(()=>expect(fixture.manage).toHaveBeenCalledWith('C:/work/demo','mcp','project','enable','browser',undefined))
+})

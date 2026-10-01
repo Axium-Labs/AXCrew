@@ -18,6 +18,7 @@ pub struct AxLocalState {
     pub active_path: String, pub active_version: Option<String>, pub home: String,
     pub selected_model: Option<AxModel>, pub providers: Vec<AxProvider>,
     pub inference_mode: String,
+    pub subagent_enabled: bool,
     pub agent_environment: String,
     pub terminal_shell: String,
     pub windows: bool,
@@ -257,6 +258,7 @@ fn state(active: &Path) -> Result<AxLocalState, String> {
         active_path: active.to_string_lossy().into_owned(), active_version: version(active),
         home: home.to_string_lossy().into_owned(), selected_model: selected, providers, discovery: None, runtime_warning,
         inference_mode: config.pointer("/inference/mode").and_then(Value::as_str).unwrap_or("standard").to_owned(),
+        subagent_enabled: subagent_enabled(&config),
         agent_environment: config.pointer("/execution/environment").and_then(Value::as_str).unwrap_or("native").to_owned(),
         terminal_shell: config.pointer("/execution/terminal_shell").and_then(Value::as_str).unwrap_or("powershell").to_owned(),
         windows: cfg!(windows),
@@ -276,6 +278,27 @@ fn require_api_key_provider(provider: &AxProvider) -> Result<(), String> {
     if provider.auth_kind != "api_key" { return Err("This provider requires account login or environment credentials; update AX if authentication metadata is missing".into()); }
     if !provider.supported { return Err(provider.unsupported_reason.clone().unwrap_or("Unsupported provider".into())); }
     Ok(())
+}
+
+fn subagent_enabled(config: &Value) -> bool {
+    config.pointer("/subagent/enabled").and_then(Value::as_bool).unwrap_or(false)
+}
+
+fn subagent_settings_command(active: &Path, home: &Path, enabled: bool) -> std::process::Command {
+    let mut process = command(active);
+    process.env("AX_HOME", home).args(["settings", "--subagent", if enabled { "true" } else { "false" }]);
+    process
+}
+
+#[tauri::command]
+pub async fn ax_select_subagent(desktop: State<'_, DesktopState>, enabled: bool) -> Result<(), String> {
+    let active = desktop.ax.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        // Reuse AX's validation and persistence; older binaries report an error.
+        let output = subagent_settings_command(&active, &ax_home(), enabled).output().map_err(|error| error.to_string())?;
+        if !output.status.success() { return Err(String::from_utf8_lossy(&output.stderr).into_owned()); }
+        Ok(())
+    }).await.map_err(|error| error.to_string())?
 }
 
 fn set_inference_mode(config: &mut Value, mode: &str) -> Result<(), String> {
@@ -465,9 +488,36 @@ pub async fn ax_import_capability(desktop: State<'_, DesktopState>, cwd: String,
     }).await.map_err(|error| error.to_string())?
 }
 
+/// AX owns parsing, merging, overrides and mutations for every capability kind.
+#[tauri::command]
+pub async fn ax_manage_capability(desktop: State<'_, DesktopState>, cwd: String, kind: String, scope: String, action: String, name: String, source: Option<String>) -> Result<String, String> {
+    if !["skills", "mcp", "agents"].contains(&kind.as_str()) || !["global", "project"].contains(&scope.as_str()) || !["enable", "disable", "add", "remove"].contains(&action.as_str()) { return Err("Invalid capability operation".into()); }
+    let ax = desktop.ax.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut args = vec![OsStr::new("capabilities"), OsStr::new(&kind), OsStr::new(&action), OsStr::new(&name), OsStr::new("--scope"), OsStr::new(&scope)];
+        if let Some(source) = &source { args.extend([OsStr::new("--source"), OsStr::new(source)]); }
+        backup_command(&ax, &cwd, &args)
+    }).await.map_err(|error| error.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn subagent_defaults_off_and_reads_ax_config() {
+        for config in [json!({}), json!({"subagent":null}), json!({"subagent":{"enabled":false}})] {
+            assert!(!subagent_enabled(&config));
+        }
+        assert!(subagent_enabled(&json!({"subagent":{"enabled":true,"max_concurrent":3,"max_depth":1}})));
+    }
+    #[test]
+    fn subagent_toggle_uses_ax_settings_with_the_shared_home() {
+        for enabled in [false, true] {
+            let process = subagent_settings_command(Path::new("ax"), Path::new("test-home"), enabled);
+            assert_eq!(process.get_args().collect::<Vec<_>>(), vec![OsStr::new("settings"), OsStr::new("--subagent"), OsStr::new(if enabled { "true" } else { "false" })]);
+            assert!(process.get_envs().any(|(key, value)| key == "AX_HOME" && value == Some(OsStr::new("test-home"))));
+        }
+    }
     #[test]
     fn inference_toggle_preserves_model_and_fast_overrides() {
         let mut config = json!({"model":{"provider":"deepseek","model":"deepseek-chat"},"inference":{"mode":"standard","fast":{"max_parallel":3}}});

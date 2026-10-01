@@ -18,7 +18,7 @@ export function SideChat({quotes,onQuotesChange,cwd,memberId,provider,model,onTa
   const task=tasks.data?.find(task=>task.id===taskId),binding=sessions.data?.find(session=>session.task_id===taskId),busy=isActiveTask(task)
   const history=useQuery({queryKey:['history',taskId],queryFn:()=>endpoints.history(taskId!),enabled:!!binding,retry:1,refetchOnWindowFocus:false})
   const settled=!!task?.finished_at&&history.dataUpdatedAt>task.finished_at*1000&&!history.isFetching&&!history.isError
-  const lines=conversationTranscript(history.data,settled?[]:streams[taskId??'']??[],task,!settled)
+  const lines=conversationTranscript(history.data,streams[taskId??'']??[],task,!settled)
   useEffect(()=>{if(follow.current&&scroll.current)scroll.current.scrollTop=scroll.current.scrollHeight},[lines])
   const inputRef=useRef<HTMLTextAreaElement>(null)
   useAutoGrow(inputRef,draft)

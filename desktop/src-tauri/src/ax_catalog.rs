@@ -1,11 +1,6 @@
-//! 设置页要看的 AX 能力清单：技能 / MCP 服务器 / 内置工具。
-//!
-//! 三项都取自 AX 自己的只读 ACP 扩展（`_ax/skills`、`_ax/mcp`、`_ax/tools`），
-//! 所以这里显示的与 AX 实际会用的东西是同一份数据，不会各自维护一份清单。
-//!
-//! 这些扩展对工作目录敏感：项目技能在 `<项目根>/skills`，MCP 配置在
-//! `<项目根>/.ax/mcp.toml`，都由 AX 启动时的 cwd 解析出来，因此调用方能带一个
-//! 工作目录；不带就只看得到全局技能（`~/.ax/skills`）与内置工具。
+//! AX capability catalogs for Crew settings. AX owns scope merge and policy.
+//! Skills, MCP servers and named Agents carry the same scope/status metadata.
+//! Project sources live under `<project>/.ax`; legacy sources remain AX's concern.
 
 use std::{
     collections::HashMap,
@@ -26,16 +21,30 @@ const CATALOG_TIMEOUT: Duration = Duration::from_secs(8);
 pub struct AxSkill {
     pub name: String,
     pub description: String,
+    pub scope: String,
+    pub status: String,
     /// 技能要求但本机没有的工具；非空表示这个技能跑不起来。
     pub missing_tools: Vec<String>,
+    pub enabled: bool,
 }
 
 #[derive(Serialize)]
 pub struct AxMcpServer {
     pub name: String,
     pub description: String,
+    pub scope: String,
+    pub status: String,
     pub enabled: bool,
     pub capabilities: Vec<String>,
+}
+
+#[derive(Serialize)]
+pub struct AxAgent {
+    pub name: String,
+    pub description: String,
+    pub scope: String,
+    pub status: String,
+    pub enabled: bool,
 }
 
 #[derive(Serialize)]
@@ -51,6 +60,7 @@ pub struct AxCatalog {
     pub skills: Vec<AxSkill>,
     pub mcp_servers: Vec<AxMcpServer>,
     pub tools: Vec<AxToolInfo>,
+    pub agents: Vec<AxAgent>,
     /// 单项拿不到时的原因（例如 AX 版本太旧还不支持该扩展）；其余照常返回。
     pub warnings: Vec<String>,
 }
@@ -78,18 +88,19 @@ fn result_of(replies: &HashMap<i64, Value>, id: i64, label: &str, warnings: &mut
     }
 }
 
-fn catalog(ax: &Path, cwd: Option<String>) -> Result<AxCatalog, String> {
+fn catalog(ax: &Path, cwd: Option<String>, scope: Option<String>) -> Result<AxCatalog, String> {
     // 只接受真实存在的目录：AX 会在自己的 cwd 里找项目技能和 MCP 配置，
     // 路径不存在时宁可退回全局视图，也不要让 spawn 直接失败。
     let directory = cwd.map(PathBuf::from).filter(|path| path.is_dir());
     let requests = format!(
-        "{}\n{}\n{}\n{}\n",
+        "{}\n{}\n{}\n{}\n{}\n",
         json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1}}),
-        json!({"jsonrpc":"2.0","id":2,"method":"_ax/skills"}),
-        json!({"jsonrpc":"2.0","id":3,"method":"_ax/mcp"}),
+        json!({"jsonrpc":"2.0","id":2,"method":"_ax/skills","params":{"scope":scope}}),
+        json!({"jsonrpc":"2.0","id":3,"method":"_ax/mcp","params":{"scope":scope}}),
         json!({"jsonrpc":"2.0","id":4,"method":"_ax/tools"}),
+        json!({"jsonrpc":"2.0","id":5,"method":"_ax/agents","params":{"scope":scope}}),
     );
-    let replies = ax::acp_replies(ax, directory.as_deref(), &requests, &[1, 2, 3, 4], CATALOG_TIMEOUT);
+    let replies = ax::acp_replies(ax, directory.as_deref(), &requests, &[1, 2, 3, 4, 5], CATALOG_TIMEOUT);
     if !replies.contains_key(&1) {
         return Err("AX 没有响应能力查询，请确认本机 ax 支持 Crew（ax acp）".to_owned());
     }
@@ -100,7 +111,10 @@ fn catalog(ax: &Path, cwd: Option<String>) -> Result<AxCatalog, String> {
         skills = result["skills"].as_array().into_iter().flatten().map(|item| AxSkill {
             name: item["name"].as_str().unwrap_or_default().to_owned(),
             description: item["description"].as_str().unwrap_or_default().to_owned(),
+            scope: item["scope"].as_str().unwrap_or("global").to_owned(),
+            status: item["status"].as_str().unwrap_or("enabled").to_owned(),
             missing_tools: strings(&item["missing_tools"]),
+            enabled: item["enabled"].as_bool().unwrap_or(true),
         }).collect();
     }
 
@@ -109,6 +123,8 @@ fn catalog(ax: &Path, cwd: Option<String>) -> Result<AxCatalog, String> {
         mcp_servers = result["servers"].as_array().into_iter().flatten().map(|item| AxMcpServer {
             name: item["name"].as_str().unwrap_or_default().to_owned(),
             description: item["description"].as_str().unwrap_or_default().to_owned(),
+            scope: item["scope"].as_str().unwrap_or("global").to_owned(),
+            status: item["status"].as_str().unwrap_or("enabled").to_owned(),
             enabled: item["enabled"].as_bool().unwrap_or(true),
             capabilities: strings(&item["capabilities"]),
         }).collect();
@@ -126,20 +142,28 @@ fn catalog(ax: &Path, cwd: Option<String>) -> Result<AxCatalog, String> {
         }
     }
 
+    let agents = result_of(&replies, 5, "Agents", &mut warnings).map(|result| result["agents"].as_array().into_iter().flatten().map(|item| AxAgent {
+        name: item["name"].as_str().unwrap_or_default().to_owned(),
+        description: item["description"].as_str().unwrap_or_default().to_owned(),
+        scope: item["scope"].as_str().unwrap_or("global").to_owned(),
+        status: item["status"].as_str().unwrap_or("enabled").to_owned(),
+        enabled: item["enabled"].as_bool().unwrap_or(true),
+    }).collect()).unwrap_or_default();
     Ok(AxCatalog {
         cwd: directory.map(|path| path.to_string_lossy().into_owned()),
         skills,
         mcp_servers,
         tools,
+        agents,
         warnings,
     })
 }
 
 #[tauri::command]
-pub async fn ax_catalog(desktop: State<'_, DesktopState>, cwd: Option<String>) -> Result<AxCatalog, String> {
+pub async fn ax_catalog(desktop: State<'_, DesktopState>, cwd: Option<String>, scope: Option<String>) -> Result<AxCatalog, String> {
     let ax = desktop.ax.clone();
     // 要 spawn `ax acp` 并读盘，别占着异步运行时。
-    tauri::async_runtime::spawn_blocking(move || catalog(&ax, cwd)).await.map_err(|error| error.to_string())?
+    tauri::async_runtime::spawn_blocking(move || catalog(&ax, cwd, scope)).await.map_err(|error| error.to_string())?
 }
 
 #[cfg(test)]

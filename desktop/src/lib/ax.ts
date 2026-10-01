@@ -20,6 +20,7 @@ export type AxUpdateStatus = {
   report?: string
 }
 export type AxLocalState = {
+  subagent_enabled?: boolean
   agent_environment?: 'native' | 'wsl'
   terminal_shell?: 'powershell' | 'cmd' | 'git_bash' | 'wsl'
   windows?: boolean
@@ -35,8 +36,11 @@ export type AxLocalState = {
   runtime_warning?: string | null
   inference_mode?: 'standard' | 'fast'
 }
-export type AxSkill = { name: string; description: string; missing_tools: string[] }
-export type AxMcpServer = { name: string; description: string; enabled: boolean; capabilities: string[] }
+export type CapabilityScope = 'global' | 'project'
+export type ScopedCapability = { scope?: CapabilityScope; enabled?: boolean; status?: string }
+export type AxAgent = ScopedCapability & { name: string; description: string }
+export type AxSkill = ScopedCapability & { name: string; description: string; missing_tools: string[] }
+export type AxMcpServer = ScopedCapability & { name: string; description: string; enabled: boolean; capabilities: string[] }
 export type AxToolInfo = { name: string; description: string }
 /** AX 的只读目录扩展：技能 / MCP 服务器 / 内置工具。 */
 export type AxCatalog = {
@@ -44,6 +48,7 @@ export type AxCatalog = {
   cwd: string | null
   skills: AxSkill[]
   mcp_servers: AxMcpServer[]
+  agents?: AxAgent[]
   tools: AxToolInfo[]
   /** 单项查不到时的原因，其余目录照常返回。 */
   warnings: string[]
@@ -51,6 +56,7 @@ export type AxCatalog = {
 
 export const axAvailable = isTauri()
 export const axLocalState = () => invoke<AxLocalState>('ax_local_state')
+export const axSelectSubagent = (enabled: boolean) => invoke<void>('ax_select_subagent', { enabled })
 export const axSelectExecution = (environment?: AxLocalState['agent_environment'], terminalShell?: AxLocalState['terminal_shell']) => invoke<void>('ax_select_execution', { environment: environment ?? null, terminalShell: terminalShell ?? null })
 
 export function axTuiCommand(path: string, shell: AxLocalState['terminal_shell'] = 'powershell'): string {
@@ -71,7 +77,8 @@ export const axCheckUpdate = () => invoke<AxUpdateStatus>('ax_check_update')
 /** 下载或更新系统中安装的 AX（`ax --update`，没有就退回官方安装脚本）。 */
 export const axApplyUpdate = () => invoke<AxUpdateStatus>('ax_apply_update')
 /** 读 AX 已装的技能、MCP 服务器与内置工具；cwd 决定看到哪些项目级配置。 */
-export const axCatalog = (cwd?: string) => invoke<AxCatalog>('ax_catalog', { cwd: cwd ?? null })
+export const axCatalog = (cwd?: string, scope?: CapabilityScope) => invoke<AxCatalog>('ax_catalog', { cwd: cwd ?? null, scope: scope ?? null })
+export const axManageCapability = (cwd: string, kind: 'skills' | 'mcp' | 'agents', scope: CapabilityScope, action: 'enable' | 'disable' | 'add' | 'remove', name: string, source?: string) => invoke<string>('ax_manage_capability', { cwd, kind, scope, action, name, source: source ?? null })
 export const workspaceFileExists = (root: string, relative: string) => invoke<boolean>('workspace_file_exists', { root, relative })
 
 export const axImportCapability = (cwd: string, path: string, kind: 'skill' | 'mcp', global: boolean) => invoke<string>('ax_import_capability', { cwd, path, kind, global })

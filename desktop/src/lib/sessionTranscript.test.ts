@@ -85,6 +85,23 @@ describe('current turn',()=>{
     expect(lines[0].type).toBe('user')
     expect(lines[1]).toMatchObject({type:'tool',text:'shell',status:'completed'})
   })
+  it('keeps child tools after cancelled history settles without duplicating replayed calls',()=>{
+    const task={id:'t',input:'hello',status:'cancelled'} as Task
+    const saved=history([
+      {sessionUpdate:'user_message_chunk',messageId:'u',content:{text:'hello'}},
+      {sessionUpdate:'tool_call',toolCallId:'child:c1',title:'shell',status:'pending'},
+    ])
+    const events=[
+      event(9,{sessionUpdate:'tool_call',toolCallId:'child:c1',title:'shell',status:'pending'}),
+      event(10,{sessionUpdate:'tool_call_update',toolCallId:'child:c1',status:'completed',rawOutput:{raw_output:'saved output'}}),
+      event(11,{sessionUpdate:'tool_call',toolCallId:'child:c2',title:'search',status:'pending'}),
+      event(12,{sessionUpdate:'agent_message_chunk',content:{text:'stale live prose'}}),
+    ]
+    const lines=conversationTranscript(saved,events,task,false)
+    expect(lines.map(line=>line.key)).toEqual(['prompt-t','child:c1','child:c2'])
+    expect(lines[1]).toMatchObject({status:'completed',output:'saved output'})
+    expect(conversationTranscript(history(saved.updates.slice(0,1).map(item=>item.update)),events,task,false).filter(line=>line.type==='tool')).toHaveLength(2)
+  })
   it('keeps message identity when live messages arrive in a different order',()=>{
     const task={id:'t',input:'hello'} as Task
     const saved=history([

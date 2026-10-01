@@ -106,3 +106,11 @@
 .settings-import-manual summary{cursor:pointer;color:var(--shell-muted)}
 @container(max-width:760px){.settings-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.settings-overview-grid{grid-template-columns:1fr}.settings-field{flex-wrap:wrap}.settings-field input{width:100%;max-width:none}.settings-main{padding:18px}.settings-page-top h1{font-size:20px}}
 @media(max-width:1000px){.settings-workspace{grid-template-columns:180px minmax(0,1fr)}}
+
+.settings-capability-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.settings-capability-table th{text-align:left;color:var(--shell-muted);font-weight:500;padding:10px 8px;border-bottom:1px solid var(--border)}
+.settings-capability-table td{vertical-align:top;padding:12px 8px;border-bottom:1px solid var(--border);overflow-wrap:anywhere}
+.settings-capability-table th:first-child{width:40%}.settings-capability-table th:last-child{width:25%}
+.settings-capability-table td p{margin:6px 0;color:var(--shell-muted)}
+.settings-capability-table td button{display:inline-block;margin:0 6px 6px 0;font-size:12px}
+@media(max-width:700px){.settings-capability-table{table-layout:auto}.settings-capability-table th:first-child{width:auto}.settings-capability-table th:last-child{width:auto}}

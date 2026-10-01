@@ -3,21 +3,16 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download, Laptop, Puzzle, RefreshCw, Server, ShieldAlert, Wrench } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
-import { axImportCapability, axAvailable, axCatalog, axScanCapabilitySources } from '../lib/ax'
+import { axImportCapability, axAvailable, axCatalog, axScanCapabilitySources, axManageCapability, type ScopedCapability } from '../lib/ax'
 
-/**
- * 设置 → AX 能力：技能 / MCP 服务器 / 内置工具。
- *
- * 三项都来自 AX 自己的只读目录扩展，所以看到的就是 AX 实际会用的那份清单：
- * 技能来自项目根的 `skills/` 与全局 `~/.ax/skills`，MCP 服务器来自项目根的
- * `.ax/mcp.toml`，工具是 AX 自带的那几个（MCP 提供的工具要等会话连上服务器
- * 才存在，因此按服务器列出）。
- */
+/** Scoped capability management. All resolution and mutations are delegated to AX. */
 export function AxCapabilities({ workspace, home }: { workspace?: string; home?: string }) {
   useLang(state=>state.lang);
 
-  const catalog = useQuery({ queryKey: ['ax-catalog', workspace ?? ''], queryFn: () => axCatalog(workspace), enabled: axAvailable, retry: false })
   const [global,setGlobal] = useState(false),[busy,setBusy] = useState(false),[notice,setNotice] = useState('')
+  const scope = global ? 'global' : 'project'
+  const catalog = useQuery({ queryKey: ['ax-catalog', workspace ?? '', scope], queryFn: () => axCatalog(workspace, scope), enabled: axAvailable, retry: false })
+  const [addKind,setAddKind] = useState<'skills' | 'mcp' | 'agents'>('skills'),[addName,setAddName] = useState('')
   const lang = useLang(state=>state.lang)
   const copy = (zh: string, en: string) => lang === 'zh' ? zh : en
   const sources = useQuery({ queryKey: ['ax-import-sources', workspace ?? ''], queryFn: () => axScanCapabilitySources(workspace), enabled: axAvailable, retry: false, refetchOnWindowFocus: false })
@@ -49,13 +44,31 @@ export function AxCapabilities({ workspace, home }: { workspace?: string; home?:
       setBusy(true);setNotice('');setNotice(await axImportCapability(workspace,path,kind,global));await catalog.refetch()
     }catch(error){setNotice(String(error))}finally{setBusy(false)}
   }
+  const manage = async (kind: 'skills' | 'mcp' | 'agents', action: 'enable' | 'disable' | 'remove' | 'add', name: string, source?: string) => {
+    if (!workspace || busy) return
+    setBusy(true);setNotice('')
+    try { await axManageCapability(workspace, kind, scope, action, name, source); await catalog.refetch(); setNotice(copy('已保存，下一轮对话生效。','Saved; applies on the next agent turn.')) }
+    catch (error) { setNotice(String(error)) } finally { setBusy(false) }
+  }
+  const add = async () => {
+    if (!addName.trim()) return
+    const path = await open({ directory: addKind === 'skills', multiple: false, ...(addKind !== 'skills' ? { filters: [{ name: 'TOML', extensions: ['toml'] }] } : {}) })
+    if (typeof path === 'string') await manage(addKind, 'add', addName.trim(), path)
+  }
+  const rows = (kind: 'skills' | 'mcp' | 'agents', items: (ScopedCapability & { name: string; description: string; missing_tools?: string[]; capabilities?: string[] })[]) => <table className="settings-capability-table"><thead><tr><th>Name</th><th>Scope</th><th>Status</th><th>{copy('操作','Actions')}</th></tr></thead><tbody>{items.map(item => <tr key={item.name}>
+    <td><strong>{item.name}</strong><p>{item.description}</p>{!!item.missing_tools?.length && <em className="settings-capability-warning">{translate("copy.374")}{item.missing_tools.join('、')}</em>}{item.capabilities?.map(capability=><span key={capability} className="settings-capability-tag">{capability}</span>)}</td><td>[{item.scope ?? 'global'}]</td><td>{item.status ?? (item.enabled === false ? 'disabled' : 'enabled')}</td>
+    <td><button disabled={!axAvailable || busy || !workspace} onClick={() => void manage(kind, item.enabled === false ? 'enable' : 'disable', item.name)}>{item.enabled === false ? copy('启用','Enable') : copy('禁用','Disable')}</button><button disabled={!axAvailable || busy || !workspace} onClick={() => void manage(kind, 'remove', item.name)}>{copy(scope === 'project' && item.scope === 'global' ? '在此屏蔽' : '移除', scope === 'project' && item.scope === 'global' ? 'Disable here' : 'Remove')}</button></td>
+  </tr>)}</tbody></table>
   const data = catalog.data
   const globalSkills = `${(home ?? '~/.ax').replaceAll('\\', '/')}/skills`
 
   return <div className="settings-stack">
     <section className="settings-card">
+      <label>{copy('配置作用域','Configuration scope')}<select aria-label="Configuration scope" value={scope} onChange={event=>setGlobal(event.target.value==='global')}><option value="global">Global configuration</option><option value="project">Current project configuration</option></select></label>
+      <p>{copy('当前有效能力由 Global + Project 合并，项目同名项覆盖全局项。','Effective capabilities combine Global + Project; project definitions override global names.')}</p>
+      <div className="settings-actions"><select aria-label="Capability kind" value={addKind} onChange={event=>setAddKind(event.target.value as typeof addKind)}><option value="skills">Skill</option><option value="mcp">MCP</option><option value="agents">Agent</option></select><input aria-label="Capability name" value={addName} onChange={event=>setAddName(event.target.value)} placeholder={copy('名称 / ID','Name / ID')}/><button disabled={!axAvailable||busy||!workspace||!addName.trim()} onClick={()=>void add()}>{copy('添加','Add')}</button></div>
       <h2>{translate("copy.2")}</h2>
-      <p>{translate("copy.353")}<code>skills/</code> {translate("copy.354")}<code>{globalSkills}</code>{translate("copy.355")}<code>.ax/mcp.toml</code>{translate("copy.356")}</p>
+      <p>{copy('项目配置位于 .ax/skills、.ax/agents 和 .ax/mcp.toml；全局配置对所有项目可用。','Project configuration lives in .ax/skills, .ax/agents and .ax/mcp.toml; global configuration is available to all projects.')}</p>
       <div className="settings-field-row"><span>{translate("copy.357")}</span><strong>{data?.cwd ?? workspace ?? translate("copy.358")}</strong></div>
       <div className="settings-actions">
         <button className="settings-secondary" disabled={!axAvailable || catalog.isFetching} onClick={() => void catalog.refetch()}><RefreshCw size={15}/> {translate("copy.359")}</button>
@@ -86,28 +99,13 @@ export function AxCapabilities({ workspace, home }: { workspace?: string; home?:
 
     {data && <>
       <CapabilityPanel icon={<Puzzle size={16}/>} title={translate("copy.371")} count={data.skills.length}>
-        {data.skills.length === 0
-          ? <p>{translate("copy.372")}<code>{globalSkills}</code>{translate("copy.373")}<code>skills/</code>。</p>
-          : <ul className="settings-capability-list">{data.skills.map((skill) => <li key={skill.name}>
-              <div className="settings-capability-head">
-                <strong>{skill.name}</strong>
-                {skill.missing_tools.length > 0 && <em className="settings-capability-warning">{translate("copy.374")}{skill.missing_tools.join('、')}</em>}
-              </div>
-              {skill.description && <p>{skill.description}</p>}
-            </li>)}</ul>}
+        {rows('skills', data.skills)}
       </CapabilityPanel>
-
       <CapabilityPanel icon={<Server size={16}/>} title={translate("copy.375")} count={data.mcp_servers.length}>
-        {data.mcp_servers.length === 0
-          ? <p>{translate("copy.376")}<code>.ax/mcp.toml</code> {translate("copy.377")}<code>mcp.example.toml</code>）。</p>
-          : <ul className="settings-capability-list">{data.mcp_servers.map((server) => <li key={server.name}>
-              <div className="settings-capability-head">
-                <strong>{server.name}</strong>
-                {!server.enabled && <em className="settings-capability-warning">{translate("copy.378")}</em>}
-                {server.capabilities.map((capability) => <span key={capability} className="settings-capability-tag">{capability}</span>)}
-              </div>
-              {server.description && <p>{server.description}</p>}
-            </li>)}</ul>}
+        {rows('mcp', data.mcp_servers)}
+      </CapabilityPanel>
+      <CapabilityPanel icon={<Puzzle size={16}/>} title="Agents" count={data.agents?.length ?? 0}>
+        {rows('agents', data.agents ?? [])}
       </CapabilityPanel>
 
       <CapabilityPanel icon={<Wrench size={16}/>} title={translate("copy.379")} count={data.tools.length}>

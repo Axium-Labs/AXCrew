@@ -28,7 +28,7 @@ export function SessionThread({taskId}:{taskId:string}){
   const history=useQuery({queryKey:['history',task?.id],queryFn:()=>endpoints.history(task!.id),enabled:!!binding,staleTime:Infinity,refetchOnWindowFocus:false,retry:1,placeholderData:(previous,previousQuery)=>current?.tasks.some(item=>item.id===previousQuery?.queryKey[1])?previous:undefined})
   const streams=useLive(state=>state.streams)
   const settled=!!task?.finished_at&&history.dataUpdatedAt>task.finished_at*1000&&!history.isFetching&&!history.isError
-  const lines=useMemo(()=>conversationTranscript(history.data,settled?[]:streams[task?.id??'']??[],task,!settled),[history.data,streams,task,settled])
+  const lines=useMemo(()=>conversationTranscript(history.data,streams[task?.id??'']??[],task,!settled),[history.data,streams,task,settled])
   const active=useRef(true),selected=useRef(taskId);selected.current=taskId
   useEffect(()=>{active.current=true;return()=>{active.current=false}},[])
   return <div className="flex min-h-[480px] flex-col">

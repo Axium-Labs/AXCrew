@@ -169,7 +169,7 @@ export function SessionsWorkspace(){
   const streams=useLive(state=>state.streams)
   const freshEvents=useMemo(()=>(streams[task?.id??'']??[]).filter(event=>event.kind.startsWith('agent.')||event.kind.startsWith('tool.')),[streams,task?.id])
   const historySettled=!!task?.finished_at&&history.dataUpdatedAt>task.finished_at*1000&&!history.isFetching&&!history.isError
-  const lines=useMemo(()=>conversationTranscript(history.data,historySettled?[]:freshEvents,task,!historySettled),[history.data,freshEvents,task,historySettled])
+  const lines=useMemo(()=>conversationTranscript(history.data,freshEvents,task,!historySettled),[history.data,freshEvents,task,historySettled])
   const rows=groups.filter(group=>!group.tasks.some(task=>sideTaskIds.includes(task.id))).map(group=>({binding:{...group.binding,task_id:group.root.id,ax_session_id:group.key,member_id:group.root.assigned_member,device_id:group.root.assigned_device},task:group.root,latest:group.latest,latestAt:group.latest.created_at,key:group.key}))
   const visibleRows=rows.filter(row=>{
     const label=`${meta(row.key).title??row.task?.title??''} ${row.binding.ax_session_id}`.toLowerCase()
