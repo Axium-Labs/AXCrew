@@ -5,7 +5,7 @@
 // 设置页的「AX 更新」负责检测与更新它。因此这里不再从本地 ax 工作区编译并拷贝
 // ax.exe —— 发行包里的 AX 一律来自 GitHub 安装的位置。
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
@@ -20,8 +20,3 @@ const output = resolve(desktop, 'src-tauri', 'bin')
 mkdirSync(output, { recursive: true })
 copyFileSync(resolve(crew, 'target', 'release', `ax-crew${ext}`), resolve(output, `ax-crew${ext}`))
 
-// Embed the readable shutdown helper in both NSIS install and uninstall code.
-// EncodedCommand keeps installation paths out of executable shell source.
-const installer = resolve(desktop, 'src-tauri', 'installer')
-const stopCommand = Buffer.from(readFileSync(resolve(installer, 'stop-installed-crew.ps1'), 'utf8'), 'utf16le').toString('base64')
-writeFileSync(resolve(installer, 'runtime-stop-command.nsh'), `!define AX_CREW_STOP_COMMAND "${stopCommand}"\n`)

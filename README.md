@@ -111,4 +111,4 @@ quit the existing Crew from its tray, then run
 AX_CREW_BACKEND only while starting the app, then restores your shell environment.
 `-CheckOnly` verifies the three build paths without launching anything.
 
-Windows 安装包在覆盖/卸载文件前按完整安装路径关闭遗留的 Crew 桌面和后台进程，并等待退出，避免旧版本遗留网关占用 `bin/ax-crew.exe`。安装器清理指令由 `desktop/scripts/prepare-binaries.mjs` 从可读 PowerShell 源码生成，使用 `desktop` 下的 `npm run tauri:build` 打包。
+Windows 安装包在覆盖/卸载文件前通过原生 Restart Manager API 注册安装目录中桌面与网关的完整文件路径，释放占用并等待退出，避免遗留网关锁住 `bin/ax-crew.exe`。此处理不启动 PowerShell、不使用编码脚本或 ExecutionPolicy Bypass。使用 `desktop` 下的 `npm run tauri:build` 打包。
