@@ -215,3 +215,22 @@ export type TranscriptBlock = { kind:'line'; key:string; line:SessionLine } | { 
 export function transcriptBlocks(lines:SessionLine[]):TranscriptBlock[]{
   return lines.map(line=>({kind:'line',key:line.key,line}))
 }
+
+/** A final turn snapshot supersedes incremental successful tool edits. */
+export function turnChangedFiles(turn: SessionLine[]): ChangedFile[] {
+  const final = turn.findLast(line => line.type === 'agent' && !line.text && line.changedFiles !== undefined)
+  if (final) return final.changedFiles ?? []
+  const files = new Map<string, ChangedFile>()
+  for (const line of turn) {
+    if (!['completed', 'success'].includes(line.status ?? '')) continue
+    for (const file of line.changedFiles ?? []) {
+      const previous = files.get(file.path)
+      files.set(file.path, { ...file, additions: file.additions + (previous?.additions ?? 0), deletions: file.deletions + (previous?.deletions ?? 0) })
+    }
+  }
+  return [...files.values()]
+}
+
+export function latestTurnChangedFiles(lines: SessionLine[]): ChangedFile[] {
+  return turnChangedFiles(lines.slice(Math.max(0, lines.findLastIndex(line => line.type === 'user'))))
+}

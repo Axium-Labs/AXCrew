@@ -64,3 +64,6 @@ export const axCatalog = (cwd?: string) => invoke<AxCatalog>('ax_catalog', { cwd
 export const workspaceFileExists = (root: string, relative: string) => invoke<boolean>('workspace_file_exists', { root, relative })
 
 export const axImportCapability = (cwd: string, path: string, kind: 'skill' | 'mcp', global: boolean) => invoke<string>('ax_import_capability', { cwd, path, kind, global })
+
+export type AxImportSource = { id: string; name: string; items: { name: string; path: string; kind: 'skill' | 'mcp' }[] }
+export const axScanCapabilitySources = (cwd?: string) => invoke<AxImportSource[]>('ax_scan_capability_sources', { cwd: cwd ?? null })

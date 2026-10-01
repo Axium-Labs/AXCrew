@@ -67,3 +67,33 @@ test('composer and submitted image thumbnails both reopen the image',async({page
   await expect(page.locator('.session-chat-panel .session-process-summary time')).toContainText('用时')
   await page.screenshot({path:'test-results/session-sent-image.png'})
 })
+
+test('live change summary opens and follows successful edits while replying text stays hidden',async({page})=>{
+  await page.route('**/src/lib/api.ts*',route=>route.fulfill({contentType:'application/javascript',body:`
+    const task={id:'live-edit',crew_id:'crew',title:'修复代码',assigned_member:'member',assigned_device:'local',dependencies:[],status:'running',input:'修复代码',created_at:Date.now()/1000,started_at:Date.now()/1000};
+    const session={task_id:'live-edit',ax_session_id:'s',member_id:'member',device_id:'local'};
+    export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
+    export const api=async()=>({});
+    export const endpoints={health:async()=>({status:'ok'}),crews:async()=>[],devices:async()=>[],tasks:async()=>[task],sessions:async()=>[session],permissions:async()=>[],members:async()=>[{id:'member',cwd:'C:/workspace',device_id:'local'}],events:async()=>[],settings:async()=>({default_cwd:'C:/workspace'}),automations:async()=>[],automationRuns:async()=>[],localAx:async()=>({projects:[]}),history:async()=>({task_id:'live-edit',updates:[]})};
+  `}))
+  let socket: import('@playwright/test').WebSocketRoute
+  await page.routeWebSocket('**/api/ws*',ws=>{socket=ws})
+  await page.goto('/#/sessions/live-edit')
+  const summary=page.getByRole('button',{name:'查看当前文件变更'})
+  await expect(summary).toHaveCount(0)
+  await expect(page.getByText('正在回复…',{exact:true})).toHaveCount(0)
+  await expect(page.locator('.session-stop-button')).toBeVisible()
+  const sendEdit=(id:string,path:string,additions:number)=>socket.send(JSON.stringify({event_id:id,kind:'agent.message',task_id:'live-edit',session_id:'s',timestamp:Date.now()/1000,payload:{sessionUpdate:'tool_call',toolCallId:id,title:'editing '+path,status:'completed',rawInput:{name:'patch',arguments:{path}},rawOutput:{raw_output:JSON.stringify({changed_files:[{path,additions,deletions:1,diff:'@@ -1 +1 @@\n-old\n+new'}]})}}}))
+  await expect.poll(()=>!!socket!).toBe(true)
+  sendEdit('edit-1','src/first.ts',3)
+  await expect(summary).toContainText('1 个文件已更改')
+  await expect(summary).toContainText('+3')
+  await summary.click()
+  await expect(page.locator('.session-changes-panel .is-added code')).toHaveText('new')
+  sendEdit('edit-2','src/second.ts',5)
+  await expect(summary).toContainText('2 个文件已更改')
+  await expect(page.locator('.session-changes-panel-list button')).toHaveCount(2)
+  await page.locator('.session-changes-panel-list button').filter({hasText:'src/second.ts'}).click()
+  await expect(page.locator('.session-changes-panel-header strong')).toHaveText('src/second.ts')
+  await page.screenshot({path:'test-results/live-change-summary.png'})
+})

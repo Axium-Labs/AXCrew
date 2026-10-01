@@ -1,6 +1,10 @@
 # AX Crew Backend
 
 聊天执行区使用逐调用紧凑行。说明和思考直接显示为正文，同一 call ID 的开始、成功、失败原地更新。点击工具行展开真实工具类型、操作、压缩结果；原始输出需要再次展开，长输出在卡片内部滚动。错误不会变成成功。超过一分钟的耗时显示为分钟，超过一小时显示为小时。每轮结束显示修改文件卡片；ACP `turn_changes` 优先于 patch 累计统计，历史回放保留该卡片。
+输入框上方显示当前轮已成功修改的文件数及增删行数，工作进行中实时更新，点击汇总可在右栏查看差异；轮结束后的权威变更快照替代增量统计。移除普通“正在回复”小字，保留等待授权、失败等状态提示。
+
+会话输入框随文本和面板宽度自动增高，达到上限后在框内滚动。设置中的提供商列表使用对齐列，窄窗口自动换行。导入页自动扫描用户目录及当前项目中的 Codex、Cursor、Claude Code、Windsurf 和共享 `.agents/skills` 配置，可勾选技能包或整份 MCP 配置导入当前项目/全局 AX，也支持手动选择路径。扫描只读取配置；导入结果按项显示，同名冲突交由 AX 拒绝，失败项保留供重试。
+
 npm run tauri:dev
 AX Crew now also includes a native [Android control client](android/README.md) in `android/`.
 It connects to the same computer-hosted Crew Gateway over HTTPS/WSS, with devices,

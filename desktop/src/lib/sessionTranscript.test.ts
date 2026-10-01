@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { conversationTranscript, transcript, transcriptBlocks } from './sessionTranscript'
+import { conversationTranscript, transcript, transcriptBlocks, latestTurnChangedFiles } from './sessionTranscript'
 import type { CrewEvent, SessionHistory, Task } from './types'
 
 const history=(updates:Record<string,unknown>[]):SessionHistory=>({task_id:'t',ax_session_id:'s',updates:updates.map(update=>({sessionId:'s',update}))})
@@ -199,5 +199,25 @@ describe('blocks',()=>{
   it('passes no end time when AX reported none',()=>{
     const blocks=transcriptBlocks([line('tool','t1'),line('agent','a1')])
     expect(blocks[0]).not.toHaveProperty('end')
+  })
+})
+
+describe('current turn changes',()=>{
+  it('deduplicates successful edits and excludes failures and previous turns',()=>{
+    const lines: import('./sessionTranscript').SessionLine[] = [
+      {key:'old',type:'tool',text:'',status:'completed',changedFiles:[{path:'old.ts',additions:9,deletions:0}]},
+      {key:'u',type:'user',text:'fix'},
+      {key:'a',type:'tool',text:'',status:'completed',changedFiles:[{path:'a.ts',additions:2,deletions:1}]},
+      {key:'b',type:'tool',text:'',status:'success',changedFiles:[{path:'a.ts',additions:3,deletions:0,diff:'latest'}]},
+      {key:'bad',type:'tool',text:'',status:'failed',changedFiles:[{path:'bad.ts',additions:9,deletions:0}]},
+    ]
+    expect(latestTurnChangedFiles(lines)).toEqual([{path:'a.ts',additions:5,deletions:1,diff:'latest'}])
+    lines.push({key:'final',type:'agent',text:'',status:'completed',changedFiles:[{path:'a.ts',additions:1,deletions:0}]})
+    expect(latestTurnChangedFiles(lines)).toEqual([{path:'a.ts',additions:1,deletions:0}])
+    lines.push({key:'next',type:'user',text:'next'})
+    expect(latestTurnChangedFiles(lines)).toEqual([])
+  })
+  it('an empty authoritative snapshot clears incremental changes',()=>{
+    expect(latestTurnChangedFiles([{key:'a',type:'tool',text:'',status:'completed',changedFiles:[{path:'a.ts',additions:1,deletions:0}]},{key:'final',type:'agent',text:'',changedFiles:[]}])).toEqual([])
   })
 })

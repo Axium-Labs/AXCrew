@@ -1,3 +1,4 @@
+import { turnChangedFiles } from '../lib/sessionTranscript'
 import { useEffect, useState } from 'react'
 import { ChevronDown, Terminal, Pencil, Search, FileText } from 'lucide-react'
 import { MessageMarkdown } from './MessageMarkdown'
@@ -118,7 +119,7 @@ export function TranscriptLine({line}:{line:SessionLine}){
 function Steps({lines}:{lines:SessionLine[]}){
   return <>{toolBlocks(lines.filter(line=>!!line.text||line.type==='tool')).map(block=>block[0].type==='tool'?<ToolGroup key={block[0].key} lines={block}/>:<TranscriptLine key={block[0].key} line={block[0]}/>)}</>
 }
-function TranscriptTurn({turn,active,finishedAt}:{turn:SessionLine[];active:boolean;finishedAt?:number}){
+function TranscriptTurn({turn,active,finishedAt,hideActiveChanges}:{turn:SessionLine[];active:boolean;finishedAt?:number;hideActiveChanges?:boolean}){
   const lang=useLang(s=>s.lang)
   const [expanded,setExpanded]=useState<boolean|null>(null)
   const [now,setNow]=useState(Date.now())
@@ -135,9 +136,7 @@ function TranscriptTurn({turn,active,finishedAt}:{turn:SessionLine[];active:bool
   const end=finishedAt??Math.max(0,...body.map(line=>line.end??line.at??0))
   const duration=start&&(active||end>=start)?formatDuration((active?now:end)-start,lang):''
   const hasProcess=active||!!duration||process.some(line=>!!line.text||line.type==='tool')
-  const files=new Map<string,ChangedFile>()
-  const final=turn.findLast(line=>!line.text&&line.changedFiles)
-  for(const line of final?[final]:turn)if(line.status==='completed'||line.status==='success')for(const file of line.changedFiles??[]){const old=files.get(file.path);files.set(file.path,{...file,additions:file.additions+(old?.additions??0),deletions:file.deletions+(old?.deletions??0)})}
+  const files=turnChangedFiles(turn)
   return <div className={`session-turn${active?' is-running':''}`}>
     {user&&<TranscriptLine line={user}/>}
     {hasProcess&&<section className="session-process">
@@ -145,11 +144,11 @@ function TranscriptTurn({turn,active,finishedAt}:{turn:SessionLine[];active:bool
       <div className="session-process-content" hidden={!open}><Steps lines={process}/></div>
     </section>}
     {answer&&<TranscriptLine line={answer}/>}
-    <Changes files={[...files.values()]}/>
+    {!(active&&hideActiveChanges)&&<Changes files={files}/>}
   </div>
 }
-export function TranscriptLines({lines,active=false,finishedAt}:{lines:SessionLine[];active?:boolean;finishedAt?:number}){
+export function TranscriptLines({lines,active=false,finishedAt,hideActiveChanges=false}:{lines:SessionLine[];active?:boolean;finishedAt?:number;hideActiveChanges?:boolean}){
   const turns:SessionLine[][]=[]
   for(const line of lines){if(line.type==='user'||!turns.length)turns.push([]);turns[turns.length-1].push(line)}
-  return <>{turns.map((turn,index)=><TranscriptTurn key={turn[0].key} turn={turn} active={active&&index===turns.length-1} finishedAt={index===turns.length-1?finishedAt:undefined}/>)}</>
+  return <>{turns.map((turn,index)=><TranscriptTurn key={turn[0].key} hideActiveChanges={hideActiveChanges} turn={turn} active={active&&index===turns.length-1} finishedAt={index===turns.length-1?finishedAt:undefined}/>)}</>
 }

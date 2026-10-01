@@ -3,8 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { AxCatalog } from '../lib/ax'
 
-const fixture = vi.hoisted(() => ({ catalog: vi.fn(), import:vi.fn(), open:vi.fn() }))
-vi.mock('../lib/ax', () => ({ axAvailable: true, axCatalog: fixture.catalog, axImportCapability:fixture.import }))
+const fixture = vi.hoisted(() => ({ catalog: vi.fn(), import:vi.fn(), open:vi.fn(), scan:vi.fn() }))
+vi.mock('../lib/ax', () => ({ axAvailable: true, axCatalog: fixture.catalog, axImportCapability:fixture.import, axScanCapabilitySources:fixture.scan }))
 
 vi.mock('@tauri-apps/plugin-dialog',()=>({open:fixture.open}))
 import { AxCapabilities } from './AxCapabilities'
@@ -24,7 +24,7 @@ const mount = () => render(
   </QueryClientProvider>,
 )
 
-beforeEach(() => { fixture.catalog.mockReset() })
+beforeEach(() => { fixture.catalog.mockReset();fixture.scan.mockReset();fixture.scan.mockResolvedValue([]);fixture.import.mockReset() })
 afterEach(cleanup)
 
 describe('AX 能力面板', () => {
@@ -71,8 +71,23 @@ describe('AX 能力面板', () => {
 
 it('imports a Skill into the selected scope and refreshes the AX catalog',async()=>{
   fixture.catalog.mockResolvedValue(catalog());fixture.open.mockResolvedValue('C:/download/code-review');fixture.import.mockResolvedValue('Imported')
-  mount();await screen.findByText('code-review');fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:'导入 Skill 目录'}))
+  mount();await screen.findByText('code-review');fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByText('手动选择文件或目录'));fireEvent.click(screen.getByRole('button',{name:'导入 Skill 目录'}))
   await waitFor(()=>expect(fixture.import).toHaveBeenCalledWith('C:/work/demo','C:/download/code-review','skill',true))
   expect(await screen.findByRole('status')).toHaveProperty('textContent','Imported')
   expect(fixture.catalog.mock.calls.length).toBeGreaterThan(1)
 })
+
+ it('imports selected discovered items and retains failed items for retry',async()=>{
+  fixture.catalog.mockResolvedValue(catalog())
+  fixture.scan.mockResolvedValue([{id:'codex',name:'Codex',items:[{name:'review',path:'C:/Users/me/.codex/skills/review',kind:'skill'},{name:'MCP · User',path:'C:/Users/me/.codex/config.toml',kind:'mcp'}]}])
+  fixture.import.mockResolvedValueOnce('Imported').mockRejectedValueOnce('Name conflict')
+  mount()
+  fireEvent.click((await screen.findByText('Skill · review')).closest('label')!)
+  fireEvent.click(screen.getByText('MCP · 用户配置').closest('label')!)
+  fireEvent.click(screen.getByRole('button',{name:'导入所选（2）'}))
+  await waitFor(()=>expect(fixture.import).toHaveBeenCalledTimes(2))
+  expect(fixture.import).toHaveBeenNthCalledWith(1,'C:/work/demo','C:/Users/me/.codex/skills/review','skill',false)
+  expect(fixture.import).toHaveBeenNthCalledWith(2,'C:/work/demo','C:/Users/me/.codex/config.toml','mcp',false)
+  expect((await screen.findByRole('status')).textContent).toContain('Name conflict')
+  expect(screen.getByRole('button',{name:'导入所选（1）'})).toBeTruthy()
+ })

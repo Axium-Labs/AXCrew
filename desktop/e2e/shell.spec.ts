@@ -497,7 +497,7 @@ test('conversation inference button toggles Fast and pickers highlight only on i
     export const axSelectInferenceMode=async(value)=>{mode=value;window.__inferenceMode=value;return mode};
     export const axSelectModel=async()=>state();
     export const axStoreApiKey=async()=>state(),axRefreshModels=async()=>state(),axRemoveCredential=async()=>state();
-    export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',axCatalog=async()=>({skills:[],mcp_servers:[],tools:[],warnings:[]});
+    export const axScanCapabilitySources=async()=>[]; export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',axCatalog=async()=>({skills:[],mcp_servers:[],tools:[],warnings:[]});
     export const axCheckUpdate=async()=>({action:'none'}),axApplyUpdate=axCheckUpdate;
   `}))
   await page.goto('/#/sessions')
@@ -579,5 +579,46 @@ for (const width of [960,1440]) {
     await page.getByText('Test conversation').click()
     await expect(page.getByText('AX Crew · gpt-6.1-sol')).toBeVisible()
     await page.screenshot({path:`test-results/usage-settings-${width}.png`})
+  })
+}
+
+test('adaptive composer grows, caps and shrinks with draft text',async({page})=>{
+  await page.setViewportSize({width:1280,height:900})
+  await page.goto('/#/sessions')
+  const input=page.getByRole('textbox',{name:'发送消息',exact:true})
+  const initial=(await input.boundingBox())!.height
+  await input.fill('这是较长的输入，需要自动换行并增加输入框高度。'.repeat(35))
+  await expect.poll(async()=>(await input.boundingBox())!.height).toBeGreaterThan(initial+50)
+  expect((await input.boundingBox())!.height).toBeLessThanOrEqual(280)
+  await page.screenshot({path:'test-results/adaptive-composer.png'})
+  await input.fill('短消息')
+  await expect.poll(async()=>(await input.boundingBox())!.height).toBe(initial)
+})
+
+for(const width of [960,1600]){
+  test(`adaptive settings and discovered imports at ${width}px`,async({page})=>{
+    await page.setViewportSize({width,height:900})
+    await page.route(/\/src\/lib\/ax\.ts(?:\?.*)?$/,route=>route.fulfill({contentType:'application/javascript',body:`
+      export const axAvailable=true;
+      const state=()=>({providers:['WorkBuddy China','DeepSeek','OpenAI','OpenAI Codex'].map((name,index)=>({id:String(index),name,configured:true,supported:true,source:'AX',models:[],auth_kind:'api_key',model_source:'cache'})),home:'C:/Users/me/.ax',selected_model:null});
+      export const axLocalState=async()=>state(),axStoreApiKey=async()=>state(),axRefreshModels=async()=>state(),axRemoveCredential=async()=>state(),axSelectModel=async()=>state(),axSelectInferenceMode=async()=> 'standard';
+      export const axCatalog=async()=>({skills:[],mcp_servers:[],tools:[],warnings:[],cwd:'C:/workspace'});
+      export const axScanCapabilitySources=async()=>[{id:'codex',name:'Codex',items:[{name:'review',kind:'skill',path:'C:/Users/me/.codex/skills/review'},{name:'MCP · User',kind:'mcp',path:'C:/Users/me/.codex/config.toml'}]}];
+      export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',workspaceFileExists=async()=>false;
+      export const axCheckUpdate=async()=>({action:'none'}),axApplyUpdate=axCheckUpdate;
+    `}))
+    await page.goto('/#/settings/models')
+    const rows=page.locator('.settings-provider-list>div')
+    await expect(rows).toHaveCount(4)
+    const columns=await rows.evaluateAll(nodes=>nodes.map(node=>[...node.querySelectorAll('button')].map(button=>button.getBoundingClientRect().x)))
+    for(const row of columns)expect(row).toEqual(columns[0])
+    expect(await page.locator('.settings-main').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
+    await page.screenshot({path:`test-results/adaptive-providers-${width}.png`})
+    await page.goto('/#/settings/capabilities')
+    await expect(page.getByText('Skill · review')).toBeVisible()
+    await page.getByText('Skill · review').click()
+    await expect(page.getByRole('button',{name:'导入所选（1）'})).toBeEnabled()
+    expect(await page.locator('.settings-main').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
+    await page.screenshot({path:`test-results/discovered-imports-${width}.png`})
   })
 }

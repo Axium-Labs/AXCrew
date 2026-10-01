@@ -85,6 +85,24 @@
 .settings-main{width:100%;max-width:1180px;justify-self:center;padding:clamp(18px,3vw,42px)}
 .settings-stack{width:100%;max-width:960px;margin-inline:auto}
 .settings-page-top{flex-wrap:wrap}.settings-search{width:240px;max-width:100%}
-.settings-provider-list>div{flex-wrap:wrap}.settings-provider-list span{min-width:180px;overflow-wrap:anywhere}
+.settings-provider-list{container-type:inline-size}
+.settings-provider-list>div{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,2fr) auto auto;align-items:center;gap:14px}
+.settings-provider-list strong,.settings-provider-list span{min-width:0;overflow-wrap:anywhere;text-align:left}
+.settings-provider-list button{white-space:nowrap}
+.settings-model-tools{flex-wrap:wrap;width:100%;max-width:960px;margin-inline:auto}
+@container(max-width:640px){.settings-provider-list>div{grid-template-columns:minmax(0,1fr) auto auto}.settings-provider-list span{grid-column:1/-1;grid-row:2}}
+@container(max-width:380px){.settings-provider-list>div{grid-template-columns:1fr 1fr}.settings-provider-list strong{grid-column:1/-1}.settings-provider-list span{grid-row:auto}.settings-provider-list button{width:100%}}
+.settings-import-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.settings-import-heading h2{margin:0}
+.settings-import-apps{display:grid;gap:12px;margin:16px 0}
+.settings-import-app{border:1px solid var(--shell-border);border-radius:12px;overflow:hidden}
+.settings-import-app header{display:flex;align-items:center;gap:10px;padding:12px;background:var(--shell-input)}
+.settings-import-app header small{color:var(--shell-muted);margin-left:auto}
+.settings-import-item{display:flex;align-items:flex-start;gap:10px;padding:12px;border-top:1px solid var(--shell-border);cursor:pointer}
+.settings-import-item input{margin-top:3px;accent-color:var(--shell-accent)}
+.settings-import-item>span{min-width:0;display:grid;gap:4px}
+.settings-import-item small{color:var(--shell-muted);overflow-wrap:anywhere}
+.settings-import-manual{margin-top:16px;border-top:1px solid var(--shell-border);padding-top:12px}
+.settings-import-manual summary{cursor:pointer;color:var(--shell-muted)}
 @container(max-width:760px){.settings-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.settings-overview-grid{grid-template-columns:1fr}.settings-field{flex-wrap:wrap}.settings-field input{width:100%;max-width:none}.settings-main{padding:18px}.settings-page-top h1{font-size:20px}}
 @media(max-width:1000px){.settings-workspace{grid-template-columns:180px minmax(0,1fr)}}

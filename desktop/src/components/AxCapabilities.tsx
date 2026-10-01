@@ -1,9 +1,9 @@
 import { translate, useLang } from '../lib/i18n'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Puzzle, RefreshCw, Server, ShieldAlert, Wrench } from 'lucide-react'
+import { Download, Laptop, Puzzle, RefreshCw, Server, ShieldAlert, Wrench } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
-import { axImportCapability, axAvailable, axCatalog } from '../lib/ax'
+import { axImportCapability, axAvailable, axCatalog, axScanCapabilitySources } from '../lib/ax'
 
 /**
  * 设置 → AX 能力：技能 / MCP 服务器 / 内置工具。
@@ -18,6 +18,29 @@ export function AxCapabilities({ workspace, home }: { workspace?: string; home?:
 
   const catalog = useQuery({ queryKey: ['ax-catalog', workspace ?? ''], queryFn: () => axCatalog(workspace), enabled: axAvailable, retry: false })
   const [global,setGlobal] = useState(false),[busy,setBusy] = useState(false),[notice,setNotice] = useState('')
+  const lang = useLang(state=>state.lang)
+  const copy = (zh: string, en: string) => lang === 'zh' ? zh : en
+  const sources = useQuery({ queryKey: ['ax-import-sources', workspace ?? ''], queryFn: () => axScanCapabilitySources(workspace), enabled: axAvailable, retry: false, refetchOnWindowFocus: false })
+  const [selected,setSelected] = useState<string[]>([])
+  useEffect(()=>{setSelected([]);setNotice('')},[workspace])
+  const candidates = sources.data?.flatMap(source=>source.items) ?? []
+  const chosen = candidates.filter(item=>selected.includes(item.path))
+  const importSelected = async () => {
+    if(!workspace || busy || !chosen.length)return
+    setBusy(true);setNotice('')
+    const results: string[] = []
+    try {
+      for(const item of chosen){
+        try{
+          await axImportCapability(workspace,item.path,item.kind,global)
+          results.push(`${item.name}: ${copy('已导入','Imported')}`)
+          setSelected(current=>current.filter(path=>path!==item.path))
+        }catch(error){results.push(`${item.name}: ${String(error)}`)}
+      }
+      setNotice(results.join('\n'))
+      await catalog.refetch()
+    }finally{setBusy(false)}
+  }
   const importCapability = async (kind: 'skill' | 'mcp') => {
     if(!workspace){setNotice(translate("copy.351"));return}
     try {
@@ -40,7 +63,23 @@ export function AxCapabilities({ workspace, home }: { workspace?: string; home?:
       </div>
     </section>
 
-    <section className="settings-card"><h2>{translate("copy.363")}</h2><p>{translate("copy.364")}</p><p>{useLang.getState().lang === 'en' ? 'Import from Codex (~/.codex/config.toml), Cursor (~/.cursor/mcp.json or .cursor/mcp.json), or Claude Code (~/.claude.json or .mcp.json). For Skills, select an individual package directory containing SKILL.md from the application’s skills folder. Imports never run scripts or connect servers; duplicate names are rejected. Start a new session after import.' : '可从 Codex（~/.codex/config.toml）、Cursor（~/.cursor/mcp.json 或 .cursor/mcp.json）、Claude Code（~/.claude.json 或 .mcp.json）导入 MCP。Skills 请从对应应用的 skills 目录中选择包含 SKILL.md 的单个技能包。导入不执行脚本、不连接服务器；同名冲突会拒绝导入。导入后请开启新会话。'}</p><label className="settings-checkbox"><input type="checkbox" checked={global} onChange={event=>setGlobal(event.target.checked)}/> {translate("copy.365")}</label><div className="settings-actions"><button disabled={!axAvailable||busy||!workspace} onClick={()=>void importCapability('skill')}>{translate("copy.366")}</button><button disabled={!axAvailable||busy||!workspace} onClick={()=>void importCapability('mcp')}>{translate("copy.367")}</button></div>{notice&&<div className="settings-notice" role="status">{notice}</div>}</section>
+    <section className="settings-card">
+      <div className="settings-import-heading"><h2><Download size={17}/>{copy('从其他 AI 应用导入','Import from other AI apps')}</h2><button disabled={!axAvailable||busy||sources.isFetching} onClick={()=>{setSelected([]);void sources.refetch()}}><RefreshCw size={15}/>{copy('重新扫描','Scan again')}</button></div>
+      <p>{copy('自动查找本机及当前项目中的技能和 MCP 配置，选择你想带到 AX 的内容。','Find skills and MCP configurations on this computer and in the current project, then choose what to bring into AX.')}</p>
+      {sources.isFetching&&<p role="status">{copy('正在扫描 AI 应用…','Scanning AI apps…')}</p>}
+      {sources.error&&<div className="settings-notice is-error" role="alert">{copy('扫描失败：','Scan failed: ')}{String(sources.error)}</div>}
+      {!sources.isFetching&&sources.data?.length===0&&<p>{copy('未找到可导入的配置。支持 Codex、Cursor、Claude Code、Windsurf 和共享 Agent Skills；也可在下方手动选择。','No importable configurations found. Supports Codex, Cursor, Claude Code, Windsurf and shared Agent Skills; you can also choose files manually below.')}</p>}
+      <div className="settings-import-apps">{sources.data?.map(source=><div className="settings-import-app" key={source.id}>
+        <header><Laptop size={18}/><strong>{source.name}</strong><small>{source.items.length} {copy('项可导入','available')}</small></header>
+        {source.items.map(item=><label className="settings-import-item" key={item.path}><input type="checkbox" disabled={busy} checked={selected.includes(item.path)} onChange={event=>setSelected(current=>event.target.checked?[...current,item.path]:current.filter(path=>path!==item.path))}/><span><strong>{item.kind==='skill'?`Skill · ${item.name}`:item.name.replace('User',copy('用户配置','User')).replace('Project',copy('项目配置','Project'))}</strong><small>{item.path}</small></span></label>)}
+      </div>)}</div>
+      <label className="settings-checkbox"><input type="checkbox" disabled={busy} checked={global} onChange={event=>setGlobal(event.target.checked)}/>{translate("copy.365")}</label>
+      <div className="settings-actions"><button className="settings-primary" disabled={!axAvailable||busy||!workspace||!chosen.length} onClick={()=>void importSelected()}><Download size={15}/>{busy?copy('正在导入…','Importing…'):copy(`导入所选（${chosen.length}）`,`Import selected (${chosen.length})`)}</button><span>{copy(global?'目标：全局 AX':'目标：当前项目',global?'Destination: global AX':'Destination: current project')}</span></div>
+      {!workspace&&<p>{copy('请先选择工作目录，再导入配置。','Choose a workspace before importing.')}</p>}
+      <p>{copy('MCP 按配置文件导入；同名配置不会覆盖。导入后开启新会话生效。','MCP is imported per configuration file. Existing names are preserved. Start a new session after importing.')}</p>
+      <details className="settings-import-manual"><summary>{copy('手动选择文件或目录','Choose a file or directory manually')}</summary><div className="settings-actions"><button disabled={!axAvailable||busy||!workspace} onClick={()=>void importCapability('skill')}>{translate("copy.366")}</button><button disabled={!axAvailable||busy||!workspace} onClick={()=>void importCapability('mcp')}>{translate("copy.367")}</button></div></details>
+      {notice&&<div className="settings-notice" role="status">{notice}</div>}
+    </section>
     {!axAvailable && <div className="settings-notice is-inline"><ShieldAlert size={15}/> {translate("copy.368")}</div>}
     {catalog.error && <div className="settings-notice is-error" role="alert">{translate("copy.369")}{String(catalog.error)}</div>}
     {!data && !catalog.error && axAvailable && <div className="settings-notice">{translate("copy.370")}</div>}
