@@ -151,6 +151,25 @@ fn read_workspace_file_sync(root: String, relative: String) -> Result<String, St
 }
 
 #[tauri::command]
+async fn read_workspace_image(root: String, relative: String) -> Result<String, String> {
+    blocking(move || read_workspace_image_sync(root, relative)).await
+}
+
+fn read_workspace_image_sync(root: String, relative: String) -> Result<String, String> {
+    use base64::Engine;
+    let path = workspace_path(&root, &relative)?;
+    let metadata = fs::metadata(&path).map_err(|error| error.to_string())?;
+    if !metadata.is_file() || metadata.len() > 8 * 1024 * 1024 { return Err("Image is too large to preview".into()); }
+    let bytes = fs::read(path).map_err(|error| error.to_string())?;
+    let mime = if bytes.starts_with(&[137,80,78,71,13,10,26,10]) { "image/png" }
+        else if bytes.starts_with(&[255,216,255]) { "image/jpeg" }
+        else if bytes.starts_with(b"GIF8") { "image/gif" }
+        else if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") { "image/webp" }
+        else { return Err("Unsupported image format".into()); };
+    Ok(format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes)))
+}
+
+#[tauri::command]
 fn workspace_file_exists(root: String, relative: String) -> Result<bool, String> {
     let base = PathBuf::from(root).canonicalize().map_err(|error| error.to_string())?;
     let path = Path::new(&relative);
@@ -202,7 +221,20 @@ mod workspace_tests {
         assert!(super::validate_workspace_sync(&cwd.join("Cargo.toml").to_string_lossy()).is_err());
     }
 
-    use super::{list_workspace_files_sync, read_workspace_file_sync, workspace_file_exists};
+    use super::{list_workspace_files_sync, read_workspace_file_sync, read_workspace_image_sync, workspace_file_exists};
+
+    #[test]
+    fn image_preview_validates_format_and_workspace_boundary() {
+        let root = std::env::temp_dir().join(format!("ax-crew-image-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("sample.png"), [137,80,78,71,13,10,26,10]).unwrap();
+        std::fs::write(root.join("text.png"), b"not an image").unwrap();
+        let path = root.to_string_lossy().into_owned();
+        assert!(read_workspace_image_sync(path.clone(), "sample.png".into()).unwrap().starts_with("data:image/png;base64,"));
+        assert!(read_workspace_image_sync(path.clone(), "text.png".into()).is_err());
+        assert!(read_workspace_image_sync(path, "../outside.png".into()).is_err());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn file_preview_stays_inside_workspace() {
@@ -301,7 +333,7 @@ pub fn run() {
             .build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax_login::ax_begin_login, ax_login::ax_cancel_login, ax_login::ax_open_login_url, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_select_inference_mode, ax::ax_export, ax::ax_import, ax::ax_import_capability, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, desktop_restart, ax_catalog::ax_catalog])
+        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, read_workspace_image, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax_login::ax_begin_login, ax_login::ax_cancel_login, ax_login::ax_open_login_url, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_select_inference_mode, ax::ax_export, ax::ax_import, ax::ax_import_capability, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, desktop_restart, ax_catalog::ax_catalog])
         .setup(|app| {
             let root=PathBuf::from(env!("CARGO_MANIFEST_DIR"));
             let backend=binary(app,"ax-crew","AX_CREW_BACKEND",root.join("../../target/debug").join(executable("ax-crew")))?;

@@ -8,7 +8,7 @@ type SessionUi = {
   setMetadata: (id: string, value: Partial<SessionMetadata>) => void
   listOpen: boolean
   rightOpen: boolean
-  rightTab: 'files' | 'details'
+  rightTab: 'files' | 'details' | 'changes' | 'chat'
   drafts: Record<string, string>
   startingIds: string[]
   selectedCwd: string | null
@@ -17,7 +17,7 @@ type SessionUi = {
   thinkingEffort: string
   setListOpen: (open: boolean) => void
   setRightOpen: (open: boolean) => void
-  setRightTab: (tab: 'files' | 'details') => void
+  setRightTab: (tab: 'files' | 'details' | 'changes' | 'chat') => void
   setDraft: (key: string, text: string) => void
   addStarting: (id: string) => void
   setSelectedCwd: (cwd: string | null) => void

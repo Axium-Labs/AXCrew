@@ -5,8 +5,9 @@ import type { CrewEvent, SessionHistory, Task } from './types'
  * `output` is a tool result: history replay and live updates both carry it, and
  * the collapsed transcript only shows it once the row is opened.
  */
-export type ChangedFile = { path:string; additions:number; deletions:number }
-export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; text:string; operation?:string; output?:string; rawOutput?:string; toolKind?:string; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
+export type ChangedFile = { path:string; additions:number; deletions:number; diff?:string|null }
+export type SessionImage = {path?:string;name:string;src?:string}
+export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; text:string; images?:SessionImage[]; operation?:string; output?:string; rawOutput?:string; toolKind?:string; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
 
 /**
  * The view keeps one transcript row per message, so a tool result is capped
@@ -32,11 +33,11 @@ export function compactOutput(raw:string,diagnostics:unknown[]=[]):string {
   let text=raw
   try{
     const value=JSON.parse(raw)
-    if(value.matches)text=value.matches.map((m:{path:string;line:number;text:string})=>`${m.path}:${m.line}: ${m.text}`).join('\n')
-    else if(value.changed_files)text=value.changed_files.map((f:ChangedFile)=>`${f.path} +${f.additions} -${f.deletions}`).join('\n')
-    else text=Object.entries(value).map(([key,value])=>`${key}: ${typeof value==='string'?value:JSON.stringify(value)}`).join('\n')
+    if(Array.isArray(value?.matches))text=value.matches.map((m:{path:string;line:number;text:string})=>`${m.path}:${m.line}: ${m.text}`).join('\n')
+    else if(Array.isArray(value?.changed_files))text=value.changed_files.map((f:ChangedFile)=>`${f.path} +${f.additions} -${f.deletions}`).join('\n')
+    else if(value&&typeof value==='object')text=Object.entries(value).map(([key,value])=>`${key}: ${typeof value==='string'?value:JSON.stringify(value)}`).join('\n')
   }catch{/* plain stdout */}
-  const clean=text.split('\n').filter(line=>!line.trimStart().startsWith('warning:')).join('\n')
+  const clean=text
   const errors=diagnostics.map(d=>typeof d==='string'?d:JSON.stringify(d)).join('\n')
   return [clean.slice(0,6000),clean.length>6000?'… 输出已压缩':'',errors.slice(0,3000)].filter(Boolean).join('\n')
 }
@@ -112,9 +113,23 @@ function updateTime(update:Record<string,unknown>){
 function cleanUserText(text:string){
   const marker='\n\nThe user attached images. Inspect each with the view_image tool before answering:\n'
   const index=text.indexOf(marker)
-  if(index<0)return text
-  const count=text.slice(index+marker.length).split('\n').filter(line=>line.startsWith('- .ax/crew-attachments/')).length
-  return `${text.slice(0,index)}${text.slice(0,index)?'\n\n':''}📎 ${count} 张图片`
+  return text.split('\n\n[AX Crew conversation context]\n')[0].slice(0,index<0?undefined:index)
+}
+
+function userLine(line:SessionLine):SessionLine{
+  if(line.type!=='user')return line
+  const paths=[...line.text.matchAll(/^- (\.ax\/crew-attachments\/[^\r\n]+)$/gm)].map(match=>match[1]).filter(path=>/\.(png|jpe?g|webp|gif)$/i.test(path))
+  return {...line,text:cleanUserText(line.text),...(paths.length?{images:paths.map(path=>({path,name:path.split('/').at(-1)??path}))}:{})}
+}
+
+export function contextLines(prompt:string):SessionLine[]{
+  const raw=prompt.split('\n\n[AX Crew conversation context]\n')[1]?.split('\n[End AX Crew conversation context]')[0]
+  if(!raw)return []
+  try{
+    const context=JSON.parse(raw) as {role:string;text:string}[]
+    if(!Array.isArray(context))return []
+    return context.filter(item=>['user','assistant'].includes(item.role)&&typeof item.text==='string').map((item,index)=>({type:item.role==='user'?'user':'agent',text:item.text,key:`context-${index}`}))
+  }catch{return []}
 }
 
 export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):SessionLine[] {
@@ -137,8 +152,9 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
       const type=kind==='user_message_chunk'?'user':kind==='agent_message_chunk'?'agent':'thought'
       const text=String((update.content as {text?:string}|undefined)?.text??'')
       const key=update.messageId?String(update.messageId):undefined
+      if(type==='user'&&!lines.length)lines.push(...contextLines(text))
       // A streamed message keeps the time of its first chunk, so the label does not drift.
-      if(lines.at(-1)?.type===type&&(!key||lines.at(-1)?.key===key))lines[lines.length-1].text+=text
+      if(lines.at(-1)?.type===type&&(!key||lines.at(-1)?.key===key)){lines[lines.length-1].text+=text;lines[lines.length-1].end=at??lines.at(-1)?.end}
       else lines.push({type,text,key:key??`${lines.length}-${type}`,...(at===undefined?{}:{at})})
     }else if(kind==='tool_call'||kind==='tool_call_update'){
       const call=lines.findLast(line=>line.key===update.toolCallId)
@@ -161,27 +177,31 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
 // Reconcile within that turn so a refetch cannot erase or duplicate streamed text.
 export function conversationTranscript(history:SessionHistory|undefined, events:CrewEvent[], task:Task|undefined, includeCurrent:boolean):SessionLine[]{
   const saved=transcript(history)
-  if(!includeCurrent||!task)return saved.map(line=>line.type==='user'?{...line,text:cleanUserText(line.text)}:line)
+  if(!task)return saved.map(userLine)
   const prompt=typeof task.input==='string'?task.input:task.input&&typeof task.input==='object'&&'prompt' in task.input?String(task.input.prompt):''
-  if(!prompt)return saved.map(line=>line.type==='user'?{...line,text:cleanUserText(line.text)}:line)
+  if(!prompt)return saved.map(userLine)
   const lastUser=saved.findLastIndex(line=>line.type==='user')
   const hasCurrent=lastUser>=0&&saved[lastUser].text===prompt&&(!history?.task_id||history.task_id===task.id)
-  const before=hasCurrent?saved.slice(0,lastUser):saved
+  if(!includeCurrent)return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
+  const before=hasCurrent?saved.slice(0,lastUser):saved.length?saved:contextLines(prompt)
   const previous=hasCurrent?saved.slice(lastUser+1):[]
   const streamed=transcript(undefined,events).filter(line=>line.type!=='user')
   const body=previous.map(line=>({...line}))
   const offsets=new Map<string,number>()
+  const category=(line:SessionLine)=>line.changedFiles&&!line.text&&line.type==='agent'?'changes':line.type
   for(const line of streamed){
-    const occurrence=offsets.get(line.type)??0;offsets.set(line.type,occurrence+1)
-    const match=line.type==='tool'?body.findIndex(item=>item.type==='tool'&&item.key===line.key):body.map((item,index)=>({item,index})).filter(({item})=>item.type===line.type)[occurrence]?.index??-1
+    const kind=category(line)
+    const occurrence=offsets.get(kind)??0;offsets.set(kind,occurrence+1)
+    const exact=body.findIndex(item=>category(item)===kind&&item.key===line.key)
+    const match=exact>=0?exact:line.type==='tool'?-1:body.map((item,index)=>({item,index})).filter(({item})=>category(item)===kind)[occurrence]?.index??-1
     if(match<0)body.push({...line})
     else{
       const previous=body[match],output=mergeOutput(previous.output,line.output)
-      body[match]={...previous,...line,at:previous.at??line.at,status:mergeStatus(previous.status,line.status),text:previous.text.startsWith(line.text)?previous.text:line.text,...(output?{output}:{})}
+      body[match]={...previous,...line,key:previous.key,at:previous.at??line.at,status:mergeStatus(previous.status,line.status),text:previous.text.startsWith(line.text)?previous.text:line.text,...(output?{output}:{})}
     }
   }
   const sentAt=task.created_at?task.created_at*1000:undefined
-  return [...before,{type:'user',text:prompt,key:`prompt-${task.id}`,...(sentAt===undefined?{}:{at:sentAt})} as SessionLine,...body.map((line,index)=>({...line,key:`${task.id}-${index}-${line.key}`}))].map(line=>line.type==='user'?{...line,text:cleanUserText(line.text)}:line)
+  return [...before,{type:'user',text:prompt,key:`prompt-${task.id}`,...(sentAt===undefined?{}:{at:sentAt})} as SessionLine,...body].map(userLine)
 }
 
 /**

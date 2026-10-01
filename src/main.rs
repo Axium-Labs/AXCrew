@@ -670,6 +670,27 @@ struct NewSession {
     images: Vec<ComposerImage>,
     #[serde(default)]
     files: Vec<ComposerFile>,
+    #[serde(default)]
+    context: Vec<ConversationContext>,
+}
+#[derive(Deserialize, serde::Serialize)]
+struct ConversationContext {
+    role: String,
+    text: String,
+}
+
+fn conversation_input(mut input: Value, context: Vec<ConversationContext>) -> Result<Value, ApiError> {
+    if context.is_empty() { return Ok(input); }
+    if context.iter().any(|message| !matches!(message.role.as_str(), "user" | "assistant")) {
+        return Err(ApiError(anyhow::anyhow!("invalid conversation context role")));
+    }
+    if let Some(text) = input.as_str() {
+        input = json!({"prompt":text,"display_text":text});
+    }
+    let prompt = input["prompt"].as_str().unwrap_or_default().to_owned();
+    input["prompt"] = json!(format!("{prompt}\n\n[AX Crew conversation context]\n{}\n[End AX Crew conversation context]\nUse the preceding conversation as background for this independent chat. Respond to the current user message above.", serde_json::to_string(&context)?));
+    input["context"] = serde_json::to_value(context)?;
+    Ok(input)
 }
 #[derive(Deserialize)]
 struct ComposerImage {
@@ -850,14 +871,14 @@ async fn create_session(
         parent_id: None,
         dependencies: vec![],
         priority: 0,
-        input: session_input(
+        input: conversation_input(session_input(
             body.text,
             body.permission_profile,
             body.reasoning_effort.as_deref(),
             body.images,
             body.files,
             &member.cwd,
-        )?,
+        )?, body.context)?,
     })?;
     Ok(Json(app.scheduler.start(&task.id)?))
 }
@@ -1022,6 +1043,8 @@ struct NewSessionMessage {
     images: Vec<ComposerImage>,
     #[serde(default)]
     files: Vec<ComposerFile>,
+    #[serde(default)]
+    context: Vec<ConversationContext>,
 }
 async fn session_message(
     State(app): State<App>,
@@ -1051,14 +1074,14 @@ async fn session_message(
         parent_id: Some(id),
         dependencies: vec![],
         priority: parent.priority,
-        input: session_input(
+        input: conversation_input(session_input(
             body.text,
             body.permission_profile,
             None,
             body.images,
             body.files,
             &member.cwd,
-        )?,
+        )?, body.context)?,
     })?;
     app.db.bind(&followup, &ax_id)?;
     Ok(Json(app.scheduler.start(&followup.id)?))
@@ -1414,6 +1437,16 @@ async fn gateway_ws(State(app): State<App>, upgrade: WebSocketUpgrade) -> impl I
 #[cfg(test)]
 mod attachment_tests {
     use super::*;
+    #[test]
+    fn conversation_context_keeps_the_display_message_and_independent_history() {
+        let context = vec![ConversationContext { role: "user".into(), text: "first question".into() }, ConversationContext { role: "assistant".into(), text: "first answer".into() }];
+        let input = conversation_input(json!("continue here"), context).map_err(|e| e.0).unwrap();
+        assert_eq!(input["display_text"], "continue here");
+        assert_eq!(input["context"][1]["text"], "first answer");
+        assert!(input["prompt"].as_str().unwrap().starts_with("continue here\n\n[AX Crew conversation context]"));
+        assert!(conversation_input(json!("hello"), vec![ConversationContext {role:"system".into(),text:"bad".into()}]).is_err());
+        assert_eq!(conversation_input(json!("hello"), vec![]).map_err(|e| e.0).unwrap(), json!("hello"));
+    }
     #[test]
     fn legacy_session_payload_remains_compatible() {
         let request: NewSession = serde_json::from_value(json!({"text":"hello"})).unwrap();

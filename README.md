@@ -1,7 +1,7 @@
 # AX Crew Backend
 
 聊天执行区使用逐调用紧凑行。说明和思考直接显示为正文，同一 call ID 的开始、成功、失败原地更新。点击工具行展开真实工具类型、操作、压缩结果；原始输出需要再次展开，长输出在卡片内部滚动。错误不会变成成功。超过一分钟的耗时显示为分钟，超过一小时显示为小时。每轮结束显示修改文件卡片；ACP `turn_changes` 优先于 patch 累计统计，历史回放保留该卡片。
-
+npm run tauri:dev
 AX Crew now also includes a native [Android control client](android/README.md) in `android/`.
 It connects to the same computer-hosted Crew Gateway over HTTPS/WSS, with devices,
 Crews/Agents, task submission and streaming, session history, and mobile permission
@@ -68,6 +68,10 @@ python tests/smoke.py C:\Users\14181\Desktop\axlab\ax\target\debug\ax.exe .\targ
 It covers ACP session setup, local-to-remote DAG execution, live event mapping, permission resolution, cancel/retry, disconnect/reconnect with the same AX Session, pairing, and revocation.
 
 ## Desktop settings and imports
+
+会话页运行时显示“思考中”和实时用时，完成后保留用时并收起执行过程。每条用户消息和模型回复下方可以复制正文；模型回复的分支按钮以该位置之前的用户/模型文字创建独立会话，继承工作目录和执行环境，不复制工具执行状态或更改原会话。
+
+每轮修改的文件在回复底部列出，点击文件或“查看变更”打开右侧变更页，可切换保存的差异与当前文件内容。输入框图片和已发送图片都可以点击预览；历史图片从原工作目录读取。选中文字后可添加到输入框或在右侧聊天中提问。侧边聊天发送到独立 AX 会话，使用只读权限，切换侧栏标签保留聊天；后端仍保留其任务与历史记录。
 
 Settings has separate Connections (`/settings/connections`) and System
 (`/settings/system`) pages. Connections contains remote AX pairing and phone

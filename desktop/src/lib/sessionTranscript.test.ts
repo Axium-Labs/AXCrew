@@ -49,6 +49,20 @@ describe('message time',()=>{
 })
 
 describe('current turn',()=>{
+  it('restores branch background without displaying the injected context prompt',()=>{
+    const prompt='新的问题\n\n[AX Crew conversation context]\n'+JSON.stringify([{role:'user',text:'原始问题'},{role:'assistant',text:'原始回答'}])+'\n[End AX Crew conversation context]\nbackground instructions'
+    const task={id:'branch',input:{prompt}} as Task
+    const live=conversationTranscript(undefined,[],task,true)
+    expect(live.map(line=>line.text)).toEqual(['原始问题','原始回答','新的问题'])
+    const saved=history([{sessionUpdate:'user_message_chunk',messageId:'u',content:{text:prompt}},{sessionUpdate:'agent_message_chunk',messageId:'a',content:{text:'新回答'}}])
+    expect(conversationTranscript(saved,[],undefined,false).map(line=>line.text)).toEqual(['原始问题','原始回答','新的问题','新回答'])
+  })
+  it('keeps sent image paths for preview while hiding attachment instructions',()=>{
+    const prompt='看这张图\n\nThe user attached images. Inspect each with the view_image tool before answering:\n- .ax/crew-attachments/sample.png\n'
+    const lines=conversationTranscript(history([{sessionUpdate:'user_message_chunk',messageId:'u',content:{text:prompt}}]),[],undefined,false)
+    expect(lines[0].text).toBe('看这张图')
+    expect(lines[0].images).toEqual([{name:'sample.png',path:'.ax/crew-attachments/sample.png'}])
+  })
   it('stamps the outgoing prompt with the task start time',()=>{
     const task={id:'t',created_at:7,input:'hello'} as unknown as Task
     const lines=conversationTranscript(undefined,[],task,true)
@@ -70,6 +84,26 @@ describe('current turn',()=>{
     const lines=conversationTranscript(history,[event(9,{sessionUpdate:'tool_call_update',toolCallId:'c1',status:'completed'})],task,true)
     expect(lines[0].type).toBe('user')
     expect(lines[1]).toMatchObject({type:'tool',text:'shell',status:'completed'})
+  })
+  it('keeps message identity when live messages arrive in a different order',()=>{
+    const task={id:'t',input:'hello'} as Task
+    const saved=history([
+      {sessionUpdate:'user_message_chunk',messageId:'u',content:{text:'hello'}},
+      {sessionUpdate:'agent_message_chunk',messageId:'a1',content:{text:'先检查'}},
+      {sessionUpdate:'tool_call',toolCallId:'c1',status:'completed'},
+      {sessionUpdate:'agent_message_chunk',messageId:'a2',content:{text:'完成'}},
+    ])
+    const lines=conversationTranscript(saved,[event(9,{sessionUpdate:'agent_message_chunk',messageId:'a2',content:{text:'完成'}})],task,true)
+    expect(lines.map(line=>line.text)).toEqual(['hello','先检查','','完成'])
+    expect(lines[0].key).toBe(conversationTranscript(undefined,[],task,true)[0].key)
+    expect(lines[0].key).toBe(conversationTranscript(saved,[],task,false)[0].key)
+  })
+  it('does not overwrite answer prose with a streamed changes artifact',()=>{
+    const task={id:'t',input:'hello'} as Task
+    const saved=history([{sessionUpdate:'user_message_chunk',messageId:'u',content:{text:'hello'}},{sessionUpdate:'agent_message_chunk',messageId:'a',content:{text:'完成'}}])
+    const lines=conversationTranscript(saved,[event(9,{sessionUpdate:'turn_changes',changedFiles:[{path:'a.py',additions:1,deletions:0}]})],task,true)
+    expect(lines[1].text).toBe('完成')
+    expect(lines[2].changedFiles?.[0].path).toBe('a.py')
   })
 })
 

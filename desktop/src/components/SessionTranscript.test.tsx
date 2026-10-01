@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { formatDuration, TranscriptLine, TranscriptLines } from './SessionTranscript'
+import { formatDuration, ToolRow, TranscriptLine, TranscriptLines } from './SessionTranscript'
 import { useLang } from '../lib/i18n'
 import type { SessionLine } from '../lib/sessionTranscript'
 beforeEach(()=>useLang.setState({lang:'zh'}))
@@ -8,7 +8,7 @@ afterEach(cleanup)
 describe('Codex style transcript',()=>{
   const tool:SessionLine={type:'tool',text:'running rg -n needle src',toolKind:'shell',output:'src/main.rs:4: needle',rawOutput:'{"large":"raw json"}',status:'in_progress',key:'c1',at:100000}
   it('shows thoughts and narration as ordinary prose and one collapsed tool row',()=>{
-    const {container}=render(<TranscriptLines lines={[{type:'thought',text:'先检查实现',key:'k1'},{type:'agent',text:'我会读取命中的代码',key:'a1'},tool]}/> )
+    const {container}=render(<TranscriptLines active lines={[{type:'thought',text:'先检查实现',key:'k1'},{type:'agent',text:'我会读取命中的代码',key:'a1'},tool]}/> )
     expect(screen.getByText('先检查实现')).toBeTruthy()
     expect(screen.getByText('我会读取命中的代码')).toBeTruthy()
     expect(container.querySelectorAll('.session-tool-row')).toHaveLength(1)
@@ -16,13 +16,13 @@ describe('Codex style transcript',()=>{
     expect(container.querySelector('.session-activity')).toBeNull()
   })
   it('updates the same call without resetting expansion, including failure',()=>{
-    const {container,rerender}=render(<TranscriptLines lines={[tool]}/> )
+    const {container,rerender}=render(<ToolRow line={tool}/> )
     const row=screen.getByRole('button')
     fireEvent.click(row)
     expect(screen.getByText('Shell')).toBeTruthy()
     expect(screen.getByText('src/main.rs:4: needle')).toBeTruthy()
     expect(screen.queryByText('{"large":"raw json"}')).toBeNull()
-    rerender(<TranscriptLines lines={[{...tool,status:'failed',end:171000,output:'error: bad path'}]}/> )
+    rerender(<ToolRow line={{...tool,status:'failed',end:171000,output:'error: bad path'}}/> )
     expect(container.querySelectorAll('.session-tool-row')).toHaveLength(1)
     expect(row.getAttribute('aria-expanded')).toBe('true')
     expect(screen.getByText('✕ 失败')).toBeTruthy()
@@ -33,12 +33,13 @@ describe('Codex style transcript',()=>{
     fireEvent.click(row)
     expect(container.querySelector('.session-tool-card')).toBeNull()
   })
-  it('shows success only for success and keeps individual tools visible',()=>{
-    const {container}=render(<TranscriptLines lines={[{...tool,status:'completed'}, {...tool,key:'c2',text:'read main.rs',toolKind:'filesystem',status:'completed'}]}/> )
+  it('groups consecutive tools behind a collapsed action summary',()=>{
+    const {container}=render(<TranscriptLines active lines={[{...tool,status:'completed'}, {...tool,key:'c2',text:'read main.rs',toolKind:'filesystem',status:'completed'}]}/> )
+    expect(screen.queryByRole('button',{name:/已运行/})).toBeNull()
+    fireEvent.click(screen.getByRole('button',{name:'运行了命令'}))
     expect(container.querySelectorAll('.session-tool-row')).toHaveLength(2)
-    fireEvent.click(screen.getAllByRole('button')[0])
-    expect(screen.getByText('✓ 成功')).toBeTruthy()
-  })
+    fireEvent.click(container.querySelector('.session-tool-row')!)
+    expect(screen.getByText('✓ 成功')).toBeTruthy()  })
   it('shows changed files at the end with a reveal for remaining files',()=>{
     const files=Array.from({length:5},(_,i)=>({path:`src/${i}.rs`,additions:i+1,deletions:1}))
     render(<TranscriptLines lines={[{...tool,status:'completed',changedFiles:files},{type:'agent',text:'已修改',key:'a1'}]}/> )
@@ -47,9 +48,71 @@ describe('Codex style transcript',()=>{
     fireEvent.click(screen.getByRole('button',{name:'再显示 2 个文件'}))
     expect(screen.getByText('src/4.rs')).toBeTruthy()
   })
+  it('opens saved diffs from the final file card',()=>{
+    const files=[{path:'src/main.rs',additions:1,deletions:1,diff:'@@ -1 +1 @@\n-old\n+new'}]
+    const {container}=render(<TranscriptLines lines={[{type:'agent',text:'完成',key:'answer'},{type:'agent',text:'',key:'changes',status:'completed',changedFiles:files}]}/> )
+    fireEvent.click(screen.getByRole('button',{name:'查看变更'}))
+    expect(container.querySelector('.is-added code')?.textContent).toBe('new')
+    expect(container.querySelector('.is-deleted code')?.textContent).toBe('old')
+    expect(container.querySelector('.is-added .session-diff-number')?.textContent).toBe('1')
+    fireEvent.click(screen.getByRole('button',{name:'关闭'}))
+    expect(container.querySelector('.session-change-preview')).toBeNull()
+  })
+  it('shows a floating numbered diff on hover and dismisses it on escape',()=>{
+    const {container}=render(<TranscriptLines lines={[{type:'agent',text:'',key:'changes',status:'completed',changedFiles:[{path:'a.rs',additions:1,deletions:1,diff:'@@ -234,2 +234,2 @@\n context\n-old\n+new'}]}]}/>)
+    fireEvent.mouseEnter(container.querySelector('.session-change-entry')!)
+    expect(container.querySelector('.session-change-preview')).toBeTruthy()
+    expect(container.querySelector('.is-deleted .session-diff-number')?.textContent).toBe('235')
+    fireEvent.keyDown(container.querySelector('.session-changes')!,{key:'Escape'})
+    expect(container.querySelector('.session-change-preview')).toBeNull()
+    expect((screen.getByRole('button',{name:'撤销 ↶'}) as HTMLButtonElement).disabled).toBe(true)
+  })
+  it('keeps narration between separate tool groups and reports hidden failures',()=>{
+    render(<TranscriptLines active lines={[{...tool,status:'completed'},{...tool,key:'c2',toolKind:'patch',status:'failed'},{type:'agent',key:'a',text:'继续检查'}, {...tool,key:'c3',status:'completed'}, {...tool,key:'c4',status:'completed'}]}/> )
+    expect(screen.getByText('编辑了文件运行了命令')).toBeTruthy()
+    expect(screen.getByText('部分执行失败')).toBeTruthy()
+    expect(screen.getByText('继续检查')).toBeTruthy()
+    expect(screen.getByRole('button',{name:'运行了命令'}).getAttribute('aria-expanded')).toBe('false')
+  })
   it('keeps user bubbles and answer prose',()=>{
     const {container}=render(<TranscriptLine line={{type:'user',text:'hello',key:'u1'}}/> )
     expect(container.querySelector('.session-transcript-bubble')?.textContent).toBe('hello')
+  })
+  it('renders a saved numbered diff inside an expanded edit tool',()=>{
+    const {container}=render(<ToolRow line={{...tool,toolKind:'edit',status:'completed',changedFiles:[{path:'a.py',additions:1,deletions:1,diff:'@@ -42 +42 @@\n-old\n+new'}]}}/> )
+    fireEvent.click(container.querySelector('.session-tool-row')!)
+    expect(container.querySelector('.session-tool-diff .is-added code')?.textContent).toBe('new')
+    expect(container.querySelector('.session-tool-diff .is-deleted .session-diff-number')?.textContent).toBe('42')
+  })
+  it('folds completed work above the final answer and keeps markdown intact',()=>{
+    const {container}=render(<TranscriptLines lines={[{type:'user',text:'修复',key:'u'}, {type:'agent',text:'先检查',key:'a',at:100000}, {...tool,status:'completed',end:171000}, {type:'agent',text:'完成 **全部通过**\n\n- `schema.py`\n- 测试',key:'final',at:180000}]}/> )
+    expect(screen.getByRole('button',{name:'用时 1 分 20 秒'}).getAttribute('aria-expanded')).toBe('false')
+    expect(container.querySelector('.session-process-content')?.hasAttribute('hidden')).toBe(true)
+    expect(container.querySelector('.session-transcript-line.is-agent strong')?.textContent).toBe('全部通过')
+    expect(container.querySelector('.session-transcript-line.is-agent time')).toBeNull()
+    fireEvent.click(screen.getByRole('button',{name:'用时 1 分 20 秒'}))
+    expect(screen.getByRole('button',{name:'运行了命令'})).toBeTruthy()
+  })
+  it('preserves tool expansion as the group grows and after folding the process',()=>{
+    const {container,rerender}=render(<TranscriptLines active lines={[tool]}/> )
+    fireEvent.click(container.querySelector('.session-tool-group-summary')!)
+    fireEvent.click(container.querySelector('.session-tool-row')!)
+    rerender(<TranscriptLines active lines={[tool,{...tool,key:'c2'}]}/> )
+    expect(container.querySelector('.session-tool-row')?.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(container.querySelector('.session-process-summary')!)
+    fireEvent.click(container.querySelector('.session-process-summary')!)
+    expect(container.querySelector('.session-tool-row')?.getAttribute('aria-expanded')).toBe('true')
+  })
+  it('automatically folds on completion and isolates consecutive turns',()=>{
+    const lines:SessionLine[]=[{type:'user',text:'修复',key:'u'},tool,{type:'agent',text:'完成',key:'answer'}]
+    const {container,rerender}=render(<TranscriptLines active lines={lines}/> )
+    expect(container.querySelector('.session-process-summary')?.getAttribute('aria-expanded')).toBe('true')
+    rerender(<TranscriptLines lines={lines}/> )
+    expect(container.querySelector('.session-process-summary')?.getAttribute('aria-expanded')).toBe('false')
+    expect(container.querySelector('.session-transcript-line.is-agent')?.textContent).toBe('完成')
+    rerender(<TranscriptLines active lines={[...lines,{type:'user',text:'继续',key:'u2'},{...tool,key:'c2'}]}/> )
+    const summaries=container.querySelectorAll('.session-process-summary')
+    expect([...summaries].map(node=>node.getAttribute('aria-expanded'))).toEqual(['false','true'])
   })
   it('formats seconds, minutes and hours',()=>{
     expect(formatDuration(59000)).toBe('59 秒')
