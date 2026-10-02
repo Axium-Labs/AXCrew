@@ -1,7 +1,7 @@
 //! 检查 / 下载 / 更新系统中安装的 AX。
 //!
 //! 设置页的「本地 AX」要回答三件事：这台机器上有没有 AX、线上最新是哪一版、
-//! 以及一次点击就能把它装上或升级。检查只读 GitHub Releases API；下载与替换
+//! 以及一次点击就能把它装上或升级。检查读取 GitHub Releases，API 不可用时读取官方页面；下载与替换
 //! 交给 AX 自己的 `--update`（自带 SHA256 校验，Windows 上还会等进程退出后再
 //! 换文件）或官方安装脚本，这里不重复实现第二份升级器。
 //!
@@ -12,6 +12,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    sync::Mutex,
     time::{Duration, Instant},
 };
 
@@ -20,6 +21,9 @@ use serde::Serialize;
 use crate::{ax, proc::command};
 
 const RELEASE_API: &str = "https://api.github.com/repos/Axium-Labs/AX/releases/latest";
+const RELEASE_PAGE: &str = "https://github.com/Axium-Labs/AX/releases/latest";
+const CACHE_TTL: Duration = Duration::from_secs(300);
+static LATEST_CACHE: Mutex<Option<(Instant, String)>> = Mutex::new(None);
 const INSTALL_PS1: &str = "https://raw.githubusercontent.com/Axium-Labs/AX/main/scripts/install.ps1";
 #[cfg(not(windows))]
 const INSTALL_SH: &str = "https://raw.githubusercontent.com/Axium-Labs/AX/main/scripts/install.sh";
@@ -82,23 +86,63 @@ fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         // GitHub 的 API 会拒绝没有 User-Agent 的请求。
         .user_agent(concat!("AX-Crew/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(Duration::from_secs(15))
         .timeout(Duration::from_secs(30))
         .build()
         .map_err(|error| error.to_string())
 }
 
-async fn latest_tag(client: &reqwest::Client) -> Result<String, String> {
-    let response = client.get(RELEASE_API).send().await.map_err(|error| format!("无法访问 GitHub Releases：{error}"))?;
-    if !response.status().is_success() {
-        return Err(match response.status().as_u16() {
-            403 | 429 => "GitHub 接口访问过于频繁，请稍后再试".to_owned(),
-            status => format!("GitHub Releases 返回 {status}"),
-        });
+fn valid_tag(tag: &str) -> bool {
+    !tag.is_empty() && tag.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+'))
+        && parse_version(tag).is_some()
+}
+
+fn page_tag(url: &reqwest::Url) -> Result<String, String> {
+    let tag = url.path().strip_prefix("/Axium-Labs/AX/releases/tag/")
+        .filter(|tag| valid_tag(tag));
+    if url.scheme() != "https" || url.host_str() != Some("github.com") || tag.is_none() {
+        return Err("GitHub 官方 Release 页面没有返回有效版本号".into());
     }
-    let release: Release = response.json().await.map_err(|error| format!("无法解析 GitHub Release：{error}"))?;
-    let tag = release.tag_name.trim().to_owned();
-    if tag.is_empty() { return Err("GitHub Releases 没有返回版本号".to_owned()); }
-    Ok(tag)
+    Ok(tag.unwrap().to_owned())
+}
+
+async fn fetch_latest(client: &reqwest::Client, api: &str, page: &str) -> Result<String, String> {
+    let api_result = async {
+        let response = client.get(api).send().await.map_err(|error| error.to_string())?;
+        if !response.status().is_success() {
+            return Err(match response.status().as_u16() {
+                429 => "GitHub API 请求受到限流".to_owned(),
+                403 if response.headers().get("x-ratelimit-remaining").is_some_and(|value| value == "0") =>
+                    "GitHub API 的当前出口 IP 匿名额度已用完".to_owned(),
+                status => format!("GitHub Releases API 返回 {status}"),
+            });
+        }
+        let release: Release = response.json().await.map_err(|error| error.to_string())?;
+        let tag = release.tag_name.trim().to_owned();
+        if !valid_tag(&tag) { return Err("GitHub Releases 没有返回有效版本号".to_owned()); }
+        Ok(tag)
+    }.await;
+    match api_result {
+        Ok(latest) => Ok(latest),
+        Err(api_error) => {
+            // 只读官方页面的跳转目标，不解析 HTML，也不使用第三方镜像。
+            let fallback = async {
+                let response = client.get(page).send().await.map_err(|error| error.to_string())?
+                    .error_for_status().map_err(|error| error.to_string())?;
+                page_tag(response.url())
+            }.await;
+            fallback.map_err(|error| format!("无法检查 AX 更新：{api_error}；官方 Release 页面也无法访问：{error}。请稍后重试或更换网络。"))
+        }
+    }
+}
+
+async fn latest_tag(client: &reqwest::Client) -> Result<String, String> {
+    if let Some((checked, latest)) = LATEST_CACHE.lock().map_err(|e| e.to_string())?.as_ref() {
+        if checked.elapsed() < CACHE_TTL { return Ok(latest.clone()); }
+    }
+    let latest = fetch_latest(client, RELEASE_API, RELEASE_PAGE).await?;
+    *LATEST_CACHE.lock().map_err(|e| e.to_string())? = Some((Instant::now(), latest.clone()));
+    Ok(latest)
 }
 
 fn status(binary: Option<PathBuf>, latest: String, report: Option<String>) -> AxUpdateStatus {
@@ -139,15 +183,23 @@ fn apply(latest: String) -> Result<AxUpdateStatus, String> {
     let updatable = existing.clone().filter(|path| supports_update(path));
     let (report, binary) = match updatable {
         Some(path) => {
-            let report = run_update(&path)?;
+            let report = match run_update(&path) {
+                Ok(report) => report,
+                Err(error) if network_update_error(&error) => {
+                    let installed = run_installer(&latest, path.parent())
+                        .map_err(|fallback| format!("AX 自更新连接失败：{error}\n官方安装脚本也失败：{fallback}"))?;
+                    format!("AX 自更新连接失败，已改用官方安装脚本。\n{installed}")
+                }
+                Err(error) => return Err(error),
+            };
             wait_for_replacement(&path, before.as_deref());
             (report, Some(path))
         }
         // 还没装过，或者装的是没有 `--update` 的旧版本：跑官方安装脚本。
         None => {
-            let report = run_installer()?;
+            let report = run_installer(&latest, existing.as_deref().and_then(Path::parent))?;
             let installed = ax::install_dir().join(ax::executable_name());
-            let binary = installed.is_file().then_some(installed).or(existing).or_else(ax::installed_ax);
+            let binary = existing.or_else(|| installed.is_file().then_some(installed)).or_else(ax::installed_ax);
             (report, binary)
         }
     };
@@ -180,19 +232,32 @@ fn run_update(path: &Path) -> Result<String, String> {
     run_bounded(command, RUN_TIMEOUT)
 }
 
+fn network_update_error(error: &str) -> bool {
+    let error = error.to_ascii_lowercase();
+    // Never retry extraction, checksum or replacement errors through another installer.
+    ["error sending request", "connection refused", "connection reset", "connection failed",
+        "timed out", "timeout", "dns", "403 forbidden", "429 too many requests",
+        "502 bad gateway", "503 service unavailable", "504 gateway timeout"]
+        .iter().any(|needle| error.contains(needle))
+}
+
 #[cfg(windows)]
-fn run_installer() -> Result<String, String> {
+fn run_installer(tag: &str, directory: Option<&Path>) -> Result<String, String> {
     let script = format!("iex ((iwr '{INSTALL_PS1}' -UseBasicParsing).Content)");
     let mut command = command("powershell.exe");
     command.args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", &script]);
+    command.env("AX_VERSION", tag);
+    if let Some(directory) = directory { command.env("AX_INSTALL_DIR", directory); }
     run_bounded(command, RUN_TIMEOUT)
 }
 
 #[cfg(not(windows))]
-fn run_installer() -> Result<String, String> {
+fn run_installer(tag: &str, directory: Option<&Path>) -> Result<String, String> {
     let mut command = command("sh");
     // 安装脚本自己会按 SHA256SUMS 校验下载到的包，与官方一行命令安装完全一致。
     command.args(["-c", &format!("curl -fsSL {INSTALL_SH} | sh")]);
+    command.env("AX_VERSION", tag);
+    if let Some(directory) = directory { command.env("AX_INSTALL_DIR", directory); }
     run_bounded(command, RUN_TIMEOUT)
 }
 
@@ -239,6 +304,56 @@ fn run_bounded(mut command: Command, timeout: Duration) -> Result<String, String
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn installer_fallback_only_handles_network_errors() {
+        assert!(network_update_error("error sending request for url (https://api.github.com/repos/Axium-Labs/AX/releases/latest)"));
+        assert!(network_update_error("HTTP status client error (403 Forbidden)"));
+        assert!(network_update_error("connection timed out"));
+        assert!(!network_update_error("checksum mismatch; existing AX was not changed"));
+        assert!(!network_update_error("cannot stage update beside ax.exe"));
+        assert!(!network_update_error("SHA256SUMS has an invalid or duplicate entry"));
+    }
+
+    #[test]
+    fn fallback_accepts_only_official_release_tags() {
+        for tag in ["v0.2.10", "v0.3.0-beta.1"] {
+            let url = reqwest::Url::parse(&format!("https://github.com/Axium-Labs/AX/releases/tag/{tag}")).unwrap();
+            assert_eq!(page_tag(&url).unwrap(), tag);
+        }
+        for url in [
+            "https://github.com/Axium-Labs/AX/releases/latest",
+            "https://example.com/Axium-Labs/AX/releases/tag/v0.2.10",
+            "https://github.com/other/AX/releases/tag/v0.2.10",
+            "http://github.com/Axium-Labs/AX/releases/tag/v0.2.10",
+            "https://github.com/Axium-Labs/AX/releases/tag/nightly",
+            "https://github.com/Axium-Labs/AX/releases/tag/v0.2.10/evil",
+        ] { assert!(page_tag(&reqwest::Url::parse(url).unwrap()).is_err(), "{url}"); }
+    }
+
+    #[test]
+    fn api_failures_try_the_page_and_report_both_failures() {
+        use std::{io::{Read, Write}, net::TcpListener};
+        for status in [403, 429] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            let server = std::thread::spawn(move || {
+                for (path, code) in [("/api", status), ("/latest", 503)] {
+                    let (mut stream, _) = listener.accept().unwrap();
+                    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+                    let mut request = [0; 4096];
+                    let size = stream.read(&mut request).unwrap();
+                    assert!(String::from_utf8_lossy(&request[..size]).starts_with(&format!("GET {path} ")));
+                    write!(stream, "HTTP/1.1 {code} Error\r\nx-ratelimit-remaining: 0\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                }
+            });
+            let client = reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().unwrap();
+            let error = tauri::async_runtime::block_on(fetch_latest(&client, &format!("{base}/api"), &format!("{base}/latest"))).err().unwrap();
+            assert!(error.contains(if status == 403 { "匿名额度" } else { "限流" }));
+            assert!(error.contains("503"));
+            server.join().unwrap();
+        }
+    }
 
     #[test]
     fn reads_versions_from_ax_and_github() {

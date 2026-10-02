@@ -45,7 +45,7 @@ export function AxUpdater() {
   }
 
   const action = status?.action ?? 'none'
-  const label = action === 'install' ? translate("copy.382") : action === 'update' ? translate("copy.383", {v0:status?.latest_version}) : translate("copy.384")
+  const label = !status ? translate("copy.389") : action === 'install' ? translate("copy.382") : action === 'update' ? translate("copy.383", {v0:status?.latest_version}) : translate("copy.384")
 
   return <section className="settings-card">
     <h2>{translate("copy.385")}</h2>

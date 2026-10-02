@@ -81,5 +81,7 @@ describe('AX 更新面板', () => {
     await user.click(screen.getByRole('button', { name: /检查更新/ }))
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('无法访问 GitHub Releases')
+    expect(screen.queryByRole('button', { name: /已是最新版本/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /尚未检查/ })).toHaveProperty('disabled', true)
   })
 })
