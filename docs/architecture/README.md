@@ -52,7 +52,9 @@ auth/ config/ error/ app.rs           cross-cutting support
 
 ### Rules that keep the boundaries honest
 
-- Domain models never depend on SQLite; only `storage/` may name `rusqlite`.
+- Domain models never depend on SQLite. SQL against Crew's own database lives only
+  in `storage/`; the one other `rusqlite` user is `ax/`, which opens AX's own store
+  read-only and never writes to it.
 - API handlers never execute SQL, never schedule work and never open a transport.
   They call `crate::orchestration` or the `Db` facade.
 - Pure input validation lives in `orchestration/` (for example
@@ -64,6 +66,11 @@ auth/ config/ error/ app.rs           cross-cutting support
 - There is deliberately no `utils`, `common` or `helpers` module. If a helper is
   needed by one layer, it lives in that layer; if it is genuinely shared it gets a
   named module with a single responsibility.
+- `orchestration/` and `transport/` reference each other, and that is the only
+  cycle in the graph. The scheduler drives work through the `Transport` trait,
+  while a transport takes the `ApprovalBroker` from `orchestration::approval` so it
+  can wait for a tool decision. Both directions cross a narrow interface, so the
+  cycle is intentional rather than an entanglement.
 
 ### Why one `server` crate
 

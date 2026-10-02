@@ -64,10 +64,10 @@ pub fn validate_automation(db: &Db, body: &NewAutomation) -> Result<()> {
     if !matches!(body.approval.as_str(), "default" | "auto" | "ask") {
         return Err(anyhow!("approval must be default, auto, or ask"));
     }
-    if let Some(member) = &body.member_id {
-        if db.member(member)?.is_none() {
-            return Err(anyhow!("agent not found"));
-        }
+    if let Some(member) = &body.member_id
+        && db.member(member)?.is_none()
+    {
+        return Err(anyhow!("agent not found"));
     }
     Ok(())
 }

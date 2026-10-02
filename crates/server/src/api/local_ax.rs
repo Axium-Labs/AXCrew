@@ -113,10 +113,10 @@ pub async fn usage(
         .clamp(-840, 840);
     let mut crew = std::collections::HashSet::new();
     for task in app.db.tasks()? {
-        if task.assigned_device == "local" {
-            if let Some(id) = app.db.binding(&task.id)? {
-                crew.insert(id);
-            }
+        if task.assigned_device == "local"
+            && let Some(id) = app.db.binding(&task.id)?
+        {
+            crew.insert(id);
         }
     }
     Ok(Json(

@@ -54,9 +54,9 @@ fn count_message(message: &Value) -> Counts {
             let output = usage["output_tokens"]
                 .as_u64()
                 .or_else(|| usage["completion_tokens"].as_u64());
-            if input.is_some() && output.is_some() {
-                counts.input = input.unwrap();
-                counts.output = output.unwrap();
+            if let (Some(input), Some(output)) = (input, output) {
+                counts.input = input;
+                counts.output = output;
                 counts.cached = usage
                     .pointer("/input_tokens_details/cached_tokens")
                     .or_else(|| usage.pointer("/prompt_tokens_details/cached_tokens"))
@@ -135,7 +135,7 @@ pub fn usage(days: i64, offset: i64, crew: &HashSet<String>) -> Result<Value> {
                 if day < start || day > today {
                     continue;
                 }
-                let counts = count_message(&message);
+                let counts = count_message(message);
                 // Associate user/tool rows only with a model actually reported in that turn.
                 let model = message
                     .pointer("/metadata/usage/model")

@@ -53,16 +53,16 @@ fn normalized(path: &Path) -> PathBuf {
 
 /// AX running through WSL records paths in Linux form in the shared AX home.
 fn host_path(path: &str) -> String {
-    if cfg!(windows) {
-        if let Some(mounted) = path.strip_prefix("/mnt/") {
-            let bytes = mounted.as_bytes();
-            if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b'/' {
-                return format!(
-                    "{}:\\{}",
-                    char::from(bytes[0]).to_ascii_uppercase(),
-                    mounted[2..].replace('/', "\\")
-                );
-            }
+    if cfg!(windows)
+        && let Some(mounted) = path.strip_prefix("/mnt/")
+    {
+        let bytes = mounted.as_bytes();
+        if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b'/' {
+            return format!(
+                "{}:\\{}",
+                char::from(bytes[0]).to_ascii_uppercase(),
+                mounted[2..].replace('/', "\\")
+            );
         }
     }
     path.to_owned()
@@ -91,25 +91,25 @@ pub fn projects() -> Vec<LocalProject> {
             root: display_path(&root),
             data_dir: home.clone(),
         });
-        if let Ok(bytes) = fs::read(home.join("session-projects.json")) {
-            if let Ok(entries) = serde_json::from_slice::<Vec<Value>>(&bytes) {
-                for entry in entries {
-                    let (Some(id), Some(data_dir)) = (
-                        project_id(&entry),
-                        entry["data_dir"].as_str().map(PathBuf::from),
-                    ) else {
-                        continue;
-                    };
-                    let data_dir = normalized(&data_dir);
-                    projects.push(LocalProject {
-                        id,
-                        root: entry["root"]
-                            .as_str()
-                            .map(host_path)
-                            .unwrap_or_else(|| display_path(&data_dir)),
-                        data_dir,
-                    });
-                }
+        if let Ok(bytes) = fs::read(home.join("session-projects.json"))
+            && let Ok(entries) = serde_json::from_slice::<Vec<Value>>(&bytes)
+        {
+            for entry in entries {
+                let (Some(id), Some(data_dir)) = (
+                    project_id(&entry),
+                    entry["data_dir"].as_str().map(PathBuf::from),
+                ) else {
+                    continue;
+                };
+                let data_dir = normalized(&data_dir);
+                projects.push(LocalProject {
+                    id,
+                    root: entry["root"]
+                        .as_str()
+                        .map(host_path)
+                        .unwrap_or_else(|| display_path(&data_dir)),
+                    data_dir,
+                });
             }
         }
     }
@@ -141,18 +141,18 @@ fn preview(project: &LocalProject, session: &str) -> (u64, String) {
         if !preview.is_empty() || messages > 400 {
             continue;
         }
-        if let Ok(message) = serde_json::from_str::<Value>(&line) {
-            if message["role"] == "user" {
-                preview = message["content"]
-                    .as_str()
-                    .unwrap_or("")
-                    .split_whitespace()
-                    .collect::<Vec<_>>()
-                    .join(" ")
-                    .chars()
-                    .take(90)
-                    .collect();
-            }
+        if let Ok(message) = serde_json::from_str::<Value>(&line)
+            && message["role"] == "user"
+        {
+            preview = message["content"]
+                .as_str()
+                .unwrap_or("")
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .chars()
+                .take(90)
+                .collect();
         }
     }
     (messages, preview)

@@ -43,7 +43,9 @@ Do not add handlers or business logic to it.
 - Zero behaviour change unless the task says otherwise: no REST, protocol,
   database-format or configuration breaking changes.
 - `api/` handlers never run SQL, never schedule and never open a transport.
-- Only `storage/` names `rusqlite`. Domain models never depend on SQLite.
+- SQL against Crew's own database lives only in `storage/`. `ax/` is the only other
+  `rusqlite` user and it opens AX's own store read-only. Domain models never depend
+  on SQLite.
 - Desktop and Android reach the server through the API only.
 - No `utils`/`common`/`helpers` modules.
 
