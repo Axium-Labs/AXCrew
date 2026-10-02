@@ -6,16 +6,32 @@
 会话输入框随文本和面板宽度自动增高，达到上限后在框内滚动。设置中的提供商列表使用对齐列，窄窗口自动换行。导入页自动扫描用户目录及当前项目中的 Codex、Cursor、Claude Code、Windsurf 和共享 `.agents/skills` 配置，可勾选技能包或整份 MCP 配置导入当前项目/全局 AX，也支持手动选择路径。扫描只读取配置；导入结果按项显示，同名冲突交由 AX 拒绝，失败项保留供重试。
 
 npm run tauri:dev
-AX Crew now also includes a native [Android control client](android/README.md) in `android/`.
+AX Crew now also includes a native [Android control client](apps/android/README.md) in `apps/android/`.
 It connects to the same computer-hosted Crew Gateway over HTTPS/WSS, with devices,
 Crews/Agents, task submission and streaming, session history, and mobile permission
-approval. See the [desktop-to-Android feature mapping](android/MIGRATION.md) for scope.
+approval. See the [desktop-to-Android feature mapping](docs/architecture/android-migration.md) for scope.
 The desktop's **Settings → 连接与系统 → Android 控制客户端** panel shows the current
 loopback upstream and temporary admin token for configuring your HTTPS reverse proxy.
 The phone does not run AX or connect through SSH. Android development/build/install
-and connection instructions are in [android/README.md](android/README.md).
+and connection instructions are in [apps/android/README.md](apps/android/README.md).
 
-AX Crew is a Rust control plane for the existing [AX](../ax) runtime. It schedules deterministic task DAGs across AX devices, maintains device identity and session bindings, and streams events. AX owns the agent loop, session history, memory, tools, skills, MCP, models, permissions, and credentials. See [DESIGN.md](DESIGN.md) for the source-based call-chain analysis and schema/state machines.
+AX Crew is a Rust control plane for the existing [AX](../ax) runtime. It schedules deterministic task DAGs across AX devices, maintains device identity and session bindings, and streams events. AX owns the agent loop, session history, memory, tools, skills, MCP, models, permissions, and credentials. See [docs/architecture/design.md](docs/architecture/design.md) for the source-based call-chain analysis and schema/state machines.
+
+## Repository layout
+
+The root only organises the product; it holds no code of its own.
+
+| Path | Responsibility |
+|---|---|
+| `crates/server/` | The control plane: REST/WebSocket API, scheduling, storage, transports. The only Cargo workspace member. |
+| `apps/desktop/` | The Tauri 2 + React desktop client (`src/` is the frontend, `src-tauri/` the Rust shell). Its own Cargo project. |
+| `apps/android/` | The native Kotlin/Compose Android control client. |
+| `docs/` | `architecture/`, `protocol/`, `development/`, `releases/`. |
+| `scripts/` | Repository-level build and release scripts. |
+| `tests/` | Process-level integration tests (Python) that drive the built binaries. |
+
+Inside `crates/server/src/` the layering is `domain` → `storage` → `orchestration` → `api`, with `transport/`, `gateway/` and `ax/` forming the communication and AX-adapter boundaries. See [AGENTS.md](AGENTS.md) for the short map and [docs/architecture/README.md](docs/architecture/README.md) for the module responsibilities.
+
 
 ## Build and start
 
@@ -37,6 +53,11 @@ cargo build
 $env:AX_CREW_ADMIN_TOKEN = '<long-random-admin-token>'
 .\target\debug\ax-crew.exe --ax C:\Users\14181\Desktop\axlab\ax\target\debug\ax.exe --database .\crew.sqlite3 --listen 127.0.0.1:8765
 ```
+
+The AXCrew root is a Cargo workspace whose only member is `crates/server`, so
+`cargo build` from the root builds the gateway and leaves the artifact at
+`target/debug/ax-crew.exe`. `cargo build -p ax-crew` and
+`cargo build --manifest-path crates/server/Cargo.toml` are equivalent.
 
 Crew binds loopback by default. A non-loopback bind requires `AX_CREW_ADMIN_TOKEN`. For PC B, expose the gateway through HTTPS/WSS with a TLS reverse proxy that forwards WebSocket upgrades to Crew. Set the admin token whenever the API is reachable beyond the local machine, including through a reverse proxy. All REST query/control routes and `/api/ws` require `Authorization: Bearer <token>` when set. Pair-code redemption and the device gateway are public endpoints protected by the one-time code and Ed25519 challenge respectively. Device private keys never enter Crew's database.
 
@@ -111,11 +132,12 @@ unchanged. Speech credentials have independent reveal buttons.
 
 To preview both workspace release builds without replacing your installed AX,
 quit the existing Crew from its tray, then run
-`desktop/scripts/start-workspace.ps1`. The script sets AX_CREW_AX and
+`scripts/start-workspace.ps1`. The script sets AX_CREW_AX and
 AX_CREW_BACKEND only while starting the app, then restores your shell environment.
 `-CheckOnly` verifies the three build paths without launching anything.
 
-Windows 安装包在覆盖/卸载文件前通过原生 Restart Manager API 注册安装目录中桌面与网关的完整文件路径，释放占用并等待退出，避免遗留网关锁住 `bin/ax-crew.exe`。此处理不启动 PowerShell、不使用编码脚本或 ExecutionPolicy Bypass。使用 `desktop` 下的 `npm run tauri:build` 打包。
+Windows 安装包在覆盖/卸载文件前通过原生 Restart Manager API 注册安装目录中桌面与网关的完整文件路径，释放占用并等待退出，避免遗留网关锁住 `bin/ax-crew.exe`。此处理不启动 PowerShell、不使用编码脚本或 ExecutionPolicy Bypass。使用 `apps/desktop` 下的 `npm run tauri:build` 打包。
+
 
 Desktop Settings > AX also includes the **Subagents** switch. It defaults off,
 saves through AX's `settings --subagent` command and applies on the next agent

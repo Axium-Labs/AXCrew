@@ -10,8 +10,8 @@
 # Packaged portable build output
 /dist-pack/
 
-# Bundled binary staging dir for tauri build (prepare-binaries output)
-/desktop/src-tauri/bin/
+# Bundled binary staging dir for tauri build (scripts/prepare-binaries.mjs output)
+/apps/desktop/src-tauri/bin/
 
 # Packaged installer/binaries copied into repo root
 /AX-Crew*.exe
@@ -23,7 +23,7 @@
 /gateway-restart*.log
 
 # Android UI inspection build artifacts
-/android/uisnoop/
+/apps/android/uisnoop/
 
 # Published binaries are GitHub Release assets
 /release/*.exe
