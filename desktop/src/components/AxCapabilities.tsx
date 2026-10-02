@@ -6,7 +6,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { axImportCapability, axAvailable, axCatalog, axScanCapabilitySources, axManageCapability, type ScopedCapability } from '../lib/ax'
 
 /** Scoped capability management. All resolution and mutations are delegated to AX. */
-export function AxCapabilities({ workspace, home }: { workspace?: string; home?: string }) {
+export function AxCapabilities({ workspace }: { workspace?: string; home?: string }) {
   useLang(state=>state.lang);
 
   const [global,setGlobal] = useState(false),[busy,setBusy] = useState(false),[notice,setNotice] = useState('')
@@ -60,7 +60,6 @@ export function AxCapabilities({ workspace, home }: { workspace?: string; home?:
     <td><button disabled={!axAvailable || busy || !workspace} onClick={() => void manage(kind, item.enabled === false ? 'enable' : 'disable', item.name)}>{item.enabled === false ? copy('启用','Enable') : copy('禁用','Disable')}</button><button disabled={!axAvailable || busy || !workspace} onClick={() => void manage(kind, 'remove', item.name)}>{copy(scope === 'project' && item.scope === 'global' ? '在此屏蔽' : '移除', scope === 'project' && item.scope === 'global' ? 'Disable here' : 'Remove')}</button></td>
   </tr>)}</tbody></table>
   const data = catalog.data
-  const globalSkills = `${(home ?? '~/.ax').replaceAll('\\', '/')}/skills`
 
   return <div className="settings-stack">
     <section className="settings-card">
