@@ -20,7 +20,6 @@ use serde::Serialize;
 
 use crate::{ax, proc::command};
 
-const RELEASE_API: &str = "https://api.github.com/repos/Axium-Labs/AX/releases/latest";
 const RELEASE_PAGE: &str = "https://github.com/Axium-Labs/AX/releases/latest";
 const CACHE_TTL: Duration = Duration::from_secs(300);
 static LATEST_CACHE: Mutex<Option<(Instant, String)>> = Mutex::new(None);
@@ -44,11 +43,6 @@ pub struct AxUpdateStatus {
     /// 只在真正下载或更新之后带上：安装脚本或 `ax --update` 的原始输出。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub report: Option<String>,
-}
-
-#[derive(serde::Deserialize)]
-struct Release {
-    tag_name: String,
 }
 
 /// 解析版本号。`ax --version` 输出 `ax 0.1.0`，GitHub 的 tag 是 `v0.1.1`。
@@ -106,41 +100,19 @@ fn page_tag(url: &reqwest::Url) -> Result<String, String> {
     Ok(tag.unwrap().to_owned())
 }
 
-async fn fetch_latest(client: &reqwest::Client, api: &str, page: &str) -> Result<String, String> {
-    let api_result = async {
-        let response = client.get(api).send().await.map_err(|error| error.to_string())?;
-        if !response.status().is_success() {
-            return Err(match response.status().as_u16() {
-                429 => "GitHub API 请求受到限流".to_owned(),
-                403 if response.headers().get("x-ratelimit-remaining").is_some_and(|value| value == "0") =>
-                    "GitHub API 的当前出口 IP 匿名额度已用完".to_owned(),
-                status => format!("GitHub Releases API 返回 {status}"),
-            });
-        }
-        let release: Release = response.json().await.map_err(|error| error.to_string())?;
-        let tag = release.tag_name.trim().to_owned();
-        if !valid_tag(&tag) { return Err("GitHub Releases 没有返回有效版本号".to_owned()); }
-        Ok(tag)
-    }.await;
-    match api_result {
-        Ok(latest) => Ok(latest),
-        Err(api_error) => {
-            // 只读官方页面的跳转目标，不解析 HTML，也不使用第三方镜像。
-            let fallback = async {
-                let response = client.get(page).send().await.map_err(|error| error.to_string())?
-                    .error_for_status().map_err(|error| error.to_string())?;
-                page_tag(response.url())
-            }.await;
-            fallback.map_err(|error| format!("无法检查 AX 更新：{api_error}；官方 Release 页面也无法访问：{error}。请稍后重试或更换网络。"))
-        }
-    }
-}
-
 async fn latest_tag(client: &reqwest::Client) -> Result<String, String> {
     if let Some((checked, latest)) = LATEST_CACHE.lock().map_err(|e| e.to_string())?.as_ref() {
         if checked.elapsed() < CACHE_TTL { return Ok(latest.clone()); }
     }
-    let latest = fetch_latest(client, RELEASE_API, RELEASE_PAGE).await?;
+    let sources = crate::release_source::UpdateSource::sources("AX");
+    let latest = match crate::release_source::latest(client, &sources).await {
+        Ok(releases) => releases[0].1.tag_name.clone(),
+        Err(source_error) => {
+            let page = client.get(RELEASE_PAGE).send().await.map_err(|error| error.to_string())?
+                .error_for_status().map_err(|error| error.to_string())?;
+            page_tag(page.url()).map_err(|page_error| format!("无法检查 AX 更新：{source_error}；GitHub Release 页面也失败：{page_error}"))?
+        }
+    };
     *LATEST_CACHE.lock().map_err(|e| e.to_string())? = Some((Instant::now(), latest.clone()));
     Ok(latest)
 }
@@ -329,30 +301,6 @@ mod tests {
             "https://github.com/Axium-Labs/AX/releases/tag/nightly",
             "https://github.com/Axium-Labs/AX/releases/tag/v0.2.10/evil",
         ] { assert!(page_tag(&reqwest::Url::parse(url).unwrap()).is_err(), "{url}"); }
-    }
-
-    #[test]
-    fn api_failures_try_the_page_and_report_both_failures() {
-        use std::{io::{Read, Write}, net::TcpListener};
-        for status in [403, 429] {
-            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-            let base = format!("http://{}", listener.local_addr().unwrap());
-            let server = std::thread::spawn(move || {
-                for (path, code) in [("/api", status), ("/latest", 503)] {
-                    let (mut stream, _) = listener.accept().unwrap();
-                    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-                    let mut request = [0; 4096];
-                    let size = stream.read(&mut request).unwrap();
-                    assert!(String::from_utf8_lossy(&request[..size]).starts_with(&format!("GET {path} ")));
-                    write!(stream, "HTTP/1.1 {code} Error\r\nx-ratelimit-remaining: 0\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
-                }
-            });
-            let client = reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().unwrap();
-            let error = tauri::async_runtime::block_on(fetch_latest(&client, &format!("{base}/api"), &format!("{base}/latest"))).err().unwrap();
-            assert!(error.contains(if status == 403 { "匿名额度" } else { "限流" }));
-            assert!(error.contains("503"));
-            server.join().unwrap();
-        }
     }
 
     #[test]

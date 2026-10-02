@@ -5,6 +5,7 @@ mod ax_login;
 mod ax_catalog;
 mod ax_update;
 mod crew_update;
+mod release_source;
 mod proc;
 
 use std::{fs, path::{Component, Path, PathBuf}, process::{Child, Stdio}, sync::{Mutex, atomic::{AtomicBool, Ordering}}};
