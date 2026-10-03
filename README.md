@@ -7,6 +7,8 @@ your machines.
 [![Rust 1.92+](https://img.shields.io/badge/rust-1.92+-orange)](https://www.rust-lang.org)
 [![Release](https://img.shields.io/github/v/release/Axium-Labs/AXCrew)](https://github.com/Axium-Labs/AXCrew/releases/latest)
 
+**English** | [简体中文](README.zh-CN.md)
+
 [AX](https://github.com/Axium-Labs/AX) is a fast, native terminal agent that
 runs on any machine — a laptop, a build server, a GPU box, a cloud VM. AX Crew
 is the control plane on top of it: it pairs those machines, delegates work
