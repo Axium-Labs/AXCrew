@@ -29,6 +29,7 @@ apps/android/
     navigation/CrewApp.kt           Navigation Compose + adaptive shell
     feature/                       ViewModel and feature screens
     ui/                            shared panels, status, fields and theme
+    voice/                         speech recognition and call state (Xfy)
     data/
       SecureConnectionStore.kt     Android Keystore encrypted configuration
       model/                       serializable wire DTOs, conversation/transcript logic

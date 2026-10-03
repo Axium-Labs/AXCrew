@@ -25,7 +25,7 @@ Start it:
 
 ```powershell
 $env:AX_CREW_ADMIN_TOKEN = '<long-random-admin-token>'
-.\target\debug\ax-crew.exe --ax C:\Users\14181\Desktop\axlab\ax\target\debug\ax.exe --database .\crew.sqlite3 --listen 127.0.0.1:8765
+.\target\debug\ax-crew.exe --ax ..\ax\target\debug\ax.exe --database .\crew.sqlite3 --listen 127.0.0.1:8765
 ```
 
 A non-loopback `--listen` requires `AX_CREW_ADMIN_TOKEN`.
@@ -67,6 +67,11 @@ python tests\model_catalog.py C:\path\to\ax.exe .\target\debug\ax-crew.exe
 python tests\workspace_recovery.py .\target\debug\ax-crew.exe
 ```
 
+`tests/smoke.py` uses a local fake model endpoint, two AX processes and the
+Crew server. It covers ACP session setup, local-to-remote DAG execution, live
+event mapping, permission resolution, cancel/retry, disconnect/reconnect with
+the same AX Session, pairing and revocation.
+
 ## Repository-level scripts
 
 | Script | Purpose |
@@ -80,6 +85,7 @@ python tests\workspace_recovery.py .\target\debug\ax-crew.exe
 - A change to a module's responsibility → update
   [architecture/README.md](../architecture/README.md).
 - A change to the REST, WebSocket or ACP contract → update
-  [protocol/README.md](../protocol/README.md) and the root README.
+  [protocol/README.md](../protocol/README.md) and
+  [protocol/api.md](../protocol/api.md).
 - A new command or script → update this page.
 - [AGENTS.md](../../AGENTS.md) stays a short map; detailed explanation belongs here.

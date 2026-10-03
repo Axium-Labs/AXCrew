@@ -4,9 +4,6 @@
 # Local AX project identity (per machine)
 /.ax/
 
-# Agent working notes and memory
-/.workbuddy/
-
 # Packaged portable build output
 /dist-pack/
 
@@ -32,3 +29,18 @@
 
 # Local copies of GitHub Release assets
 /release/
+# Environment / credentials (keep the .env.example template)
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~

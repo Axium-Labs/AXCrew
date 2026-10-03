@@ -9,7 +9,7 @@ AX Crew 的原生 Android 控制客户端。Kotlin、Compose Material 3、Naviga
 使用 Android Studio 打开本目录，安装 Android SDK Platform **36.1** 与 Build Tools **36.1.0**，设置 JDK 17 或 21。项目使用 AGP 9.1.0 内置 Kotlin 2.2.10，Compose/Serialization 插件使用同一版本；Gradle Wrapper 固定 9.3.1。版本兼容参考 [Android 官方 AGP 文档](https://developer.android.com/build/releases/agp-9-1-0-release-notes)。
 
 ```powershell
-cd C:\Users\14181\Desktop\axlab\ax_crew\apps\android
+cd apps\android
 $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug

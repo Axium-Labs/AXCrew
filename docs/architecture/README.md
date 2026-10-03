@@ -11,9 +11,24 @@ against server internals.
 | Document | Contents |
 |---|---|
 | [design.md](design.md) | The source-based AX call-chain analysis, the Crew/AX boundary, the database schema and the state machines. |
+| [storage.md](storage.md) | The SQLite WAL database, what is stored durably and the source-of-truth boundary. |
 | [android-migration.md](android-migration.md) | How each desktop surface maps to the Android client, and what was deliberately not migrated. |
 | [../protocol/README.md](../protocol/README.md) | Where the REST, WebSocket and ACP contracts are defined. |
 | [../development/README.md](../development/README.md) | Build, test and packaging commands. |
+| [../desktop/README.md](../desktop/README.md) | Desktop settings and scoped AX capabilities. |
+
+## Repository layout
+
+The root only organises the product; it holds no code of its own.
+
+| Path | Responsibility |
+|---|---|
+| `crates/server/` | The control plane: REST/WebSocket API, scheduling, storage, transports. The only Cargo workspace member. |
+| `apps/desktop/` | The Tauri 2 + React desktop client (`src/` is the frontend, `src-tauri/` the Rust shell). Its own Cargo project. |
+| `apps/android/` | The native Kotlin/Compose Android control client. |
+| `docs/` | `architecture/`, `protocol/`, `development/`, `desktop/`, `releases/`. |
+| `scripts/` | Repository-level build and release scripts. |
+| `tests/` | Process-level integration tests (Python) that drive the built binaries. |
 
 ## The control plane
 

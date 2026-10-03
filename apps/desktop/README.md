@@ -26,10 +26,10 @@ cargo install tauri-cli --version "^2" --locked
 Build AX and the Crew backend, then start the desktop app:
 
 ```powershell
-cd C:\Users\14181\Desktop\axlab\ax
+cd ..\ax
 cargo build -p cli
 
-cd C:\Users\14181\Desktop\axlab\ax_crew
+cd ..\axcrew
 cargo build
 
 cd apps\desktop
@@ -41,7 +41,7 @@ The last command opens AX Crew and starts Vite and the local Crew backend.
 Keep that terminal open while developing. After the first setup, simply run:
 
 ```powershell
-cd C:\Users\14181\Desktop\axlab\ax_crew\apps\desktop
+cd apps\desktop
 npm run tauri:dev
 ```
 
@@ -51,7 +51,7 @@ source. Development prefers installed AX, then falls back to
 starting the app:
 
 ```powershell
-$env:AX_CREW_AX = 'C:\Users\14181\Desktop\axlab\ax\target\debug\ax.exe'
+$env:AX_CREW_AX = '..\..\ax\target\debug\ax.exe'
 npm run tauri:dev
 ```
 
@@ -69,7 +69,7 @@ the desktop app, its backend, and the integrated terminal.
 Quit the existing AX Crew through its system tray, then run:
 
 ```powershell
-cd C:\Users\14181\Desktop\axlab\ax_crew
+cd ..\..
 .\scripts\start-workspace.ps1
 ```
 
@@ -98,10 +98,10 @@ install or update it, then restart Crew.
 Build the workspace AX release and the desktop installer:
 
 ```powershell
-cd C:\Users\14181\Desktop\axlab\ax
+cd ..\ax
 cargo build -p cli --release
 
-cd C:\Users\14181\Desktop\axlab\ax_crew\apps\desktop
+cd apps\desktop
 npm ci
 npm run tauri:build
 ```
