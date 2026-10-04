@@ -119,6 +119,11 @@ a cloud VM for 24/7 automation — is where you need a control plane.
 3. Open AX Crew, sign in to a model provider, pick a model and a workspace,
    and send your first message.
 
+The desktop composer has a joined project/location strip: click the folder to
+choose a project, or the local-computer pill to open the work-location menu.
+The local option keeps the selected directory; cloud is visibly unavailable.
+Existing sessions keep these controls read-only.
+
 ### Add another machine
 
 Generate a one-time pairing code on the gateway, then on the second machine:

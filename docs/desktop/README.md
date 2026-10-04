@@ -35,11 +35,14 @@ the working directory and execution environment without copying tool state or
 changing the original session.
 
 The new-session page is deliberately clean: no welcome heading or suggestion
-chips. Two workspace tabs sit on top of the composer — a folder tab showing the
-current project directory (click to pick another directory) and a
-"此计算机 / This computer" tab that falls back to the default working
-directory; existing sessions keep their directory fixed and the tabs are
-display-only. The reasoning-effort, Fast-inference and model pickers moved
+chips. An inset workspace strip joins the top edge of the composer. Its
+transparent folder button shows the current project directory (click to pick
+another directory), and its rounded "此计算机 / This computer" button opens
+an upward work-location menu with a check on the local option. Choosing the
+local option preserves the selected project directory. Cloud is shown disabled
+with an unavailable hint because cloud execution is not implemented. Existing
+sessions keep their directory fixed and both controls are display-only.
+The reasoning-effort, Fast-inference and model pickers moved
 into the composer's bottom toolbar (right side, next to the round send
 button); the old footer row below the box is gone. The permission button
 turns orange when YOLO mode is selected.

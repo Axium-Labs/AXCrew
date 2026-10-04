@@ -1,6 +1,6 @@
 [package]
 name = "ax-crew"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 rust-version = "1.92"
 description = "AX Crew control plane: REST/WebSocket gateway, DAG scheduling and device routing for AX runtimes"

@@ -631,3 +631,35 @@ for(const width of [960,1600]){
     await page.screenshot({path:`test-results/discovered-imports-${width}.png`})
   })
 }
+
+
+test('composer work location opens above the joined strip and keeps the project',async({page})=>{
+  await page.setViewportSize({width:1280,height:800})
+  await page.addInitScript(()=>localStorage.setItem('ax-crew-session-layout',JSON.stringify({state:{selectedCwd:'C:/projects/axlab'},version:0})))
+  await page.goto('/#/sessions')
+  const project=page.locator('.session-composer-project')
+  await expect(project).toHaveText('axlab')
+  await page.getByRole('button',{name:'工作位置',exact:true}).click()
+  const menu=page.locator('.session-location-menu')
+  await expect(menu).toBeVisible()
+  await expect(page.getByRole('menuitemradio',{name:'此计算机'})).toHaveAttribute('aria-checked','true')
+  await expect(page.getByRole('menuitemradio',{name:/云端/})).toBeDisabled()
+  const menuBox=(await menu.boundingBox())!
+  const strip=(await page.locator('.session-composer-tabs').boundingBox())!
+  const input=(await page.locator('.session-composer').boundingBox())!
+  expect(menuBox.y+menuBox.height).toBeLessThanOrEqual(strip.y+6)
+  expect(Math.abs(strip.y+strip.height-input.y)).toBeLessThanOrEqual(1)
+  expect(strip.x).toBeGreaterThan(input.x)
+  await page.screenshot({path:'test-results/composer-location-open.png'})
+  await page.getByRole('menuitemradio',{name:'此计算机'}).click()
+  await expect(menu).toBeHidden()
+  await expect(project).toHaveText('axlab')
+  await page.getByRole('button',{name:'工作位置',exact:true}).click()
+  await page.keyboard.press('Escape')
+  await expect(menu).toBeHidden()
+  await expect(page.getByRole('button',{name:'工作位置',exact:true})).toBeFocused()
+  await page.setViewportSize({width:960,height:700})
+  await page.getByRole('button',{name:'工作位置',exact:true}).click()
+  await expect(menu).toBeVisible()
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
+})
