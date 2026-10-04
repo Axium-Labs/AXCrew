@@ -131,7 +131,8 @@ test('light terminal has no black viewport gutter',async({page})=>{
   })
   await page.goto('/#/settings')
   await page.getByRole('button',{name:'显示',exact:true}).click()
-  await page.getByLabel('主题').selectOption('light')
+  await page.getByLabel('主题').click()
+  await page.getByRole('menuitem',{name:'浅色'}).click()
   await expect(page.locator('.settings-page-top h1')).toHaveCSS('color','rgb(56, 54, 67)')
   await page.getByRole('button',{name:'终端',exact:true}).click()
   const screen=page.locator('.terminal-screen')
@@ -179,7 +180,8 @@ test('menus, keyboard shortcuts and saved panel choices work after reload',async
   await expect(page.locator('.session-files-view')).toBeVisible()
   await page.getByRole('link',{name:'设置',exact:true}).click()
   await page.getByRole('button',{name:'显示',exact:true}).click()
-  await page.getByLabel('主题').selectOption('light')
+  await page.getByLabel('主题').click()
+  await page.getByRole('menuitem',{name:'浅色'}).click()
   await page.getByRole('link',{name:'会话',exact:true}).click()
   expect(await page.locator('.shell-titlebar').evaluate(node=>getComputedStyle(node).backgroundColor)).toBe(await page.locator('.session-chat-panel').evaluate(node=>getComputedStyle(node).backgroundColor))
 })
@@ -202,7 +204,8 @@ test('composer shows one quiet focus border in both themes',async({page},testInf
   await page.screenshot({path:`test-results/composer-focus-${testInfo.project.name}.png`})
   await page.getByRole('link',{name:'设置',exact:true}).click()
   await page.getByRole('button',{name:'显示',exact:true}).click()
-  await page.getByLabel('主题').selectOption('light')
+  await page.getByLabel('主题').click()
+  await page.getByRole('menuitem',{name:'浅色'}).click()
   await page.getByRole('link',{name:'会话',exact:true}).click()
   await input.fill('继续输入')
   await expect(input).toHaveCSS('outline-style','none')
@@ -445,7 +448,8 @@ test('settings keeps the reference two-column layout and functional categories',
   await expect(page.getByRole('complementary',{name:'设置分类'}).getByRole('button',{name:'导入 / 导出'})).toBeVisible()
   await page.screenshot({path:'test-results/settings-overview.png'})
   await page.getByRole('button',{name:'显示',exact:true}).click()
-  await page.getByLabel('主题').selectOption('light')
+  await page.getByLabel('主题').click()
+  await page.getByRole('menuitem',{name:'浅色'}).click()
   await expect(page.locator('.settings-workspace')).toHaveCSS('background-color','rgb(255, 255, 255)')
   await page.screenshot({path:'test-results/settings-light.png'})
 })
@@ -481,7 +485,8 @@ test('settings separates connections and system and switches both languages',asy
   await expect(page.getByText('桌面行为')).toBeVisible()
   await expect(page.getByText('公共网关 URL')).toHaveCount(0)
   await page.getByRole('button',{name:'显示',exact:true}).click()
-  await page.getByLabel('语言').selectOption('en')
+  await page.getByLabel('语言').click()
+  await page.getByRole('menuitem',{name:'English',exact:true}).click()
   await page.getByRole('button',{name:'System',exact:true}).click()
   await expect(page.locator('.settings-page-top h1')).toHaveText('System')
   await expect(page.getByText('Desktop behavior')).toBeVisible()
@@ -497,7 +502,9 @@ test('conversation inference button toggles Fast and pickers highlight only on i
     export const axSelectInferenceMode=async(value)=>{mode=value;window.__inferenceMode=value;return mode};
     export const axSelectModel=async()=>state();
     export const axStoreApiKey=async()=>state(),axRefreshModels=async()=>state(),axRemoveCredential=async()=>state();
-    export const axScanCapabilitySources=async()=>[]; export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',axCatalog=async()=>({skills:[],mcp_servers:[],tools:[],warnings:[]});
+    export const axSelectSubagent=async()=>{},axSelectExecution=async()=>state();
+    export function axTuiCommand(){return 'ax tui'}
+    export const axScanCapabilitySources=async()=>[]; export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',axManageCapability=async()=>'ok',axCatalog=async()=>({skills:[],mcp_servers:[],tools:[],warnings:[]});
     export const axCheckUpdate=async()=>({action:'none'}),axApplyUpdate=axCheckUpdate;
   `}))
   await page.goto('/#/sessions')
@@ -603,8 +610,10 @@ for(const width of [960,1600]){
       const state=()=>({providers:['WorkBuddy China','DeepSeek','OpenAI','OpenAI Codex'].map((name,index)=>({id:String(index),name,configured:true,supported:true,source:'AX',models:[],auth_kind:'api_key',model_source:'cache'})),home:'C:/Users/me/.ax',selected_model:null});
       export const axLocalState=async()=>state(),axStoreApiKey=async()=>state(),axRefreshModels=async()=>state(),axRemoveCredential=async()=>state(),axSelectModel=async()=>state(),axSelectInferenceMode=async()=> 'standard';
       export const axCatalog=async()=>({skills:[],mcp_servers:[],tools:[],warnings:[],cwd:'C:/workspace'});
+      export const axSelectSubagent=async()=>{},axSelectExecution=async()=>state();
+      export function axTuiCommand(){return 'ax tui'}
       export const axScanCapabilitySources=async()=>[{id:'codex',name:'Codex',items:[{name:'review',kind:'skill',path:'C:/Users/me/.codex/skills/review'},{name:'MCP · User',kind:'mcp',path:'C:/Users/me/.codex/config.toml'}]}];
-      export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',workspaceFileExists=async()=>false;
+      export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',axManageCapability=async()=>'ok',workspaceFileExists=async()=>false;
       export const axCheckUpdate=async()=>({action:'none'}),axApplyUpdate=axCheckUpdate;
     `}))
     await page.goto('/#/settings/models')

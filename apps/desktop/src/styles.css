@@ -165,4 +165,8 @@
 .ax-field:focus,.ax-field:focus-visible{outline:none;border-color:var(--color-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--color-accent) 22%,transparent)}
 select.ax-field{cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 15px) calc(50% - 1px),calc(100% - 10px) calc(50% - 1px);background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:28px;color:var(--color-foreground)}
 select.ax-field option{background:var(--color-surface-raised);color:var(--color-foreground)}
+/* Native select popups cannot be fully themed on Windows; keep their items on the
+   app surface so the few remaining selects (models, backup scope, move-project)
+   do not flash a white OS list inside the dark shell. */
+select option,select optgroup{background:var(--color-surface-raised);color:var(--color-foreground)}
 textarea.ax-field{line-height:1.6}

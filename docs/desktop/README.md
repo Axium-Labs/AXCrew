@@ -34,6 +34,16 @@ branch button opens an independent session from the text before it, inheriting
 the working directory and execution environment without copying tool state or
 changing the original session.
 
+The new-session page is deliberately clean: no welcome heading or suggestion
+chips. Two workspace tabs sit on top of the composer — a folder tab showing the
+current project directory (click to pick another directory) and a
+"此计算机 / This computer" tab that falls back to the default working
+directory; existing sessions keep their directory fixed and the tabs are
+display-only. The reasoning-effort, Fast-inference and model pickers moved
+into the composer's bottom toolbar (right side, next to the round send
+button); the old footer row below the box is gone. The permission button
+turns orange when YOLO mode is selected.
+
 The input area shows the number of successfully modified files and inserted /
 deleted lines for the current turn, updated live while work is in progress;
 clicking the summary opens the diff in the right panel. After a turn, the
@@ -48,6 +58,12 @@ restored from "Show deleted"; AX history is preserved. Language switching
 translates interface controls while leaving user text, generated answers and
 package descriptions unchanged. Speech credentials have independent reveal
 buttons.
+
+The language and theme pickers in Settings → Display use the app's shared
+dropdown menu (same dark/light panel as every other menu in the shell) instead
+of native `<select>` popups, which the OS renders in its own style. The few
+remaining native selects (model picker, backup scope, move-to-project) style
+their option lists with the app surface colors as a fallback.
 
 After a task stops, the chat keeps the tool calls and output it already
 received; refreshing history merges and deduplicates by call ID. Long-running

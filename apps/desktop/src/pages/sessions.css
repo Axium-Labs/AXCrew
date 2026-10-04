@@ -88,13 +88,6 @@
 .session-header-icon{width:34px;height:34px;flex:none;border-color:transparent;color:var(--session-muted);text-decoration:none;transition:background-color var(--dur-quick) ease,color var(--dur-quick) ease,transform var(--dur-quick) var(--ease-out)}.session-header-icon:active{transform:scale(.94)}
 .session-header-spacer{flex:1}
 .session-chat-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
-.session-welcome{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:40px 25px 55px}
-.session-welcome-title{display:flex;align-items:center}
-.session-welcome h1{margin:0;color:var(--session-text);font-size:clamp(27px,3.2vw,53px);font-weight:650;letter-spacing:-.06em;line-height:1.2;white-space:nowrap}
-.session-suggestions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:980px}
-.session-suggestions button{min-height:37px;padding:6px 14px;border:1px solid var(--session-border);border-radius:13px;background:var(--session-bg);color:var(--session-muted);font-size:13px;white-space:nowrap;transition:background-color var(--dur-quick) ease,border-color var(--dur-quick) ease,color var(--dur-quick) ease,transform var(--dur-quick) var(--ease-out)}.session-suggestions button:active{transform:scale(.97)}
-.session-suggestions button:hover{border-color:var(--session-accent);color:var(--session-text);background:var(--session-hover)}
-.session-suggestions .session-refresh-suggestions{width:35px;padding:0;border:0}
 
 /* Conversations that already live in the local AX store: listed above the Crew
    ones, read in place, and adopted into Crew only when the user continues them. */
@@ -226,6 +219,13 @@
 .session-composer-wrap .session-inline-error{max-width:1040px;margin:0 auto;padding:8px 21px}
 
 .session-composer-wrap{position:relative;flex:none;padding:0 clamp(14px,2vw,28px) 0}
+/* Workspace tabs sitting on top of the composer like a folder / this-machine switcher. */
+.session-composer-tabs{max-width:1040px;margin:0 auto 8px;display:flex;align-items:center;gap:8px}
+.session-composer-tab{display:inline-flex;align-items:center;gap:6px;max-width:260px;padding:7px 14px;border:1px solid var(--session-border);border-radius:11px;background:var(--session-panel);color:var(--session-muted);font-size:12.5px;transition:background-color var(--dur-quick) ease,color var(--dur-quick) ease,border-color var(--dur-quick) ease}
+.session-composer-tab span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.session-composer-tab:hover{color:var(--session-text);background:var(--session-hover)}
+.session-composer-tab.is-active{border-bottom-left-radius:4px;border-bottom-right-radius:4px;border-color:color-mix(in srgb,var(--session-accent) 35%,var(--session-border));background:var(--session-selected);color:var(--session-text)}
+.session-composer-tab:disabled{opacity:1;color:var(--session-text);background:var(--session-panel)}
 .session-composer{max-width:1040px;min-height:113px;margin:0 auto;border:1px solid var(--session-border);border-radius:21px;background:var(--session-panel);box-shadow:0 3px 20px #0000000a}
 .session-composer:focus-within{border-color:color-mix(in srgb,var(--session-accent) 55%,var(--session-border))}
 .session-image-previews{display:flex;gap:8px;padding:12px 16px 0;overflow-x:auto}
@@ -240,9 +240,11 @@
 .session-composer-icon:hover{background:var(--session-hover);color:var(--session-text)}
 .session-composer-permission{display:flex;align-items:center;gap:5px;padding:6px 8px;border:0;border-radius:9px;background:transparent;color:var(--session-muted);font-size:12px;white-space:nowrap;transition:background-color var(--dur-quick) ease,color var(--dur-quick) ease}
 .session-composer-permission:hover{background:var(--session-hover);color:var(--session-text)}
+.session-composer-permission.is-full{color:#e0823c}
+.session-composer-permission.is-full:hover{background:color-mix(in srgb,#e0823c 14%,transparent);color:#e89457}
 .ax-menu-item small{display:block;margin-top:3px;color:var(--session-muted);font-size:11px;line-height:1.35}
 .session-composer-spacer{flex:1}
-.session-send-button{width:36px;height:36px;flex:none;display:grid;place-items:center;border:0;border-radius:50%;background:var(--session-accent);color:white;box-shadow:0 2px 8px -3px var(--session-accent);transition:background-color var(--dur-quick) ease,box-shadow var(--dur-soft) var(--ease-soft),transform var(--dur-quick) var(--ease-out)}.session-send-button:active:not(:disabled){transform:scale(.92)}
+.session-send-button{width:36px;height:36px;flex:none;display:grid;place-items:center;border:0;border-radius:50%;background:#3577f2;color:white;box-shadow:0 2px 8px -3px #3577f2;transition:background-color var(--dur-quick) ease,box-shadow var(--dur-soft) var(--ease-soft),transform var(--dur-quick) var(--ease-out)}.session-send-button:active:not(:disabled){transform:scale(.92)}
 .session-send-button:hover{filter:brightness(1.08)}
 .session-send-button:disabled{opacity:.48;filter:none}
 .session-stop-button{background:var(--session-text);color:var(--session-bg);box-shadow:none}
@@ -294,19 +296,16 @@
 .session-side-quotes>div{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--session-border);border-radius:10px;color:var(--session-muted);font-size:12px}
 .session-side-quotes span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .session-side-quotes button{border:0;background:transparent;color:inherit;padding:0}
-.session-composer-footer{max-width:1006px;height:34px;display:flex;align-items:center;gap:20px;margin:0 auto;color:var(--session-muted);font-size:11px}
-.session-composer-footer button{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:100%;padding:3px 5px;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;cursor:pointer}
-.session-composer-footer button:hover{background:var(--session-hover);color:var(--session-text)}
-.session-composer-footer button:disabled{opacity:.75;cursor:default}
-.session-footer-path{flex:1;overflow:hidden;white-space:nowrap;text-align:left}
-.session-footer-path span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .session-footer-auto{flex:none}
-/* Thinking-effort picker: a compact rounded chip sitting left of the model picker. */
-.session-composer-footer button.session-footer-thinking{margin-left:auto;flex:none;padding:3px 10px;border-radius:9px}
-.session-composer-footer button.session-footer-thinking:hover,.session-composer-footer button.session-footer-thinking:focus-visible,.session-composer-footer button.session-footer-thinking[data-state="open"],.session-composer-footer button.session-footer-auto:focus-visible,.session-composer-footer button.session-footer-auto[data-state="open"]{background:var(--session-selected);color:var(--session-text)}
+/* Thinking-effort picker: a compact rounded chip sitting left of the model picker,
+   now inside the composer toolbar (the old footer row is gone). */
+.session-composer-actions button.session-footer-thinking,.session-composer-actions button.session-footer-auto{display:inline-flex;align-items:center;gap:4px;flex:none;min-width:0;max-width:180px;padding:5px 10px;border:0;border-radius:9px;background:transparent;color:var(--session-muted);font:inherit;font-size:11.5px;white-space:nowrap}
+.session-composer-actions button.session-footer-thinking svg,.session-composer-actions button.session-footer-auto svg{flex:none}
+.session-composer-actions button.session-footer-thinking:hover,.session-composer-actions button.session-footer-thinking:focus-visible,.session-composer-actions button.session-footer-thinking[data-state="open"],.session-composer-actions button.session-footer-auto:hover,.session-composer-actions button.session-footer-auto:focus-visible,.session-composer-actions button.session-footer-auto[data-state="open"]{background:var(--session-selected);color:var(--session-text)}
 .session-fast-control{position:relative;display:inline-flex}
-.session-composer-footer button.session-footer-fast{padding:5px;border-radius:9px}
-.session-composer-footer button.session-footer-fast[aria-pressed="true"]{color:var(--session-accent);background:var(--session-selected)}
+.session-composer-actions button.session-footer-fast{height:33px;width:33px;padding:0;border:0;border-radius:10px;background:transparent;color:var(--session-muted);display:inline-flex;align-items:center;justify-content:center}
+.session-composer-actions button.session-footer-fast:hover{background:var(--session-hover);color:var(--session-text)}
+.session-composer-actions button.session-footer-fast[aria-pressed="true"]{color:var(--session-accent);background:var(--session-selected)}
 .session-fast-tooltip{display:none;position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);padding:9px 13px;border-radius:15px;background:#191b1e;color:#fff;white-space:nowrap;font-size:13px;line-height:1.45;box-shadow:0 4px 18px #0002;pointer-events:none;z-index:20}
 .session-fast-tooltip strong,.session-fast-tooltip small{display:block;font-weight:400;font-size:inherit}
 .session-fast-tooltip small{color:#c5c6c8}
@@ -365,18 +364,12 @@
 .session-permission-request>div{display:flex;gap:8px;flex-wrap:wrap}
 .session-run-status{max-width:1040px;margin:0 auto 6px;color:var(--session-muted);font-size:12px}
 .session-run-status:empty{display:none}
-.session-welcome-title{max-width:100%}
-.session-welcome h1{white-space:normal}
-.session-suggestions button{white-space:normal}
 @container session-content (max-width:950px){
   .has-session-list .session-right-panel{position:absolute;z-index:25;top:0;right:0;bottom:0;box-shadow:-12px 0 28px #0002}
   .has-session-list.has-right-panel .session-right-panel{width:min(380px,70%)}
   .has-session-list .session-right-panel.is-closed{bottom:auto;height:54px;box-shadow:none}
   .has-session-list.has-right-panel .session-right-backdrop{display:block;position:absolute;inset:0;z-index:24;border:0;background:#0003}
   .has-session-list .session-chat-panel{margin-right:48px}
-  .session-welcome{padding:20px 16px;gap:20px}
-  .session-welcome-title{gap:0}
-  .session-welcome h1{font-size:clamp(24px,4cqw,44px)}
 }
 @container session-content (max-width:600px){
   .session-list-panel{width:220px}

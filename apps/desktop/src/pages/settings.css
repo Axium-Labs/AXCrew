@@ -41,6 +41,13 @@
 .settings-card select,.settings-card input:not([type=checkbox]){height:33px;min-width:0;padding:0 10px;border:1px solid var(--shell-border);border-radius:10px;outline:0;background:var(--shell-input);color:var(--shell-text);transition:border-color var(--dur-quick) ease,box-shadow var(--dur-quick) ease}
 .settings-card select:focus-visible,.settings-card input:focus-visible,.settings-search:focus-within{border-color:var(--shell-accent);outline:0;box-shadow:0 0 0 3px color-mix(in srgb,var(--shell-accent) 22%,transparent)}
 .settings-card select{max-width:100%}
+/* Select-style trigger for the shared dropdown menu: same shape as the native select
+   above, but its popup is the app-styled ax-menu instead of the OS one. */
+.settings-select-menu{display:inline-flex;align-items:center;gap:9px;height:33px;max-width:100%;padding:0 10px;border:1px solid var(--shell-border);border-radius:10px;background:var(--shell-input);color:var(--shell-text);font:inherit;cursor:pointer;transition:border-color var(--dur-quick) ease,box-shadow var(--dur-quick) ease}
+.settings-select-menu span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-select-menu svg{flex:none;color:var(--shell-muted)}
+.settings-select-menu:hover{border-color:color-mix(in srgb,var(--shell-accent) 45%,var(--shell-border))}
+.settings-select-menu:focus-visible,.settings-select-menu[data-state="open"]{border-color:var(--shell-accent);outline:0;box-shadow:0 0 0 3px color-mix(in srgb,var(--shell-accent) 22%,transparent)}
 .settings-login-row>select{width:min(100%,460px);min-width:200px}
 .settings-login-row,.settings-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:10px 0}
 .settings-login-row input{flex:1;min-width:180px}
