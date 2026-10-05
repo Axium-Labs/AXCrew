@@ -100,3 +100,7 @@ durable event payload. AX's own project `.ax` directory remains the source of
 truth for session conversation and memory. See
 [architecture/storage.md](../architecture/storage.md) for the schema and
 durability rules.
+
+## Distributed API (additive)
+
+`/api/distributed` exposes scoped worker credentials, durable Tasks/Events/Workflows, lease fencing and immutable artifact exchange. It is separate from legacy device pairing and task APIs. See the canonical [Distributed Collaboration REST contract](../distributed-collaboration.md#rest-contract); existing authentication/error/route contracts are unchanged.

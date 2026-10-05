@@ -9,6 +9,7 @@ pub mod automations;
 pub mod composer;
 pub mod crews;
 pub mod devices;
+pub mod distributed;
 pub mod events;
 pub mod local_ax;
 pub mod pairing;
@@ -33,6 +34,47 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 /// routes, then the state is attached, then CORS wraps everything.
 pub fn router(state: App) -> Router {
     Router::new()
+        .route("/api/distributed", get(distributed::state))
+        .route("/api/distributed/catalog", get(distributed::catalog))
+        .route("/api/distributed/events", get(distributed::events))
+        .route("/api/distributed/enroll", post(distributed::enroll))
+        .route("/api/distributed/tasks", post(distributed::submit))
+        .route("/api/distributed/tasks/{id}", get(distributed::task))
+        .route(
+            "/api/distributed/workflows/{id}",
+            get(distributed::workflow),
+        )
+        .route(
+            "/api/distributed/workflows/{id}/checkpoint",
+            post(distributed::checkpoint),
+        )
+        .route(
+            "/api/distributed/tasks/{id}/{action}",
+            post(distributed::control),
+        )
+        .route("/api/distributed/worker/start", post(distributed::start))
+        .route(
+            "/api/distributed/worker/identity",
+            get(distributed::identity),
+        )
+        .route(
+            "/api/distributed/worker/heartbeat",
+            post(distributed::heartbeat),
+        )
+        .route("/api/distributed/worker/report", post(distributed::report))
+        .route(
+            "/api/distributed/{kind}/{id}/enabled",
+            post(distributed::enable),
+        )
+        .route(
+            "/api/distributed/hosts/{id}/resources",
+            post(distributed::resources),
+        )
+        .route("/api/distributed/artifacts", post(distributed::upload))
+        .route(
+            "/api/distributed/artifacts/{id}",
+            get(distributed::download),
+        )
         .route("/api/health", get(system::health))
         .route("/api/settings", get(system::settings))
         .route("/api/devices", get(devices::devices))

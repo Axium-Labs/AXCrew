@@ -4,6 +4,7 @@
 pub mod automations;
 pub mod crews;
 pub mod devices;
+pub mod distributed;
 pub mod events;
 pub mod pairing;
 pub mod sessions;

@@ -7,6 +7,7 @@
 pub mod automation;
 pub mod crew;
 pub mod device;
+pub mod distributed;
 pub mod session;
 pub mod task;
 

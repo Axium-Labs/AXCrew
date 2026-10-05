@@ -14,6 +14,7 @@ async fn main() -> Result<()> {
     let app = App::build(&args)?;
     tokio::spawn(app.scheduler.clone().run());
     tokio::spawn(app.scheduler.clone().run_automations());
+    tokio::spawn(ax_crew::orchestration::distributed::run(app.db.clone()));
     let routes = api::router(app);
     let listener = tokio::net::TcpListener::bind(args.listen).await?;
     eprintln!("AX Crew listening on {}", args.listen);

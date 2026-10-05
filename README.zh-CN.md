@@ -48,7 +48,7 @@ AX Crew 是为 AX 打造的一个 Rust 控制平面。它与 AX 一起运行—�
 
 - **AX 是 Agent。** 它在自己的机器上拥有 Agent 循环、会话历史、记忆、工具、技能、MCP、模型、权限与凭证。
 - **Crew 是控制平面。** 它连接机器（配对、身份、路由），控制它们（会话、权限、终端），并编排它们（任务 DAG、自动化、重试、取消）。
-- **边界清晰。** Crew 从不解读模型输出，也不存储 Agent 消息、记忆或凭证。AX 依然是 AX；Crew 只负责协调。
+- **边界清晰。** Crew 不解读模型输出，不复制 AX 的完整 Session / Memory 或模型凭证；分布式协作只保存所需结果、检查点与明确发布的 Artifact。
 
 ## 为什么需要它
 
@@ -153,3 +153,7 @@ cargo test --workspace
 ## 许可证
 
 MIT。见 [crates/server/Cargo.toml](crates/server/Cargo.toml)。
+
+## 可选的 Distributed Collaboration
+
+AX 0.3.7 / AXCrew 0.3.3 新增侧边栏「分布式协作」与 `/api/distributed` 控制层，区分 Host、AX Instance 与 Execution；允许一台 Host 多个 AX，一个 AX 并发执行多个任务。AXCrew 结合 AX 能力和 Host 资源统一管理分配、租约、重试、取消与恢复。AX 通过 Durable Task、Event、Artifact、Workflow State 异步协作，无须高频直接通信或持续存活的 Coordinator Agent。在管理页注册实例、下载配置，在各机器运行 `ax crew worker worker.json`。普通 AX 和原有 Crew 控制方式仍可独立使用。见 [完整配置、API 与限制](docs/distributed-collaboration.md)。

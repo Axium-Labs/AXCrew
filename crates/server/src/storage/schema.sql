@@ -18,3 +18,7 @@ CREATE TABLE IF NOT EXISTS client_pairings(code_hash TEXT PRIMARY KEY,expires_at
 CREATE TABLE IF NOT EXISTS client_authorizations(device_id TEXT PRIMARY KEY,name TEXT NOT NULL,platform TEXT NOT NULL,credential_hash TEXT NOT NULL,created_at INTEGER NOT NULL,last_active INTEGER NOT NULL DEFAULT 0,revoked_at INTEGER);
 CREATE TABLE IF NOT EXISTS app_settings(key TEXT PRIMARY KEY,value_json TEXT NOT NULL);
 PRAGMA user_version=3;
+-- Additive, independent of legacy devices/tasks/session bindings.
+CREATE TABLE IF NOT EXISTS distributed_cluster (id INTEGER PRIMARY KEY CHECK(id=1), state TEXT NOT NULL);
+INSERT OR IGNORE INTO distributed_cluster(id,state) VALUES(1,'{"revision":0,"hosts":{},"instances":{},"tasks":{},"artifacts":{},"events":[]}');
+CREATE TABLE IF NOT EXISTS distributed_blobs (sha256 TEXT PRIMARY KEY, content BLOB NOT NULL);

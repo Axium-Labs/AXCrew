@@ -207,3 +207,7 @@ Settings → 连接与系统 → AX Crew 版本更新 checks the latest official
 Build Windows with `npm run tauri:build`. Publish the installer as `AX-Crew-<version>-windows-x64-setup.exe` with `SHA256SUMS` and the signed Android APK under the same version tag. The updater uses this asset naming contract. Windows installers currently have no Authenticode signature.
 
 Android release signing reads AXCREW_ANDROID_KEYSTORE, AXCREW_ANDROID_STORE_PASSWORD, AXCREW_ANDROID_KEY_ALIAS, and AXCREW_ANDROID_KEY_PASSWORD from the build environment. Keep the keystore and passwords backed up outside the repository; future APK updates need the same key.
+
+## 分布式协作
+
+侧边栏「分布式协作」管理 Host、AX Instance、Workflow、Task、Artifact 与 Event。可注册多个同 Host 实例、配置资源和并发、下载独立 worker 配置、提交带能力/资源/依赖要求的任务、查看错误与检查点、取消/重试和下载产物。新接口与原有会话/设备控制并存。见 [控制层与部署说明](../../docs/distributed-collaboration.md)。

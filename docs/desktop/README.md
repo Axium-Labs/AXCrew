@@ -104,3 +104,7 @@ resolution and mutations to AX's shared registry via ACP/CLI; this requires an
 AX binary with `_ax/scopedCapabilities` support. Project capability files live
 under `<project>/.ax`, and named Agent instructions load only when delegated
 to.
+
+## Distributed management
+
+The **分布式协作 / Distributed** sidebar entry opens `/distributed`. Host, AX Instance, Workflow, Task, Artifact and Event tabs support shared resource administration, enrollment/config download, constrained task creation, attempt/error/checkpoint inspection, central cancellation/retry and artifact download. This optional surface is independent of legacy Sessions, devices and local AX settings. See [Distributed Collaboration](../distributed-collaboration.md) for policy and worker setup.

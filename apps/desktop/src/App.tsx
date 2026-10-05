@@ -26,9 +26,10 @@ import { ActivityPage } from './pages/Activity'
 import { Settings } from './pages/Settings'
 import { Schedule } from './pages/Schedule'
 import { Artifacts } from './pages/Artifacts'
+import { Distributed } from './pages/Distributed'
 import './styles.css'
 
-const primaryNav=[['/sessions','nav.sessions',MessagesSquare],['/schedule','nav.schedule',CalendarDays],['/artifacts','nav.artifacts',Package]] as const
+const primaryNav=[['/sessions','nav.sessions',MessagesSquare],['/schedule','nav.schedule',CalendarDays],['/artifacts','nav.artifacts',Package],['/distributed','nav.distributed',Users]] as const
 const utilityNav=[['/connect','nav.connect',Smartphone],['/devices/local','nav.capabilities',Sparkles],['/settings','nav.settings',Settings2]] as const
 const nav=[...primaryNav,...utilityNav,['/overview','nav.overview',House],['/crews','nav.crews',Users],['/tasks','nav.tasks',ListTodo],['/devices','nav.devices',Monitor],['/activity','nav.activity',Activity]] as const
 function Shell(){
@@ -89,7 +90,7 @@ function Shell(){
       </nav>
     </aside>
     <div className={`main ${terminalDockClass(terminal.position)}`}>
-      <main className={`content ${sessionView?'content-session':''}`}><Routes><Route path="/" element={<Navigate to="/sessions" replace/>}/><Route path="/overview" element={<Home/>}/><Route path="/crews" element={<Crews/>}/><Route path="/crews/:id" element={<CrewDetail/>}/><Route path="/crews/:id/members/:memberId" element={<MemberWorkspace/>}/><Route path="/tasks" element={<Tasks/>}/><Route path="/tasks/:id" element={<TaskDetail/>}/><Route path="/devices" element={<Devices/>}/><Route path="/devices/:id" element={<DeviceDetail/>}/><Route path="/connect" element={<ConnectPhone/>}/><Route path="/sessions/:id?" element={<SessionsWorkspace/>}/><Route path="/schedule" element={<Schedule/>}/><Route path="/artifacts" element={<Artifacts/>}/><Route path="/activity" element={<ActivityPage/>}/><Route path="/settings/:section?" element={<Settings/>}/></Routes></main>
+      <main className={`content ${sessionView?'content-session':''}`}><Routes><Route path="/" element={<Navigate to="/sessions" replace/>}/><Route path="/overview" element={<Home/>}/><Route path="/crews" element={<Crews/>}/><Route path="/crews/:id" element={<CrewDetail/>}/><Route path="/crews/:id/members/:memberId" element={<MemberWorkspace/>}/><Route path="/tasks" element={<Tasks/>}/><Route path="/tasks/:id" element={<TaskDetail/>}/><Route path="/devices" element={<Devices/>}/><Route path="/devices/:id" element={<DeviceDetail/>}/><Route path="/connect" element={<ConnectPhone/>}/><Route path="/sessions/:id?" element={<SessionsWorkspace/>}/><Route path="/schedule" element={<Schedule/>}/><Route path="/artifacts" element={<Artifacts/>}/><Route path="/distributed" element={<Distributed/>}/><Route path="/activity" element={<ActivityPage/>}/><Route path="/settings/:section?" element={<Settings/>}/></Routes></main>
       <TerminalDock cwd={terminalCwd??backend.data?.default_cwd} theme={theme==='light'||theme==='system'&&!window.matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'}/>
     </div>
     </div>

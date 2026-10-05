@@ -1,10 +1,11 @@
 # Protocol
 
-The protocol is defined in exactly three places. This page exists to point at
+The protocol is defined in the canonical documents below. This page exists to point at
 them instead of restating them, so the contract cannot drift out of sync.
 
 | Contract | Canonical description | Implementation |
 |---|---|---|
+| Distributed Tasks, Workflow State, Events, Artifacts and worker leases | [distributed-collaboration.md](../distributed-collaboration.md) | `api/distributed.rs`, `orchestration/distributed.rs` |
 | Crew REST API and `CrewEvent` WebSocket stream | [api.md](api.md) | `crates/server/src/api/` |
 | ACP (JSON-RPC 2.0 over stdio and the routed gateway envelope) | [design.md, "Protocol framing"](../architecture/design.md) | `crates/server/src/transport/` |
 | Device gateway handshake (Ed25519 challenge, heartbeats) | [design.md, "State machines"](../architecture/design.md) | `crates/server/src/gateway/` |

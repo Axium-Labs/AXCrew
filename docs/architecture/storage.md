@@ -1,8 +1,9 @@
 # Storage
 
-Crew keeps its own SQLite WAL database, separate from AX. It stores only
-orchestration metadata — never agent messages, memory, provider credentials or
-tool history.
+Crew keeps its own SQLite WAL database, separate from AX. It stores orchestration metadata and final task results. Optional distributed
+collaboration additionally stores selected workflow checkpoints, observations and
+Artifact bytes, including explicitly published logs/transcripts. Complete AX
+session and memory stores are not replicated; provider credentials stay local.
 
 ## What is stored
 
@@ -12,6 +13,7 @@ tool history.
 - A redacted event index
 - Automations and automation runs
 - Application settings
+- Optional distributed cluster state, workflow checkpoints and artifact blobs
 
 A task's final output is kept as its result. Message deltas, tool arguments and
 permission inputs are broadcast live over the event stream but excluded from
@@ -29,7 +31,7 @@ reach Crew's database.
 The full schema (`devices`, `pairings`, `crews`, `crew_members`, `tasks`,
 `task_dependencies`, `task_runs`, `session_bindings`, `events`, `automations`,
 `automation_runs`, `client_pairings`, `client_authorizations`,
-`app_settings`) and the state machines are documented in
+`app_settings`, `distributed_cluster`, `distributed_blobs`) and the state machines are documented in
 [design.md](design.md). Foreign keys are on; dependency and state updates are
 transactional; the migration version lives in `PRAGMA user_version`.
 `schema.sql` is idempotent, so an existing database opens without a conversion

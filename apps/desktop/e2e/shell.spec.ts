@@ -88,7 +88,7 @@ test('the whole brand row toggles the sidebar and no separator rules are drawn',
 test('sidebar groups and terminal docking follow the shell layout',async({page})=>{
   await page.setViewportSize({width:1280,height:800})
   await page.goto('/#/sessions')
-  await expect(page.locator('.sidebar-primary .nav-item')).toHaveText(['会话','计划','产物'])
+  await expect(page.locator('.sidebar-primary .nav-item')).toHaveText(['会话','计划','产物','分布式协作'])
   await expect(page.locator('.sidebar-utilities .nav-item')).toHaveText(['终端','连接手机','代理能力','设置'])
   await page.getByRole('button',{name:'终端',exact:true}).click()
   await expect(page.locator('.terminal-dock')).toHaveClass(/is-bottom.*is-open/)

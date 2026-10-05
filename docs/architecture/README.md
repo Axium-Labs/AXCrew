@@ -10,6 +10,7 @@ against server internals.
 
 | Document | Contents |
 |---|---|
+| [../distributed-collaboration.md](../distributed-collaboration.md) | Additive distributed models, storage, orchestration and API modules. |
 | [design.md](design.md) | The source-based AX call-chain analysis, the Crew/AX boundary, the database schema and the state machines. |
 | [storage.md](storage.md) | The SQLite WAL database, what is stored durably and the source-of-truth boundary. |
 | [android-migration.md](android-migration.md) | How each desktop surface maps to the Android client, and what was deliberately not migrated. |

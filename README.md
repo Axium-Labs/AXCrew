@@ -66,9 +66,9 @@ into one fleet.
 - **Crew is the control plane.** It connects machines (pairing, identity,
   routing), controls them (sessions, permissions, terminal) and orchestrates
   them (task DAGs, automations, retries, cancellation).
-- **Clean boundary.** Crew never interprets model output and never stores
-  agent messages, memory or credentials. AX keeps being AX; Crew only
-  coordinates.
+- **Clean boundary.** Crew never interprets model output or replicates AX's
+  Session/Memory stores or provider credentials. Distributed collaboration
+  retains selected results, checkpoints and explicitly published artifacts.
 
 ## Why
 
@@ -220,3 +220,7 @@ build flow — desktop, Android, packaging — and the process-level tests.
 ## License
 
 MIT. See [crates/server/Cargo.toml](crates/server/Cargo.toml).
+
+## Optional Distributed Collaboration
+
+AXCrew 0.3.3 adds a **Distributed** desktop sidebar page and an additive `/api/distributed` control plane. Host → AX Instance → Execution supports multiple AX runtimes per machine and multiple concurrent executions per AX. Scheduling matches AX capabilities plus shared Host resources. Durable Tasks, Events, Artifacts and Workflow State allow checkpoint-based recovery without a permanently live Coordinator Agent. Enroll AX instances on the page, download worker configs and run `ax crew worker worker.json` on each Host. Existing single-machine and Crew device controls remain available. See [architecture, API and setup](docs/distributed-collaboration.md).

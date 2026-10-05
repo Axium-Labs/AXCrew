@@ -8,4 +8,5 @@
 
 pub mod approval;
 pub mod crew;
+pub mod distributed;
 pub mod scheduler;

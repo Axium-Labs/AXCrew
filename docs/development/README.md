@@ -89,3 +89,9 @@ the same AX Session, pairing and revocation.
   [protocol/api.md](../protocol/api.md).
 - A new command or script → update this page.
 - [AGENTS.md](../../AGENTS.md) stays a short map; detailed explanation belongs here.
+
+## Distributed tests
+
+`cargo test --workspace` includes `tests/distributed.rs`: capability/resource scheduling, concurrent idempotent submissions, retry history, ownership/incarnation fencing, permissions, dependency outcomes and coordinator replacement with Workflow State. Desktop Vitest also includes `tests/desktop/distributed.test.tsx` (`cd apps/desktop; npm run test:ui`). Browser coverage uses `npx playwright test --config ../../tests/desktop/playwright.config.ts` from `apps/desktop`; screenshots/outputs are ignored under its `test-results/`.
+
+After building both binaries: `python tests/integration/distributed_process.py ../ax/target/debug/ax.exe target/debug/ax-crew.exe` (Windows; adjust paths on Linux). It launches three real workers on two logical Hosts against a local fake SSE model, verifies failed test → analysis → Patch → retest, auth scoping, immutable artifact hashes, ordered event reads and Crew restart. No physical multi-host networking/hardware isolation is implied by this test. Existing process tests remain `smoke.py`, `gateway_socket.py`, `model_catalog.py` and `workspace_recovery.py`.

@@ -49,7 +49,7 @@ with tempfile.TemporaryDirectory(prefix="ax-model-contract-") as temp:
             assert catalog[provider]["configured"] and catalog[provider]["supported"]
             assert catalog[provider]["models"] and catalog[provider]["model_source"]=="fallback"
             assert all(m["supports_tools"] for m in catalog[provider]["models"])
-        assert not catalog["anthropic"]["supported"] and not catalog["anthropic"]["models"]
+        assert catalog["anthropic"]["supported"] and catalog["anthropic"]["models"]
         assert not catalog["openai-codex"]["configured"]
         live=rpc("_ax/refresh-models",{"provider":"deepseek"})
         assert live["source"]=="live" and live["warning"] is None, live
