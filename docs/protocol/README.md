@@ -28,3 +28,16 @@ These are treated as contracts, not implementation details:
 
 Any change to one of these needs a matching update to the documents above and to
 the process-level tests in [`tests/`](../../tests/).
+
+Distributed enrollment now allows omitted resource and capability fields. Worker
+heartbeats can add `host_inventory` and active `capabilities`; connected instance
+settings are staged through `POST /api/distributed/instances/{id}/capabilities`.
+Existing callers remain compatible; details and unknown hardware semantics are in
+[Distributed Collaboration](../distributed-collaboration.md).
+
+
+Connections/projects are additive authenticated REST resources documented in
+[api.md](api.md). Local and paired AX directory inspection use its read-only workspace extension.
+SSH directory inspection uses remote shell commands; inference/history run in
+local AX with an SSH context. Heartbeats optionally advertise registered roots;
+existing gateway envelopes and session bindings are unchanged.

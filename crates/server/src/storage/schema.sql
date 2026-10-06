@@ -22,3 +22,6 @@ PRAGMA user_version=3;
 CREATE TABLE IF NOT EXISTS distributed_cluster (id INTEGER PRIMARY KEY CHECK(id=1), state TEXT NOT NULL);
 INSERT OR IGNORE INTO distributed_cluster(id,state) VALUES(1,'{"revision":0,"hosts":{},"instances":{},"tasks":{},"artifacts":{},"events":[]}');
 CREATE TABLE IF NOT EXISTS distributed_blobs (sha256 TEXT PRIMARY KEY, content BLOB NOT NULL);
+
+CREATE TABLE IF NOT EXISTS ssh_connections(id TEXT PRIMARY KEY REFERENCES devices(id), config TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,name TEXT NOT NULL,member_id TEXT NOT NULL REFERENCES crew_members(id));

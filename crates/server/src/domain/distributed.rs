@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Resources {
     pub cpu: u32,
@@ -21,7 +21,7 @@ impl Resources {
         self.gpu = self.gpu.saturating_add(other.gpu);
     }
 }
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Capabilities {
     pub roles: Vec<String>,
@@ -54,6 +54,26 @@ pub struct Host {
     pub resources: Resources,
     pub last_seen: i64,
     pub enabled: bool,
+    #[serde(default)]
+    pub inventory: Option<HostInventory>,
+    #[serde(default)]
+    pub inventory_at: i64,
+}
+/// Reported by an authenticated worker, never supplied by the enrollment form.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HostInventory {
+    pub hostname: String,
+    pub os: String,
+    pub arch: String,
+    pub cpu_name: String,
+    pub cpu: u32,
+    pub ram_mb: Option<u64>,
+    /// None means detection failed, which is distinct from zero GPUs.
+    pub gpu: Option<u32>,
+    pub gpu_names: Vec<String>,
+    #[serde(default)]
+    pub errors: Vec<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Instance {
@@ -61,6 +81,8 @@ pub struct Instance {
     pub host_id: String,
     pub name: String,
     pub capabilities: Capabilities,
+    #[serde(default)]
+    pub pending_capabilities: Option<Capabilities>,
     pub projects: Vec<String>,
     pub max_executions: u32,
     pub can_delegate: bool,
@@ -207,6 +229,7 @@ impl Cluster {
 pub struct Enrollment {
     pub host_id: String,
     pub host_name: String,
+    #[serde(default)]
     pub resources: Resources,
     pub name: String,
     #[serde(default)]
@@ -226,6 +249,10 @@ pub struct Heartbeat {
     pub incarnation: String,
     #[serde(default)]
     pub active: Vec<LeaseIdentity>,
+    #[serde(default)]
+    pub host_inventory: Option<HostInventory>,
+    #[serde(default)]
+    pub capabilities: Option<Capabilities>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Report {

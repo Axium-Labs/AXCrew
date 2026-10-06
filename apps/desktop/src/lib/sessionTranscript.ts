@@ -1,5 +1,14 @@
 import type { CrewEvent, SessionHistory, Task } from './types'
 
+export function transcriptTurns(lines: SessionLine[]) {
+  const turns: SessionLine[][] = []
+  for (const line of lines) {
+    if (line.type === 'user' || !turns.length) turns.push([])
+    turns[turns.length - 1].push(line)
+  }
+  return turns
+}
+
 /**
  * `at` is epoch milliseconds, normalised from the seconds AX reports.
  * `output` is a tool result: history replay and live updates both carry it, and
@@ -7,7 +16,7 @@ import type { CrewEvent, SessionHistory, Task } from './types'
  */
 export type ChangedFile = { path:string; additions:number; deletions:number; diff?:string|null }
 export type SessionImage = {path?:string;name:string;src?:string}
-export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; text:string; images?:SessionImage[]; operation?:string; output?:string; rawOutput?:string; toolKind?:string; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
+export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; text:string; images?:SessionImage[]; operation?:string; output?:string; rawOutput?:string; toolKind?:string; toolInput?:Record<string,unknown>; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
 
 /**
  * The view keeps one transcript row per message, so a tool result is capped
@@ -62,7 +71,7 @@ function toolFields(update:Record<string,unknown>):Partial<SessionLine>{
   }
   let changedFiles:ChangedFile[]|undefined
   try{changedFiles=JSON.parse(raw?.raw_output??'{}').changed_files}catch{/* not JSON */}
-  return {...(toolKind?{toolKind}:{}),...(operation?{operation}:{}),
+  return {...(toolKind?{toolKind}:{}),...(args?{toolInput:args}:{}),...(operation?{operation}:{}),
     ...(raw?.raw_output!==undefined?{rawOutput:raw.raw_output}:{}),...(changedFiles?{changedFiles}:{}),
     ...(raw?.status==='error'?{status:'failed'}:{})}
 }
@@ -199,7 +208,8 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
     if(match<0)body.push({...line})
     else{
       const previous=body[match],output=mergeOutput(previous.output,line.output)
-      body[match]={...previous,...line,key:previous.key,at:previous.at??line.at,status:mergeStatus(previous.status,line.status),text:previous.text.startsWith(line.text)?previous.text:line.text,...(output?{output}:{})}
+      const rawOutput=mergeOutput(previous.rawOutput,line.rawOutput)
+      body[match]={...previous,...line,key:previous.key,at:previous.at??line.at,status:mergeStatus(previous.status,line.status),text:previous.text.startsWith(line.text)?previous.text:line.text,...(output?{output}:{}),...(rawOutput?{rawOutput}:{})}
     }
   }
   const sentAt=task.created_at?task.created_at*1000:undefined

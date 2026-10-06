@@ -62,6 +62,7 @@ impl App {
         let gateway = Gateway::new(db.clone(), events.clone());
         let approvals = ApprovalBroker::default();
         let router = Arc::new(DeviceRouter {
+            db: db.clone(),
             local: LocalTransport {
                 ax: args.ax.clone(),
                 approvals: approvals.clone(),

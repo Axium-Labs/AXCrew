@@ -2,6 +2,7 @@
 //! so "where is this table written" has exactly one answer.
 
 pub mod automations;
+pub mod connections;
 pub mod crews;
 pub mod devices;
 pub mod distributed;

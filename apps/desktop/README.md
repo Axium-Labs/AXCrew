@@ -132,21 +132,27 @@ plain `cargo build --release` does not embed the production frontend.
 
 ## Usage
 
-The lightning button beside the conversation's reasoning and model pickers
-toggles AX's **Fast** inference mode. Its tooltip reads “更快 / 用量更多”.
+The model/effort trigger beside Send opens one panel for model selection,
+provider-supported **思考强度 / Reasoning effort** and a lightning button that
+toggles AX's **Fast** inference mode. Its title reads “更快 · 用量更多”.
 This saves `inference.mode` in the local AX `config.json`, preserving the model,
 reasoning effort, and advanced Fast settings. It applies to subsequent local AX
 turns; running turns keep their current mode. Paired devices use their own AX
 configuration. Use an AX build that supports Fast mode.
 
-Reasoning and model pickers highlight on hover, keyboard focus, or while open.
+The model/effort trigger highlights on hover, keyboard focus, or while open.
+The slider uses the selected model catalogue's exact supported effort values;
+models without advertised values do not expose invented strength choices.
+The native WebView stays at zoom 1; system DPI and responsive layouts handle
+monitor/window changes. Side navigation collapses on smaller windows and remains
+manually accessible. A turn rail previews and jumps to each request/answer pair.
 Terminal tabs use an unnumbered label; drag a tab along the strip to reorder it
 without restarting its shell.
 
 The desktop app uses the React frontend in `src/`. Its Windows window uses a custom titlebar without system decorations. Window size and position are persisted, while titlebar decorations always follow `src-tauri/tauri.conf.json`.
 
 The native Android client can control this same backend through an HTTPS reverse
-proxy. In Settings → 连接与系统, use “显示 Android 连接信息” to reveal the current
+proxy. In Connections → Control this computer, use “显示 Android 连接信息” to reveal the current
 loopback upstream and token for 60 seconds. The gateway configuration persists across restarts. See [Android connection instructions](../android/README.md). Device pairing
 codes are for AX runtimes, not Android control-client login.
 
@@ -170,11 +176,11 @@ workspace it shows the global skills in AX home plus the built-in tools.
 MCP-provided tools are not listed among the tools — they only exist once a
 session connects to a server, so the servers are listed instead.
 
-The sidebar keeps conversations, schedule, and artifacts at the top, with terminal, phone connection, agent capabilities, and settings at the bottom. Click Terminal or press `Ctrl+Backquote` to toggle the dock. The first opening creates a PowerShell tab in the configured workspace. Use `+` for another tab, the `…` menu to dock at the right or bottom, and the panel edge to resize it. Hiding the dock preserves its live tabs; closing a tab stops that shell. The dock uses a 220 ms size transition and remembers its position and dimensions. Shell sessions themselves are not restored after quitting the desktop app. The interactive terminal requires Tauri and is unavailable in a regular browser preview.
+The sidebar keeps conversations, schedule, and artifacts at the top, with terminal, connections, agent capabilities, and settings at the bottom. Click Terminal or press `Ctrl+Backquote` to toggle the dock. The first opening creates a PowerShell tab in the configured workspace. Use `+` for another tab, the `…` menu to dock at the right or bottom, and the panel edge to resize it. Hiding the dock preserves its live tabs; closing a tab stops that shell. The dock uses a 220 ms size transition and remembers its position and dimensions. Shell sessions themselves are not restored after quitting the desktop app. The interactive terminal requires Tauri and is unavailable in a regular browser preview.
 
-An AX session is one conversation, even when follow-up messages create multiple Crew tasks. Its first task supplies the title and route; sends and cancellation target its latest turn. Drafts stay separate while navigating within the app. Enter sends, Shift+Enter adds a newline, and IME confirmation does not send. Failed sends retain their draft. Closing the app discards unsent drafts.
+An AX session is one conversation, even when follow-up messages create multiple Crew tasks. Its first task supplies the title and route; sends and cancellation target its latest turn. Drafts stay separate while navigating within the app. Enter sends, Shift+Enter adds a newline, and IME confirmation does not send. Failed sends retain their draft. Unsent text drafts persist locally across reopening; image attachments remain in memory only.
 
-The session composer does not expose a member picker. New conversations use an existing local execution environment when available; the backend returns an explicit error if none has been configured. The desktop titlebar checks the authenticated settings endpoint and offers a retry when the local service is unavailable. In development, Tauri prefers system AX, with a workspace AX fallback; Crew uses the freshly built debug backend.
+Local conversations use a local execution environment. Cloud conversations require selecting an online remote project environment; missing or offline environments cannot send. Paired AX validation/history run on that AX host. SSH directories are inspected remotely, while inference and history stay local. Remote images, local file preview, Fast inference and goal loops are currently unavailable. The desktop titlebar checks the authenticated settings endpoint and offers a retry when the local service is unavailable. In development, Tauri prefers system AX, with a workspace AX fallback; Crew uses the freshly built debug backend.
 
 ### Model settings
 
@@ -188,8 +194,10 @@ success does not establish inference entitlement or account balance.
 
 The desktop composer has a joined project/location strip: click the folder to
 choose a project, or the local-computer pill to open the work-location menu.
-The local option keeps the selected directory; cloud is visibly unavailable.
-Existing sessions keep these controls read-only.
+The local option keeps the selected directory. Choosing Cloud reveals a Choose
+environment menu for paired AX or SSH projects. Paired AX runs on its host;
+SSH runs local AX and local models, using SSH only for remote shell commands. Existing sessions keep their directory, host and model fixed.
+Add project opens a named-project dialog with local/remote source selection.
 
 ### Workspace recovery
 
@@ -202,7 +210,7 @@ remote-device paths without modifying historical member/session records.
 
 ## Installer releases
 
-Settings → 连接与系统 → AX Crew 版本更新 checks the latest official GitHub Release. Updates download the Windows x64 NSIS installer and verify its SHA256SUMS before exiting Crew and opening the install wizard. Finish active tasks before updating. App data and AX credentials stay outside the installation directory.
+Settings → System → AX Crew 版本更新 checks the latest official GitHub Release. Updates download the Windows x64 NSIS installer and verify its SHA256SUMS before exiting Crew and opening the install wizard. Finish active tasks before updating. App data and AX credentials stay outside the installation directory.
 
 Build Windows with `npm run tauri:build`. Publish the installer as `AX-Crew-<version>-windows-x64-setup.exe` with `SHA256SUMS` and the signed Android APK under the same version tag. The updater uses this asset naming contract. Windows installers currently have no Authenticode signature.
 
@@ -210,4 +218,4 @@ Android release signing reads AXCREW_ANDROID_KEYSTORE, AXCREW_ANDROID_STORE_PASS
 
 ## 分布式协作
 
-侧边栏「分布式协作」管理 Host、AX Instance、Workflow、Task、Artifact 与 Event。可注册多个同 Host 实例、配置资源和并发、下载独立 worker 配置、提交带能力/资源/依赖要求的任务、查看错误与检查点、取消/重试和下载产物。新接口与原有会话/设备控制并存。见 [控制层与部署说明](../../docs/distributed-collaboration.md)。
+侧边栏「分布式协作」管理 Host、AX Instance、Workflow、Task、Artifact 与 Event。添加实例仅设置连接、逻辑项目与并发等基础信息，不填写 CPU/RAM/GPU、Skill/MCP/Tool 或模型。AX 连接后自动探测并展示 Host 配置、在线状态和任务预留；同 Host 多个实例共享机器容量。连接后的 AX 实例页可配置能力，下载字段合并到本地 worker 配置、安装/启用依赖并重启后由 AX 上报生效。可下载独立 worker 配置、提交带能力/资源/依赖要求的任务、查看错误与检查点、取消/重试和下载产物。新接口与原有会话/设备控制并存。见 [控制层与部署说明](../../docs/distributed-collaboration.md)。

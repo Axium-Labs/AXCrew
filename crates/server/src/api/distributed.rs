@@ -184,6 +184,16 @@ pub async fn submit(
     let actor = actor(&app, &headers)?;
     Ok(Json(service::submit(&app.db, &actor, body)?))
 }
+pub async fn configure(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<Capabilities>,
+) -> Api<Value> {
+    app.authorize(&headers)?;
+    service::configure(&app.db, &id, body)?;
+    Ok(Json(json!({"accepted":true})))
+}
 pub async fn heartbeat(
     State(app): State<App>,
     headers: HeaderMap,

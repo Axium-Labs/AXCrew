@@ -4,7 +4,7 @@ import { translate, useLang } from '../lib/i18n'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import { Activity, Archive, ArrowRight, Bot, Check, ChevronDown, Download, Folder, Mic, Monitor, Palette, RefreshCw, Eye, EyeOff, Search, ShieldCheck, Smartphone, Upload, Wrench } from 'lucide-react'
+import { Activity, Archive, ArrowRight, Bot, Check, ChevronDown, Download, Folder, Mic, Monitor, Palette, RefreshCw, Eye, EyeOff, Search, ShieldCheck, Globe, Upload, Wrench } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { endpoints } from '../lib/api'
 import { axAvailable, axExport, axImport, axLocalState, axRefreshModels, axRemoveCredential, axSelectModel, axStoreApiKey, axSelectExecution, axSelectSubagent, axTuiCommand } from '../lib/ax'
@@ -15,7 +15,7 @@ import { useUi } from '../store/ui'
 import { useSessionUi } from '../store/sessions'
 import { useTerminalDock } from '../store/terminal'
 import './settings.css'
-import { AndroidConnection } from '../components/AndroidConnection'
+import { Connections } from './Connections'
 import { AxUpdater } from '../components/AxUpdater'
 import { CrewUpdater } from '../components/CrewUpdater'
 import { AxCapabilities } from '../components/AxCapabilities'
@@ -29,7 +29,7 @@ const getSections = (): {id:Section;label:string;group:string;icon:typeof Activi
   {id:'usage',label:translate('settings.usage'),group:'',icon:Activity},
   {id:'capabilities',label:translate("copy.2"),group:'',icon:Wrench},
   {id:'models',label:translate("copy.3"),group:translate("copy.4"),icon:Bot}, {id:'backup',label:translate("copy.5"),group:translate("copy.4"),icon:Archive},
-  {id:'appearance',label:translate("copy.6"),group:translate("copy.4"),icon:Palette}, {id:'speech',label:translate("copy.7"),group:translate("copy.4"),icon:Mic}, {id:'connections',label:translate("copy.8"),group:translate("copy.9"),icon:Smartphone}, {id:'system',label:translate("copy.9"),group:translate("copy.9"),icon:Monitor},
+  {id:'appearance',label:translate("copy.6"),group:translate("copy.4"),icon:Palette}, {id:'speech',label:translate("copy.7"),group:translate("copy.4"),icon:Mic}, {id:'connections',label:translate("copy.8"),group:translate("copy.9"),icon:Globe}, {id:'system',label:translate("copy.9"),group:translate("copy.9"),icon:Monitor},
 ]
 function Panel({title,children}:{title:string;children:ReactNode}){
   useLang(state=>state.lang);
@@ -50,7 +50,7 @@ export function Settings(){
   const health=useQuery({queryKey:['health'],queryFn:endpoints.health})
   const sessions=useSessions(),tasks=useTasks()
   const ax=useQuery({queryKey:['ax-local'],queryFn:axLocalState,enabled:axAvailable,retry:false})
-  const {theme,setTheme,developer,setDeveloper,gatewayUrl,setGatewayUrl,xfyAppid,xfyApiKey,xfyApiSecret,setXfy}=useUi()
+  const {theme,setTheme,developer,setDeveloper,xfyAppid,xfyApiKey,xfyApiSecret,setXfy}=useUi()
   const selectedCwd=useSessionUi(state=>state.selectedCwd)
   const routeSection=useParams().section
   const [section,setSectionState]=useState<Section>('overview'),[search,setSearch]=useState('')
@@ -116,7 +116,7 @@ export function Settings(){
       {section==='backup'&&<div className="settings-stack"><Panel title={translate("copy.88")}><p>{translate("copy.89")}</p><strong className="settings-workspace-path">{workspace??translate("copy.90")}</strong><button className="settings-secondary" onClick={()=>navigate('/sessions')}><Folder size={15}/> {translate("copy.91")}</button></Panel><Panel title={translate("copy.92")}><p>{translate("copy.93")}</p><div className="settings-actions"><select aria-label={translate("copy.94")} value={exportScope} onChange={event=>setExportScope(event.target.value as typeof exportScope)}><option value="all">{translate("copy.95")}</option><option value="memory">{translate("copy.96")}</option><option value="sessions">{translate("copy.97")}</option></select><button className="settings-primary" disabled={!axAvailable||!workspace||busy} onClick={()=>void exportData()}><Download size={16}/> {translate("copy.98")}</button></div></Panel><Panel title={translate("copy.99")}><p>{translate("copy.100")}</p><button className="settings-secondary" disabled={!axAvailable||!workspace||busy} onClick={()=>void previewImport()}><Upload size={16}/> {translate("copy.101")}</button>{preview&&<><Report value={preview}/><button className="settings-primary" disabled={busy} onClick={()=>void confirmImport()}>{translate("copy.102")}</button></>}</Panel></div>}
       {section==='appearance'&&<div className="settings-stack"><Panel title={translate('settings.language')}><Menu trigger={<button type="button" className="settings-select-menu" aria-label={translate('settings.language')}><span>{useLang.getState().lang==='zh'?'简体中文':'English'}</span><ChevronDown size={15}/></button>} items={[{label:'English',action:()=>useLang.getState().setLang('en')},{label:'简体中文',action:()=>useLang.getState().setLang('zh')}]}/></Panel><Panel title={translate("copy.103")}><label className="settings-field"><span>{translate("copy.104")}</span><Menu trigger={<button type="button" className="settings-select-menu" aria-label={translate("copy.104")}><span>{theme==='dark'?translate("copy.105"):theme==='light'?translate("copy.106"):translate("copy.107")}</span><ChevronDown size={15}/></button>} items={[{label:translate("copy.105"),action:()=>setTheme('dark')},{label:translate("copy.106"),action:()=>setTheme('light')},{label:translate("copy.107"),action:()=>setTheme('system')}]}/></label><label className="settings-checkbox"><input type="checkbox" checked={developer} onChange={event=>setDeveloper(event.target.checked)}/> {translate("copy.108")}<small>{translate("copy.109")}</small></label></Panel></div>}
       {section==='speech'&&<div className="settings-stack"><Panel title={translate("copy.110")}><p>{translate("copy.111")}</p><div className="settings-field"><span>APPID</span><input aria-label="APPID" value={xfyAppidDraft} onChange={event=>setXfyAppidDraft(event.target.value)} placeholder={translate("copy.112")}/></div><div className="settings-field"><span>APIKey</span><SecretInput aria-label="APIKey" autoComplete="off" value={xfyApiKeyDraft} onChange={event=>setXfyApiKeyDraft(event.target.value)} placeholder={translate("copy.113")}/></div><div className="settings-field"><span>APISecret</span><SecretInput aria-label="APISecret" autoComplete="off" value={xfyApiSecretDraft} onChange={event=>setXfyApiSecretDraft(event.target.value)} placeholder={translate("copy.113")}/></div><div className="settings-actions"><button className="settings-primary" disabled={busy} onClick={saveXfy}><Check size={16}/> {translate("copy.114")}</button>{xfyAppid&&<span className="settings-provider-status"><ShieldCheck size={16}/> {translate("copy.115")}{xfyAppid}）</span>}</div></Panel></div>}
-      {section==='connections'&&<div className="settings-stack"><Panel title={translate("copy.116")}><label className="settings-field"><span>{translate("copy.117")}</span><input value={gatewayUrl} onChange={event=>setGatewayUrl(event.target.value)} placeholder="https://crew.example.com"/></label><p>{translate("copy.118")}</p></Panel><AndroidConnection/></div>}
+      {section==='connections'&&<Connections/>}
       {section==='system'&&<div className="settings-stack"><Panel title={translate("copy.119")}><div className="settings-field-row"><span>{translate("copy.120")}</span><strong>{health.data?.status??translate("copy.121")} · v{health.data?.version??'—'}</strong></div><div className="settings-field-row"><span>{translate("copy.122")}</span><strong>{translate('status.'+status)}</strong></div><div className="settings-field-row"><span>{translate("copy.123")}</span><strong>{settings.data?.protocol_version??'—'}</strong></div></Panel><Panel title={translate("copy.124")}><p>{translate("copy.125")}</p></Panel><CrewUpdater/></div>}
       {section==='models'&&<div className="settings-model-tools"><button disabled={!axAvailable} onClick={()=>openAxTui('/model')}>{translate("copy.126")}</button><button disabled={!axAvailable||busy} onClick={()=>refreshModels()}><RefreshCw size={15}/> {translate("copy.127")}</button></div>}
       {section==='usage'&&<Usage/>}

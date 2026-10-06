@@ -23,6 +23,7 @@ vi.mock('./lib/api',()=>({api:fixture.api,endpoints:{
   automations:async()=>[],automationRuns:async()=>[],
 }}))
 
+vi.mock('./lib/connections',()=>({connections:{projects:async()=>[],discover:async()=>[]}}))
 import App from './App'
 import { queryClient } from './lib/runtime'
 import { useUi } from './store/ui'
@@ -33,10 +34,11 @@ const task=(id:string,patch:Partial<Task>={}):Task=>({id,crew_id:'crew',parent_i
 const start=async(path='/sessions')=>{window.history.replaceState({idx:0},'',`/#${path}`);render(<App/>);await screen.findByRole('textbox',{name:'发送消息'})}
 
 beforeEach(()=>{
+  Object.defineProperty(window,'innerWidth',{configurable:true,value:1440})
   fixture.tasks=[];fixture.sessions=[];fixture.permissions=[];fixture.api.mockReset();fixture.history.mockReset().mockResolvedValue({updates:[]})
   queryClient.clear();queryClient.setDefaultOptions({queries:{retry:false}})
   useUi.setState({sidebar:true,palette:false,theme:'dark'})
-  useSessionUi.setState({listOpen:true,rightOpen:false,rightTab:'files',drafts:{},startingIds:[],metadata:{}})
+  useSessionUi.setState({listOpen:true,rightOpen:false,rightTab:'files',drafts:{},startingIds:[],metadata:{},selectedEnvironment:null})
   // The suite asserts the Chinese copy, so pin the language instead of inheriting
   // whatever `navigator.language` the test environment reports.
   useLang.setState({lang:'zh'})

@@ -13,7 +13,7 @@ test('tool cards fold, scroll and preserve failure in light and dark themes',asy
       {update:{sessionUpdate:'turn_changes',changedFiles:[{path:'src/core.rs',additions:13,deletions:4},{path:'src/ui.tsx',additions:6,deletions:2}]}}
     ];
     export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
-    export const api=async()=>({});
+    export const api=async(path)=>path==='/api/projects'?[]:{};
     export const endpoints={health:async()=>({status:'ok'}),crews:async()=>[],devices:async()=>[],tasks:async()=>[],sessions:async()=>[],permissions:async()=>[],members:async()=>[],events:async()=>[],settings:async()=>({default_cwd:'C:/workspace'}),automations:async()=>[],automationRuns:async()=>[],localAx:async()=>({available:true,projects:[{id:'p1',root:'C:/workspace',sessions:[{id:'local-1',title:'工具体验',created_at:1,updated_at:2,messages:4,task_id:null}]}]}),localSession:async()=>({task_id:'local-1',ax_session_id:'local-1',updates})};
   `}))
   await page.routeWebSocket('**/api/ws*',()=>{})
@@ -33,7 +33,7 @@ test('tool cards fold, scroll and preserve failure in light and dark themes',asy
   const shell=page.locator('.session-tool-row').first()
   await shell.click()
   await expect(shell).toHaveAttribute('aria-expanded','true')
-  await expect(page.getByText('Shell',{exact:true})).toBeVisible()
+  await expect(page.locator('.session-tool-card header').getByText('运行命令',{exact:true})).toBeVisible()
   await expect(page.getByText('✓ 成功',{exact:true})).toBeVisible()
   const output=page.locator('.session-tool-output').first()
   expect(await output.evaluate(node=>node.scrollHeight>node.clientHeight)).toBe(true)
@@ -50,4 +50,14 @@ test('tool cards fold, scroll and preserve failure in light and dark themes',asy
   await page.locator('.session-tool-group-summary').click()
   await page.locator('.session-tool-group-summary').click()
   await expect(shell).toHaveAttribute('aria-expanded','false')
+  await expect(page.locator('.session-process-content .session-message-actions')).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'创建聊天分支'})).toHaveCount(1)
+  await page.getByRole('button',{name:'创建聊天分支'}).click()
+  await expect(page.locator('.session-branch-banner')).toBeVisible()
+  await page.goBack()
+  await expect(page.locator('.session-process-summary')).toHaveAttribute('aria-expanded','false')
+  await page.locator('.session-process-summary').click()
+  await page.locator('.session-tool-group-summary').click()
+  await page.locator('.session-tool-row').first().click()
+  await expect(page.locator('.session-tool-output').first()).toContainText('src/core.rs:119: ToolResult')
 })

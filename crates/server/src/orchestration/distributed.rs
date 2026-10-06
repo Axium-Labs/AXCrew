@@ -28,10 +28,7 @@ pub fn enroll(db: &Db, body: Enrollment) -> Result<(Instance, String)> {
         !body.host_id.is_empty() && !body.name.is_empty() && !body.projects.is_empty(),
         "host, name and logical projects required"
     );
-    ensure!(
-        (1..=128).contains(&body.max_executions) && body.resources.cpu > 0,
-        "invalid capacity"
-    );
+    ensure!((1..=128).contains(&body.max_executions), "invalid capacity");
     ensure!(
         body.projects.iter().all(|p| valid_identity(p)),
         "invalid project identity"
@@ -47,10 +44,14 @@ pub fn enroll(db: &Db, body: Enrollment) -> Result<(Instance, String)> {
                 resources: body.resources.clone(),
                 enabled: true,
                 last_seen: 0,
+                inventory: None,
+                inventory_at: 0,
             });
         // A second instance does not duplicate or silently overwrite host capacity.
         ensure!(
-            serde_json::to_value(&host.resources)? == serde_json::to_value(&body.resources)?,
+            host.inventory.is_some()
+                || body.resources == Resources::default()
+                || host.resources == body.resources,
             "host resources differ; update the host explicitly"
         );
         let instance = Instance {
@@ -58,6 +59,7 @@ pub fn enroll(db: &Db, body: Enrollment) -> Result<(Instance, String)> {
             host_id: body.host_id,
             name: body.name,
             capabilities: body.capabilities,
+            pending_capabilities: None,
             projects: body.projects,
             max_executions: body.max_executions,
             can_delegate: body.can_delegate,
@@ -440,6 +442,23 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
 }
 pub fn heartbeat(db: &Db, id: &str, body: Heartbeat) -> Result<Vec<Assignment>> {
     ensure!(valid_identity(&body.incarnation), "invalid incarnation");
+    if let Some(info) = &body.host_inventory {
+        ensure!(
+            info.cpu > 0 && info.cpu <= 65536,
+            "invalid detected CPU count"
+        );
+        ensure!(
+            serde_json::to_vec(info)?.len() <= 16384,
+            "host inventory too large"
+        );
+        ensure!(
+            info.gpu.is_none_or(|count| count <= 4096),
+            "invalid GPU count"
+        );
+    }
+    if let Some(caps) = &body.capabilities {
+        validate_capabilities(caps)?;
+    }
     db.cluster_update(|state| {
         let now = unix_now();
         // Expired leases are never revived by a delayed heartbeat.
@@ -454,7 +473,45 @@ pub fn heartbeat(db: &Db, id: &str, body: Heartbeat) -> Result<Vec<Assignment>> 
         }
         instance.incarnation = body.incarnation.clone();
         instance.last_seen = now;
-        state.hosts.get_mut(&instance.host_id).unwrap().last_seen = now;
+        let host_id = instance.host_id.clone();
+        let changed = body
+            .capabilities
+            .as_ref()
+            .is_some_and(|caps| *caps != instance.capabilities);
+        if let Some(caps) = body.capabilities {
+            if instance.pending_capabilities.as_ref() == Some(&caps) {
+                instance.pending_capabilities = None;
+            }
+            instance.capabilities = caps;
+        }
+        let host = state.hosts.get_mut(&host_id).unwrap();
+        host.last_seen = now;
+        let inventory_changed = body
+            .host_inventory
+            .as_ref()
+            .is_some_and(|info| host.inventory.as_ref() != Some(info));
+        if let Some(info) = body.host_inventory {
+            // Capacity is shared by every instance on this Host, never summed.
+            host.resources = Resources {
+                cpu: info.cpu,
+                ram_mb: info.ram_mb.unwrap_or(0),
+                gpu: info.gpu.unwrap_or(0),
+            };
+            host.inventory = Some(info);
+            host.inventory_at = now;
+        }
+        if inventory_changed {
+            state.event(now, "host.inventory", None, Some(id), &host_id);
+        }
+        if changed {
+            state.event(
+                now,
+                "instance.capabilities",
+                None,
+                Some(id),
+                "worker reported active capabilities",
+            );
+        }
         for active in &body.active {
             if let Some(task) = state.tasks.get_mut(&active.task_id)
                 && task.status == "running"
@@ -509,6 +566,36 @@ pub fn heartbeat(db: &Db, id: &str, body: Heartbeat) -> Result<Vec<Assignment>> 
                     .collect(),
             })
             .collect())
+    })
+}
+fn validate_capabilities(caps: &Capabilities) -> Result<()> {
+    ensure!(
+        serde_json::to_vec(caps)?.len() <= 16384,
+        "capabilities too large"
+    );
+    Ok(())
+}
+/// Stage desired metadata; only the worker's report promotes it to scheduling capability.
+pub fn configure(db: &Db, id: &str, caps: Capabilities) -> Result<()> {
+    validate_capabilities(&caps)?;
+    db.cluster_update(|state| {
+        let instance = state
+            .instances
+            .get_mut(id)
+            .ok_or_else(|| anyhow::anyhow!("instance missing"))?;
+        ensure!(
+            instance.last_seen > 0,
+            "connect the instance before configuring capabilities"
+        );
+        instance.pending_capabilities = Some(caps);
+        state.event(
+            unix_now(),
+            "instance.configuration",
+            None,
+            Some(id),
+            "awaiting local worker configuration and report",
+        );
+        Ok(())
     })
 }
 pub fn restart(db: &Db, id: &str, incarnation: &str) -> Result<()> {

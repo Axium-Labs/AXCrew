@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { formatDuration, ToolRow, TranscriptLine, TranscriptLines } from './SessionTranscript'
 import { useLang } from '../lib/i18n'
 import type { SessionLine } from '../lib/sessionTranscript'
+import { SessionInteractions } from './SessionInteractions'
 beforeEach(()=>useLang.setState({lang:'zh'}))
 afterEach(cleanup)
 describe('Codex style transcript',()=>{
@@ -19,7 +20,7 @@ describe('Codex style transcript',()=>{
     const {container,rerender}=render(<ToolRow line={tool}/> )
     const row=screen.getByRole('button')
     fireEvent.click(row)
-    expect(screen.getByText('Shell')).toBeTruthy()
+    expect(screen.getByText('运行命令')).toBeTruthy()
     expect(screen.getByText('src/main.rs:4: needle')).toBeTruthy()
     expect(screen.queryByText('{"large":"raw json"}')).toBeNull()
     rerender(<ToolRow line={{...tool,status:'failed',end:171000,output:'error: bad path'}}/> )
@@ -69,7 +70,7 @@ describe('Codex style transcript',()=>{
   })
   it('keeps narration between separate tool groups and reports hidden failures',()=>{
     render(<TranscriptLines active lines={[{...tool,status:'completed'},{...tool,key:'c2',toolKind:'patch',status:'failed'},{type:'agent',key:'a',text:'继续检查'}, {...tool,key:'c3',status:'completed'}, {...tool,key:'c4',status:'completed'}]}/> )
-    expect(screen.getByText('编辑了文件运行了命令')).toBeTruthy()
+    expect(screen.getByText('编辑了文件并运行命令')).toBeTruthy()
     expect(screen.getByText('部分执行失败')).toBeTruthy()
     expect(screen.getByText('继续检查')).toBeTruthy()
     expect(screen.getByRole('button',{name:'运行了命令'}).getAttribute('aria-expanded')).toBe('false')
@@ -91,7 +92,7 @@ describe('Codex style transcript',()=>{
     expect(container.querySelector('.session-transcript-line.is-agent strong')?.textContent).toBe('全部通过')
     expect(container.querySelector('.session-transcript-line.is-agent time')).toBeNull()
     fireEvent.click(screen.getByRole('button',{name:'用时 1 分 20 秒'}))
-    expect(screen.getByRole('button',{name:'运行了命令'})).toBeTruthy()
+    expect(screen.getByRole('button',{name:/运行了命令/})).toBeTruthy()
   })
   it('preserves tool expansion as the group grows and after folding the process',()=>{
     const {container,rerender}=render(<TranscriptLines active lines={[tool]}/> )
@@ -118,5 +119,49 @@ describe('Codex style transcript',()=>{
     expect(formatDuration(59000)).toBe('59 秒')
     expect(formatDuration(60000)).toBe('1 分 0 秒')
     expect(formatDuration(3660000)).toBe('1 小时 1 分')
+  })
+  it('collapses explicitly expanded work when the final answer arrives',()=>{
+    const lines:SessionLine[]=[{type:'user',text:'检查',key:'u'},tool]
+    const {container,rerender}=render(<TranscriptLines active lines={lines}/>)
+    const summary=container.querySelector('.session-process-summary')!
+    fireEvent.click(summary);fireEvent.click(summary)
+    expect(summary.getAttribute('aria-expanded')).toBe('true')
+    rerender(<TranscriptLines lines={[...lines,{type:'agent',text:'检查完成',key:'final'}]}/>)
+    expect(summary.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.getByText('检查完成')).toBeTruthy()
+    fireEvent.click(summary)
+    expect(screen.getByRole('button',{name:/运行了命令/})).toBeTruthy()
+  })
+  it('keeps only one final answer toolbar, including after opening work details',()=>{
+    const lines:SessionLine[]=[{type:'user',text:'检查',key:'u'},{type:'agent',text:'先读取',key:'before'}, {...tool,status:'completed'}, {type:'agent',text:'检查完成',key:'final'}]
+    const {container}=render(<SessionInteractions value={{onBranch:()=>{}}}><TranscriptLines lines={lines}/></SessionInteractions>)
+    fireEvent.click(container.querySelector('.session-process-summary')!)
+    expect(container.querySelector('.session-process-content .session-message-actions')).toBeNull()
+    expect(screen.getAllByRole('button',{name:'创建聊天分支'})).toHaveLength(1)
+    expect(container.querySelectorAll('.session-turn-actions .session-message-actions')).toHaveLength(1)
+  })
+  it('keeps final prose outside work details when replayed tools follow it',()=>{
+    const {container,unmount}=render(<TranscriptLines lines={[{type:'user',text:'检查',key:'u'}, {type:'agent',text:'全部完成',key:'final'}, {...tool,status:'completed'}]}/>)
+    expect(container.querySelector('.session-process-content')?.textContent).not.toContain('全部完成')
+    fireEvent.click(container.querySelector('.session-process-summary')!)
+    fireEvent.click(container.querySelector('.session-tool-group-summary')!)
+    fireEvent.click(container.querySelector('.session-tool-row')!)
+    expect(screen.getByText('src/main.rs:4: needle')).toBeTruthy()
+    unmount()
+    const returned=render(<TranscriptLines lines={[{type:'user',text:'检查',key:'u'}, {...tool,status:'completed'}, {type:'agent',text:'全部完成',key:'final'}]}/>)
+    fireEvent.click(returned.container.querySelector('.session-process-summary')!)
+    fireEvent.click(returned.container.querySelector('.session-tool-group-summary')!)
+    fireEvent.click(returned.container.querySelector('.session-tool-row')!)
+    expect(screen.getByText('src/main.rs:4: needle')).toBeTruthy()
+  })
+  it('groups repeated web work across narration without creating extra replies',()=>{
+    const fetch=(key:string):SessionLine=>({type:'tool',key,text:'fetch 5 urls: https://zh.wikisource.org/wiki/%E9%B2%81',toolKind:'web',status:'completed'})
+    const {container}=render(<TranscriptLines active lines={[fetch('w1'),{type:'agent',text:'继续读取目录',key:'a'},fetch('w2'),{type:'agent',text:'再核对资料',key:'a2'},fetch('w3')]}/>)
+    expect(container.querySelectorAll('.session-tool-group-summary')).toHaveLength(1)
+    expect(screen.queryByRole('button',{name:'创建聊天分支'})).toBeNull()
+    fireEvent.click(screen.getByRole('button',{name:'浏览了网页'}))
+    expect(screen.getByText('继续读取目录')).toBeTruthy()
+    expect(screen.getAllByText('已读取 5 个网页 · zh.wikisource.org')).toHaveLength(3)
+    expect(container.querySelectorAll('.session-tool-row')).toHaveLength(3)
   })
 })

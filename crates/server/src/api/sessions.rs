@@ -47,6 +47,7 @@ pub struct NewSession {
 pub struct NewSessionMessage {
     text: String,
     permission_profile: Option<String>,
+    reasoning_effort: Option<String>,
     #[serde(default)]
     images: Vec<ComposerImage>,
     #[serde(default)]
@@ -317,6 +318,11 @@ pub async fn session_history(
         Ok(inspected) => Ok(Json(
             json!({"task_id":id,"ax_session_id":ax_id,"updates":inspected.updates}),
         )),
+        Err(error)
+            if task.assigned_device != "local" && !task.assigned_device.starts_with("ssh:") =>
+        {
+            Err(ApiError(error))
+        }
         Err(error) => match ax::transcript(&ax_id) {
             Ok(mut local) => {
                 local["task_id"] = json!(id);
@@ -378,7 +384,7 @@ pub async fn session_message(
             session_input(
                 body.text,
                 body.permission_profile,
-                None,
+                body.reasoning_effort.as_deref(),
                 body.images,
                 body.files,
                 &member.cwd,
@@ -389,6 +395,10 @@ pub async fn session_message(
     app.db.bind(&followup, &ax_id)?;
     Ok(Json(app.scheduler.start(&followup.id)?))
 }
+
+#[cfg(test)]
+#[path = "../../../../tests/session_effort.rs"]
+mod effort_tests;
 
 #[cfg(test)]
 mod tests {

@@ -528,8 +528,8 @@
     "en": "Pair device"
   },
   "copy.132": {
-    "zh": "本地 AX 设备已自动就绪。输入另一台机器可访问的 HTTPS 网关地址，在那台机器上执行下方命令，把它加入 Crew（与手机连接无关，手机连接请使用「连接手机」）。",
-    "en": "Local AX is ready automatically. Enter an HTTPS gateway reachable from the other machine, then run the commands there to join Crew. For a phone, use Connect phone."
+    "zh": "本地 AX 设备已自动就绪。输入另一台机器可访问的 HTTPS 网关地址，在那台机器上执行下方命令，把它加入 Crew（与手机连接无关，手机连接请使用「连接 → 控制此电脑」）。",
+    "en": "Local AX is ready automatically. Enter an HTTPS gateway reachable from the other machine, then run the commands there to join Crew. For a phone, use Connections → Control this computer."
   },
   "copy.133": {
     "zh": "正在加载设备…",

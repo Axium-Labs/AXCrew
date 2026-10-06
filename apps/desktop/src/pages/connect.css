@@ -1,4 +1,4 @@
-/* ===== 「连接手机」页面 —— 连接流程优先 ===== */
+/* Shared Android connection information and Connections page styles. */
 .connect-page {
   max-width: 1040px;
   margin: 0 auto;
@@ -680,3 +680,12 @@
 .connect-confirm-allow {
   color: #fff;
 }
+
+.connections-page{max-width:1050px;margin:0 auto;padding:70px 40px 50px;color:var(--shell-text)}
+.connections-page h1{font-size:34px;font-weight:650;letter-spacing:-.03em;margin:0 0 40px}
+.connections-tabs{display:flex;gap:4px;margin-bottom:65px;flex-wrap:wrap}.connections-tabs button{background:transparent;border:0;border-radius:13px;color:var(--shell-muted);padding:9px 13px;font-size:16px;cursor:pointer}.connections-tabs button.active{background:var(--shell-hover);color:var(--shell-text)}
+.connections-page h2{font-size:17px;font-weight:600;margin-bottom:22px}
+.connections-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:186px;padding:25px;border:1px solid var(--shell-border);border-radius:21px;background:var(--shell-panel)}
+.connections-empty>div{display:flex;align-items:center;gap:7px}.connections-empty p{margin:0;color:var(--shell-muted);text-align:center;font-size:16px}.connections-empty .connection-primary{font-size:14px;padding:5px 13px;border-radius:24px;text-decoration:none}
+.connections-row{display:flex;align-items:center;gap:16px;border:1px solid var(--shell-border);border-radius:17px;background:var(--shell-panel);padding:16px 20px;margin-bottom:12px}.connections-row>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}.connections-row small{color:var(--shell-muted);overflow-wrap:anywhere}.connections-row button,.connections-row a,.connections-add{color:var(--shell-text);border:0;border-radius:12px;background:var(--shell-hover);padding:8px 13px;text-decoration:none;cursor:pointer}.connections-row button:disabled{opacity:.45}.connections-add{display:flex;gap:10px;align-items:center;margin-top:24px}.connections-hint{font-size:13px;line-height:1.7;color:var(--shell-muted);margin-top:20px}
+@media(max-width:760px){.connections-page{padding:30px 18px}.connections-tabs{margin-bottom:40px}.connections-row{flex-wrap:wrap}}

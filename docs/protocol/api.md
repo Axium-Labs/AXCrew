@@ -20,7 +20,7 @@ stream for live events. Every route below is implemented in
 - `POST /api/crews` — create a Crew.
 - `POST /api/crews/{id}/members` — add a member to a Crew.
 
-Member fields: `device_id` is `local` or a paired device ID; `cwd` is an
+Member fields: `device_id` is `local` a paired device ID, or a saved SSH device ID; `cwd` is an
 absolute path **on that device**. `provider` and `model` select models already
 configured in that device's AX installation. `skills` and `mcp_servers` are
 arrays of locally installed/configured names. `permission_profile` is `ask`
@@ -45,6 +45,14 @@ predecessors' final outputs to the AX prompt in a deterministic order. Crew
 does not generate or revise the DAG with a model.
 
 ## Sessions and devices
+
+- `POST /api/sessions` creates a conversation; `POST /api/sessions/{task_id}/message`
+  appends a follow-up. Both accept optional `reasoning_effort` with the selected
+  provider's advertised wire value. It is saved in task input and forwarded to AX
+  for that turn; omitted values retain existing default behavior.
+- Model capability catalogues expose each model's `reasoning_efforts` and
+  `default_reasoning_effort`. Desktop clients must use that subset rather than
+  synthesizing universal effort levels; empty or missing values offer no slider.
 
 - `GET /api/tasks`, `/api/tasks/{id}`, `/api/sessions` and
   `/api/sessions/{task_id}` inspect state and AX session bindings.
@@ -104,3 +112,42 @@ durability rules.
 ## Distributed API (additive)
 
 `/api/distributed` exposes scoped worker credentials, durable Tasks/Events/Workflows, lease fencing and immutable artifact exchange. It is separate from legacy device pairing and task APIs. See the canonical [Distributed Collaboration REST contract](../distributed-collaboration.md#rest-contract); existing authentication/error/route contracts are unchanged.
+
+
+## Connections, workspaces and projects
+
+All routes below require the existing administrator authentication.
+
+| Method and route | Contract |
+|---|---|
+| GET /api/connections/ssh | Active saved hosts: id, name, host, port, identity_file; optional fields are null. |
+| GET /api/connections/ssh/discover | Concrete Host aliases from the gateway user primary SSH config; wildcard aliases excluded. |
+| POST /api/connections/ssh | Save name, host, optional port and identity_file. Host is host or user@host, port 1..65535. Returns a generated ssh: ID, initially offline. |
+| POST /api/connections/ssh/{id}/connect | Probe SSH remote directory without AX; mark online on success, offline on failure. |
+| GET /api/devices/{id}/workspace?cwd=... | Host-side read-only listing: cwd, parent and directories of name/path. Omitted cwd starts at user home. |
+| GET /api/projects | Persisted id, name, device_id, cwd and member_id entries. |
+| POST /api/projects | Validate name, device_id and cwd on the owning host; create/reuse a bound environment. |
+| DELETE /api/projects/{id} | Remove project label, retain members and sessions. |
+| POST /api/environments/{id}/model | provider/model creates or reuses an immutable member with identical device/cwd/policy/capabilities; returns that member. |
+
+SSH records store an identity-file path on the Crew gateway, never private key
+contents. The existing device revoke route removes a host from active choices.
+For SSH, model/skill/capability inspection and history use local AX; remote folders are listed through SSH shell commands.
+Remote session creation uses member_id instead of a local cwd; follow-ups stay
+bound to their initial environment. Paired-device history failures never fall back to the local store. SSH history belongs to the local AX store.
+
+For paired AX, omitted cwd returns registered roots with empty cwd, null parent
+and hint registered_workspaces. Only an exact registered root may be validated;
+its result disables navigation to parents/subdirectories. Heartbeat
+capabilities.workspaces advertises id/name/path roots. Older devices fall back
+to existing Crew member roots.
+
+SSH execution contexts are passed to local AX via AX_SSH_CONTEXT_FILE, pointing to a short-lived
+JSON manifest of hosts, default_host and remote cwd. A file avoids environment
+block limits for large catalogues. AX_SSH_CONTEXT JSON remains supported for
+standalone integrations. No remote AX process is launched. The ssh
+tool accepts action list or exec, optional host_id/cwd/timeout_seconds and a
+remote command. Private key paths are never exposed by its host list.
+SSH tasks bypass configured Crew global/member concurrency limits; independent
+SSH tools bypass the fixed local tool pool, retaining dependency/resource and
+permission checks. Local and paired AX limits are unchanged.

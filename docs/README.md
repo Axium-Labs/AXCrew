@@ -8,6 +8,7 @@ focused document; this page is the map.
 | Document | Topic |
 |---|---|
 | [distributed-collaboration.md](distributed-collaboration.md) | Distributed control plane, scoped worker API, recovery and desktop management |
+| [releases/0.3.4.md](releases/0.3.4.md) | AXCrew 0.3.4 desktop, SSH and distributed collaboration updates |
 | [architecture/README.md](architecture/README.md) | System architecture: control plane modules, layering, boundaries, repository layout |
 | [architecture/design.md](architecture/design.md) | Source-based AX call-chain analysis, Crew/AX boundary, schema, state machines |
 | [architecture/storage.md](architecture/storage.md) | SQLite WAL database, durable vs live data, source-of-truth boundary |

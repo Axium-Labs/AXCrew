@@ -51,6 +51,8 @@ impl Fixture {
             &self.db,
             &instance.id,
             Heartbeat {
+                host_inventory: None,
+                capabilities: None,
                 incarnation: "epoch-1".into(),
                 active: vec![],
             },
@@ -85,6 +87,104 @@ impl Fixture {
 impl Drop for Fixture {
     fn drop(&mut self) { /* SQLite file can stay locked until Db drops on Windows. */
     }
+}
+
+#[test]
+fn automatic_inventory_is_shared_persistent_and_fenced() {
+    let f = Fixture::new();
+    let enrollment = || {
+        serde_json::from_value::<Enrollment>(json!({"host_id":"auto-host","host_name":"Auto host","name":"AX","projects":["project-ax"],"max_executions":2})).unwrap()
+    };
+    let (a, _) = service::enroll(&f.db, enrollment()).unwrap();
+    let (b, _) = service::enroll(&f.db, enrollment()).unwrap();
+    assert_eq!(
+        f.db.cluster_read().unwrap().hosts["auto-host"]
+            .resources
+            .cpu,
+        0
+    );
+    let task = service::submit(&f.db,"admin",serde_json::from_value(json!({"request_id":"auto-placement","title":"Automatic placement","input":"work","project_id":"project-ax"})).unwrap()).unwrap();
+    let heartbeat = |epoch: &str, gpu: Option<u32>| Heartbeat {
+        incarnation: epoch.into(),
+        active: vec![],
+        capabilities: None,
+        host_inventory: Some(HostInventory {
+            hostname: "test-machine".into(),
+            os: "windows".into(),
+            arch: "x86_64".into(),
+            cpu_name: "Test CPU".into(),
+            cpu: 8,
+            ram_mb: Some(16384),
+            gpu,
+            gpu_names: vec![],
+            errors: vec![],
+        }),
+    };
+    service::restart(&f.db, &a.id, "current").unwrap();
+    service::heartbeat(&f.db, &a.id, heartbeat("current", Some(2))).unwrap();
+    service::restart(&f.db, &b.id, "current").unwrap();
+    service::heartbeat(&f.db, &b.id, heartbeat("current", Some(2))).unwrap();
+    let state = f.db.cluster_read().unwrap();
+    assert_eq!(state.hosts["auto-host"].resources.cpu, 8);
+    assert_eq!(state.hosts["auto-host"].resources.gpu, 2);
+    assert!(state.hosts["auto-host"].inventory_at > 0);
+    assert!(state.tasks[&task.id].owner.is_some());
+    let revision = state.revision;
+    assert!(service::heartbeat(&f.db, &a.id, heartbeat("old", None)).is_err());
+    assert_eq!(f.db.cluster_read().unwrap().revision, revision);
+    service::heartbeat(&f.db, &a.id, heartbeat("current", None)).unwrap();
+    let reopened = Db::open(&f.root.join("crew.db"))
+        .unwrap()
+        .cluster_read()
+        .unwrap();
+    assert!(
+        reopened.hosts["auto-host"]
+            .inventory
+            .as_ref()
+            .unwrap()
+            .gpu
+            .is_none()
+    );
+    assert_eq!(reopened.hosts["auto-host"].resources.gpu, 0);
+}
+
+#[test]
+fn configured_capabilities_only_schedule_after_worker_reports_them() {
+    let f = Fixture::new();
+    let worker = f.instance("host", "code", 8, 2);
+    let next = Capabilities {
+        roles: vec!["test".into()],
+        skills: vec!["testing".into()],
+        ..Default::default()
+    };
+    service::configure(&f.db, &worker.id, next.clone()).unwrap();
+    let task = f.submit("admin", "new-capability", "test", vec![]);
+    assert_eq!(task.status, "pending");
+    assert_eq!(
+        f.db.cluster_read().unwrap().instances[&worker.id]
+            .capabilities
+            .roles,
+        vec!["code"]
+    );
+    service::heartbeat(
+        &f.db,
+        &worker.id,
+        Heartbeat {
+            incarnation: "epoch-1".into(),
+            active: vec![],
+            host_inventory: None,
+            capabilities: Some(next),
+        },
+    )
+    .unwrap();
+    let state = f.db.cluster_read().unwrap();
+    assert!(state.instances[&worker.id].pending_capabilities.is_none());
+    assert_eq!(
+        state.tasks[&task.id].owner.as_deref(),
+        Some(worker.id.as_str())
+    );
+    let (unconnected, _) = service::enroll(&f.db,serde_json::from_value(json!({"host_id":"new","host_name":"new","name":"new","projects":["project-ax"],"max_executions":1})).unwrap()).unwrap();
+    assert!(service::configure(&f.db, &unconnected.id, Capabilities::default()).is_err());
 }
 
 #[test]
@@ -186,6 +286,8 @@ fn dependencies_observations_and_failures_are_durable_collaboration_information(
         &f.db,
         &worker.id,
         Heartbeat {
+            host_inventory: None,
+            capabilities: None,
             incarnation: "epoch-1".into(),
             active: vec![],
         },
@@ -259,6 +361,8 @@ fn restart_retains_leases_and_fences_old_execution_after_failover() {
             &reopened,
             &other.id,
             Heartbeat {
+                host_inventory: None,
+                capabilities: None,
                 incarnation: "epoch-1".into(),
                 active: vec![LeaseIdentity {
                     task_id: next.id,
@@ -415,6 +519,8 @@ fn coordinator_loss_preserves_workflow_and_children_then_another_ax_recovers() {
         &f.db,
         &replacement.id,
         Heartbeat {
+            host_inventory: None,
+            capabilities: None,
             incarnation: "epoch-1".into(),
             active: vec![],
         },

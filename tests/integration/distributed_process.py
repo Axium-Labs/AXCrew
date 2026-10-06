@@ -133,14 +133,28 @@ def main(ax, crew):
             for index,(host,role) in enumerate([('host-a','code'),('host-a','test'),('host-b','ops')]):
                 mapping = root/f'project-path-{index}'
                 git(['clone','--no-hardlinks',str(source),str(mapping)],cwd=root)
-                instance = request('/api/distributed/enroll',{'host_id':host,'host_name':host,'resources':{'cpu':4,'ram_mb':8192,'gpu':0},'name':f'AX-{role}',
-                    'projects':['project-ax'],'max_executions':2,'can_delegate':True,'capabilities':{'roles':[role],'models':['deepseek-chat'],'permissions':['allow']}})
+                instance = request('/api/distributed/enroll',{'host_id':host,'host_name':host,'name':f'AX-{role}',
+                    'projects':['project-ax'],'max_executions':2,'can_delegate':True})
                 config = {'gateway':base,'token':instance['token'],'instance_id':instance['instance']['id'],'projects':{'project-ax':str(mapping)},'execution_root':str(root/f'executions-{index}'),
-                          'max_executions':2,'provider':'deepseek','model':'deepseek-chat','permission_profile':'allow','sandbox':'off'}
+                          'roles':[role],'max_executions':2,'provider':'deepseek','model':'deepseek-chat','permission_profile':'allow','sandbox':'off'}
                 path = root/f'worker-{index}.json';path.write_text(json.dumps(config))
                 worker = launch([ax,'crew','worker',str(path)],env,f'worker-{index}.log')
                 instances.append((instance,worker,mapping))
             wait(lambda:all(i['last_seen']>0 for i in request('/api/distributed')['instances'].values()),30)
+            wait(lambda:all(h.get('inventory') for h in request('/api/distributed')['hosts'].values()),30)
+            detected=request('/api/distributed')
+            assert detected['hosts']['host-a']['resources']['cpu'] == detected['hosts']['host-b']['resources']['cpu']
+            assert detected['hosts']['host-a']['resources']['cpu'] > 0
+            first=instances[0][0]['instance']['id']
+            desired=dict(detected['instances'][first]['capabilities']);desired['environments'].append('configured')
+            request('/api/distributed/instances/'+first+'/capabilities',desired)
+            pending=request('/api/distributed')['instances'][first]
+            assert pending['pending_capabilities'] == desired and 'configured' not in pending['capabilities']['environments']
+            instances[0][1].terminate();instances[0][1].wait(timeout=10)
+            updated_path=root/'worker-0.json';updated=json.loads(updated_path.read_text());updated['environments']=desired['environments'];updated_path.write_text(json.dumps(updated))
+            new_worker=launch([ax,'crew','worker',str(updated_path)],env,'worker-0-configured.log')
+            instances[0]=(instances[0][0],new_worker,instances[0][2])
+            wait(lambda:request('/api/distributed')['instances'][first]['pending_capabilities'] is None,30)
             assert rejected('/api/distributed')
             assert rejected('/api/distributed/enroll',{},instances[0][0]['token'])
             assert rejected('/api/tasks',None,instances[0][0]['token'])
@@ -172,7 +186,7 @@ def main(ax, crew):
             assert request('/api/distributed/tasks/'+task_id)['task']['result'] == done['result']
             events = request('/api/distributed/events?after_sequence=0&limit=2');assert len(events['events'])==2
             later = request('/api/distributed/events?after_sequence='+str(events['cursor']));assert all(e['sequence']>events['cursor'] for e in later['events'])
-            print('PASS: three AX / two Hosts, remote failure -> analysis -> artifact patch -> re-test; durable workflow, auth, Crew restart without coordinator')
+            print('PASS: three AX / two Hosts, remote failure -> analysis -> artifact patch -> re-test; automatic hardware inventory, post-connect capability configuration, durable workflow, auth, Crew restart without coordinator')
         except Exception:
             for stream in files: stream.flush()
             for log in root.glob('*.log'):

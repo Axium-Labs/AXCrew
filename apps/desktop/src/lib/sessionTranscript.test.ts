@@ -125,6 +125,16 @@ describe('current turn',()=>{
 })
 
 describe('tool rows',()=>{
+  it('retains typed arguments for localization and richer output across reconciliation',()=>{
+    const saved=history([
+      {sessionUpdate:'user_message_chunk',messageId:'u',content:{text:'hello'}},
+      {sessionUpdate:'tool_call',toolCallId:'c',rawInput:{name:'web',arguments:{operation:'fetch',urls:['https://example.org']}},status:'completed',rawOutput:{raw_output:'complete saved result'}},
+      {sessionUpdate:'agent_message_chunk',messageId:'a',content:{text:'完成'}},
+    ])
+    const lines=conversationTranscript(saved,[event(10,{sessionUpdate:'tool_call_update',toolCallId:'c',status:'completed',rawOutput:{raw_output:'complete'}})],{id:'t',input:'hello'} as Task,false)
+    expect(lines[1]).toMatchObject({toolInput:{operation:'fetch',urls:['https://example.org']},rawOutput:'complete saved result',output:'complete saved result'})
+    expect(lines[2].text).toBe('完成')
+  })
   it('deduplicates repeated starts and never changes an error to success',()=>{
     const lines=transcript(history([
       {sessionUpdate:'tool_call',toolCallId:'c1',title:'running exit 1',status:'pending'},

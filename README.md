@@ -121,8 +121,10 @@ a cloud VM for 24/7 automation — is where you need a control plane.
 
 The desktop composer has a joined project/location strip: click the folder to
 choose a project, or the local-computer pill to open the work-location menu.
-The local option keeps the selected directory; cloud is visibly unavailable.
-Existing sessions keep these controls read-only.
+The local option keeps the selected directory. Choosing Cloud reveals a Choose
+environment menu for paired AX or SSH projects. Paired AX runs on its host;
+SSH runs local AX and local models, using SSH only for remote shell commands. Existing sessions keep their directory, host and model fixed.
+Add project opens a named-project dialog with local/remote source selection.
 
 ### Add another machine
 
@@ -223,4 +225,4 @@ MIT. See [crates/server/Cargo.toml](crates/server/Cargo.toml).
 
 ## Optional Distributed Collaboration
 
-AXCrew 0.3.3 adds a **Distributed** desktop sidebar page and an additive `/api/distributed` control plane. Host → AX Instance → Execution supports multiple AX runtimes per machine and multiple concurrent executions per AX. Scheduling matches AX capabilities plus shared Host resources. Durable Tasks, Events, Artifacts and Workflow State allow checkpoint-based recovery without a permanently live Coordinator Agent. Enroll AX instances on the page, download worker configs and run `ax crew worker worker.json` on each Host. Existing single-machine and Crew device controls remain available. See [architecture, API and setup](docs/distributed-collaboration.md).
+AXCrew 0.3.3 adds a **Distributed** desktop sidebar page and an additive `/api/distributed` control plane. Host → AX Instance → Execution supports multiple AX runtimes per machine and multiple concurrent executions per AX. Scheduling matches AX capabilities plus shared Host resources. Durable Tasks, Events, Artifacts and Workflow State allow checkpoint-based recovery without a permanently live Coordinator Agent. Enrollment asks for connection and project information; AX automatically reports Host CPU/RAM/GPU inventory after connection. Configure skills, MCP, tools and models in the connected instance page, apply the generated local settings and let AX report active capabilities before scheduling. Download worker configs and run `ax crew worker worker.json` on each Host. Existing single-machine and Crew device controls remain available. See [architecture, API and setup](docs/distributed-collaboration.md).

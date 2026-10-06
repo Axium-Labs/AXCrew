@@ -48,3 +48,29 @@ Implement in slices: (1) AX ACP adapter and its local transport contract, (2) Cr
 ## Additive distributed state machine
 
 `domain/distributed.rs`, `storage/repositories/distributed.rs`, `orchestration/distributed.rs` and `api/distributed.rs` extend their existing layers. Two idempotent schema additions (`distributed_cluster` and `distributed_blobs`) store the transactional cluster aggregate and immutable artifact content. They leave legacy device/task/session tables intact. Tasks use centralized owner/incarnation/generation leases; Workflows persist explicit CAS checkpoints independently of a Coordinator AX. Capability and shared Host resource placement, cancellation/retry and recovery semantics are detailed in [Distributed Collaboration](../distributed-collaboration.md).
+
+Distributed Hosts now persist worker-reported inventory and its server timestamp.
+Enrollment can omit capacity; unknown Hosts are not placed until detection.
+Connected AX instances retain separate pending settings and active worker-reported
+capabilities, with only active capabilities entering placement. All additions are
+serde-defaulted JSON aggregate fields, preserving existing SQLite state and clients.
+
+
+## Named projects and SSH environments
+
+The additive ssh_connections(id REFERENCES devices, config) table stores
+nonsecret OpenSSH settings. projects(id,name,member_id REFERENCES crew_members)
+stores labels bound to immutable execution members; device/cwd derive from
+members. Removing a project preserves members and conversations. Revocation
+excludes hosts from active lists. Startup resets SSH offline because probes do
+not survive restart. Model changes create/reuse another member rather than
+mutating a session-bound environment. Paired validation retains AX registered
+workspace restrictions.
+
+SSH environments bind remote source paths but run the local AX process in a
+stable local transcript workspace. Host context is injected only into that
+process. SSH commands execute through the registered SSH tool; local filesystem
+execution tools are excluded in this context to prevent confusing remote paths
+with local files. Local model/credential/session stores remain authoritative.
+The scheduler exempts SSH task counts from global/member limits without changing
+other task classes. Same-host tool effects still serialize inside a turn.

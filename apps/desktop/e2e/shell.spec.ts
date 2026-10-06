@@ -5,7 +5,7 @@ test.beforeEach(async({page})=>{
   // Exercise the real UI and CSS with isolated API data, without changing the desktop database.
   await page.route(/\/src\/lib\/api\.ts(?:\?.*)?$/,route=>route.fulfill({contentType:'application/javascript',body:`
     export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
-    export const api=async()=>({});
+    export const api=async(path)=>path==='/api/projects'?[]:{};
     export const endpoints={health:async()=>({status:'ok'}),crews:async()=>[],devices:async()=>[],tasks:async()=>[],sessions:async()=>[],permissions:async()=>[],members:async()=>[],events:async()=>[],settings:async()=>({default_cwd:'C:/workspace'}),history:async()=>({updates:[]}),automations:async()=>[],automationRuns:async()=>[],localAx:async()=>({available:true,home:'C:/Users/me/.ax',projects:[{id:'p1',root:'C:/workspace',sessions:[{id:'local-1',title:'本地上次会话',created_at:1,updated_at:2,messages:4,preview:'检查流水线',task_id:null}]}]}),localSession:async()=>({task_id:'local-1',ax_session_id:'local-1',updates:[]})};
   `}))
   await page.routeWebSocket('**/api/ws*',()=>{})
@@ -89,7 +89,7 @@ test('sidebar groups and terminal docking follow the shell layout',async({page})
   await page.setViewportSize({width:1280,height:800})
   await page.goto('/#/sessions')
   await expect(page.locator('.sidebar-primary .nav-item')).toHaveText(['会话','计划','产物','分布式协作'])
-  await expect(page.locator('.sidebar-utilities .nav-item')).toHaveText(['终端','连接手机','代理能力','设置'])
+  await expect(page.locator('.sidebar-utilities .nav-item')).toHaveText(['终端','连接','代理能力','设置'])
   await page.getByRole('button',{name:'终端',exact:true}).click()
   await expect(page.locator('.terminal-dock')).toHaveClass(/is-bottom.*is-open/)
   await expect(page.locator('.terminal-dock')).toHaveCSS('height','300px')
@@ -250,7 +250,7 @@ test('the session panel mirrors the reference list and reads local AX in place',
 test('remote AX projects stay separate from the local ones',async({page})=>{
   await page.route(/\/src\/lib\/api\.ts(?:\?.*)?$/,route=>route.fulfill({contentType:'application/javascript',body:`
     export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
-    export const api=async()=>({});
+    export const api=async(path)=>path==='/api/projects'?[]:{};
     const task={id:'t-remote',crew_id:'crew',parent_id:null,title:'远程会话',description:'',assigned_member:'member',assigned_device:'phone',dependencies:[],priority:0,status:'completed',input:'hi',output:null,retry_count:0,created_at:5,started_at:5,finished_at:6};
     export const endpoints={health:async()=>({status:'ok'}),crews:async()=>[{id:'crew',name:'团队',created_at:1}],devices:async()=>[{id:'phone',name:'Pixel 8',hostname:'pixel',platform:'android',arch:'arm64',ax_version:'0.1.0',protocol_version:1,capabilities:{},status:'online',last_seen:9,public_key:null}],tasks:async()=>[task],sessions:async()=>[{task_id:'t-remote',member_id:'member',device_id:'phone',ax_session_id:'ax-remote-1'}],permissions:async()=>[],members:async(id)=>id==='crew'?[{id:'member',crew_id:'crew',name:'测试成员',role:'远程',device_id:'phone',cwd:'/srv/work',permission_profile:'ask',skills:[],mcp_servers:[],max_concurrency:1}]:[],events:async()=>[],settings:async()=>({default_cwd:'C:/workspace'}),history:async()=>({updates:[]}),automations:async()=>[],automationRuns:async()=>[],localAx:async()=>({available:true,home:'C:/Users/me/.ax',projects:[{id:'p1',root:'C:/workspace',sessions:[{id:'local-1',title:'本地上次会话',created_at:1,updated_at:2,messages:4,preview:'检查流水线',task_id:null}]}]}),localSession:async()=>({task_id:'local-1',ax_session_id:'local-1',updates:[]})};
   `}))
@@ -351,7 +351,7 @@ test('schedule page mirrors the reference plans, calendar and dialog',async({pag
 test('schedule list shows the automations table, calendar dots and run history',async({page})=>{
   await page.route(/\/src\/lib\/api\.ts(?:\?.*)?$/,route=>route.fulfill({contentType:'application/javascript',body:`
     export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
-    export const api=async()=>({});
+    export const api=async(path)=>path==='/api/projects'?[]:{};
     const automation={id:'a1',name:'错误摘要',message:'把新的生产错误聚类，并给出每一类的可疑原因。',schedule_kind:'interval',interval_minutes:360,daily_time:'09:00',weekdays:'',utc_offset_minutes:480,member_id:null,model:null,approval:'default',silent:false,strict_schedule:false,hide_from_chat:false,lean_context:false,folder:null,enabled:true,created_at:1,last_run_at:null,next_run_at:0,run_count:0,last_status:null};
     export const endpoints={health:async()=>({status:'ok'}),crews:async()=>[],devices:async()=>[],tasks:async()=>[],sessions:async()=>[],permissions:async()=>[],members:async()=>[],events:async()=>[],settings:async()=>({default_cwd:'C:/workspace'}),history:async()=>({updates:[]}),automations:async()=>[automation],automationRuns:async()=>[{id:'r1',automation_id:'a1',task_id:null,status:'completed',started_at:1,finished_at:61,detail:null,name:'错误摘要'}],localAx:async()=>({available:true,home:'C:/Users/me/.ax',projects:[]}),localSession:async()=>({task_id:'',ax_session_id:'x',updates:[]})};
   `}))
@@ -377,25 +377,25 @@ test('schedule list shows the automations table, calendar dots and run history',
 test('utility navigation highlights only the entry you are actually on',async({page})=>{
   await page.goto('/#/sessions')
   const entry=(label:string)=>page.locator('.sidebar-utilities .nav-item').filter({hasText:label})
-  await expect(entry('连接手机')).not.toHaveClass(/active/)
-  await page.getByRole('link',{name:'连接手机',exact:true}).click()
+  await expect(entry('连接')).not.toHaveClass(/active/)
+  await page.getByRole('link',{name:'连接',exact:true}).click()
   await expect(page).toHaveURL(/\/connect$/)
-  await expect(entry('连接手机')).toHaveClass(/active/)
+  await expect(entry('连接')).toHaveClass(/active/)
   await expect(entry('代理能力')).not.toHaveClass(/active/)
   await page.keyboard.press('Escape')
   await page.getByRole('link',{name:'代理能力',exact:true}).click()
   await expect(entry('代理能力')).toHaveClass(/active/)
-  await expect(entry('连接手机')).not.toHaveClass(/active/)
+  await expect(entry('连接')).not.toHaveClass(/active/)
   await page.getByRole('link',{name:'计划',exact:true}).click()
   await expect(entry('代理能力')).not.toHaveClass(/active/)
-  await expect(entry('连接手机')).not.toHaveClass(/active/)
+  await expect(entry('连接')).not.toHaveClass(/active/)
   await page.screenshot({path:'test-results/sidebar-active.png'})
 })
 
 test('artifacts page groups output into a gallery and a table',async({page})=>{
   await page.route(/\/src\/lib\/api\.ts(?:\?.*)?$/,route=>route.fulfill({contentType:'application/javascript',body:`
     export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
-    export const api=async()=>({});
+    export const api=async(path)=>path==='/api/projects'?[]:{};
     const base={crew_id:'crew',parent_id:null,description:'',assigned_member:'member',assigned_device:'local',dependencies:[],priority:0,status:'completed',input:'x',retry_count:0,started_at:10};
     const tasks=[{...base,id:'a-code',title:'重构脚本',output:{text:'\\u0060\\u0060\\u0060python\\nprint(1)\\n\\u0060\\u0060\\u0060'},created_at:10,finished_at:11},{...base,id:'a-doc',title:'周报',output:{text:'# 本周进展\\n- 完成 A'},created_at:11,finished_at:12}];
     export const endpoints={health:async()=>({status:'ok'}),crews:async()=>[{id:'crew',name:'本地 AX',created_at:1}],devices:async()=>[],tasks:async()=>tasks,sessions:async()=>[],permissions:async()=>[],members:async()=>[],events:async()=>[],settings:async()=>({default_cwd:'C:/workspace'}),history:async()=>({updates:[]}),automations:async()=>[],automationRuns:async()=>[],localAx:async()=>({available:true,home:'C:/Users/me/.ax',projects:[]}),localSession:async()=>({task_id:'',ax_session_id:'x',updates:[]})};
@@ -478,7 +478,7 @@ test('goal loop dialog mirrors the goal and PR-monitor fields',async({page})=>{
 test('settings separates connections and system and switches both languages',async({page})=>{
   await page.goto('/#/settings/connections')
   await expect(page.locator('.settings-page-top h1')).toHaveText('连接')
-  await expect(page.getByText('公共网关 URL')).toBeVisible()
+  await expect(page.getByRole('tab',{name:'控制此电脑'})).toBeVisible()
   await expect(page.getByText('桌面行为')).toHaveCount(0)
   await page.getByRole('button',{name:'系统',exact:true}).click()
   await expect(page).toHaveURL(/settings\/system/)
@@ -508,17 +508,19 @@ test('conversation inference button toggles Fast and pickers highlight only on i
     export const axCheckUpdate=async()=>({action:'none'}),axApplyUpdate=axCheckUpdate;
   `}))
   await page.goto('/#/sessions')
+  await page.getByRole('button',{name:'选择 AX 模型',exact:true}).click()
   const fast=page.getByRole('button',{name:'更快',exact:true})
   await expect(fast).toHaveAttribute('aria-pressed','false')
   await fast.hover()
-  await expect(page.getByRole('tooltip')).toHaveText('更快用量更多')
+  await expect(fast).toHaveAttribute('title','更快 · 用量更多')
   await fast.click()
   await expect(fast).toHaveAttribute('aria-pressed','true')
   await expect.poll(()=>page.evaluate(()=>(window as any).__inferenceMode)).toBe('fast')
   await fast.click()
   await expect(fast).toHaveAttribute('aria-pressed','false')
   await expect.poll(()=>page.evaluate(()=>(window as any).__inferenceMode)).toBe('standard')
-  for(const selector of ['.session-footer-thinking','.session-footer-auto']){
+  await page.keyboard.press('Escape')
+  for(const selector of ['.session-footer-auto']){
     const picker=page.locator(selector)
     await page.getByRole('textbox',{name:'发送消息'}).click()
     await page.mouse.move(0,0)
@@ -531,6 +533,7 @@ test('conversation inference button toggles Fast and pickers highlight only on i
     expect(await picker.evaluate(node=>getComputedStyle(node).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
     await page.keyboard.press('Escape')
   }
+  await page.getByRole('button',{name:'选择 AX 模型',exact:true}).click()
   await fast.hover()
   await page.screenshot({path:'test-results/session-fast-tooltip.png'})
 })
@@ -643,7 +646,7 @@ test('composer work location opens above the joined strip and keeps the project'
   const menu=page.locator('.session-location-menu')
   await expect(menu).toBeVisible()
   await expect(page.getByRole('menuitemradio',{name:'此计算机'})).toHaveAttribute('aria-checked','true')
-  await expect(page.getByRole('menuitemradio',{name:/云端/})).toBeDisabled()
+  await expect(page.getByRole('menuitemradio',{name:/云端/})).toBeEnabled()
   const menuBox=(await menu.boundingBox())!
   const strip=(await page.locator('.session-composer-tabs').boundingBox())!
   const input=(await page.locator('.session-composer').boundingBox())!

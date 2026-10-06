@@ -1,0 +1,2 @@
+import { defineConfig } from '../../apps/desktop/node_modules/@playwright/test'
+export default defineConfig({testDir:'.',testMatch:'connections.browser.spec.ts',outputDir:'../../apps/desktop/test-results/connections-browser',use:{baseURL:'http://127.0.0.1:1424',channel:'msedge',headless:true,trace:'retain-on-failure'},webServer:{command:'npm run dev -- --port 1424',cwd:'../../apps/desktop',url:'http://127.0.0.1:1424',reuseExistingServer:false},reporter:'list'})

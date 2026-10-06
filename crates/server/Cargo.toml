@@ -1,6 +1,6 @@
 [package]
 name = "ax-crew"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2024"
 rust-version = "1.92"
 description = "AX Crew control plane: REST/WebSocket gateway, DAG scheduling and device routing for AX runtimes"
@@ -36,3 +36,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 [[test]]
 name = "distributed"
 path = "../../tests/distributed.rs"
+
+[[test]]
+name = "connections"
+path = "../../tests/connections.rs"

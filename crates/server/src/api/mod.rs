@@ -7,6 +7,7 @@
 
 pub mod automations;
 pub mod composer;
+pub mod connections;
 pub mod crews;
 pub mod devices;
 pub mod distributed;
@@ -34,10 +35,33 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 /// routes, then the state is attached, then CORS wraps everything.
 pub fn router(state: App) -> Router {
     Router::new()
+        .route(
+            "/api/environments/{id}/model",
+            post(connections::select_model),
+        )
+        .route(
+            "/api/connections/ssh",
+            get(connections::ssh).post(connections::add_ssh),
+        )
+        .route("/api/connections/ssh/discover", get(connections::discover))
+        .route(
+            "/api/connections/ssh/{id}/connect",
+            post(connections::connect),
+        )
+        .route("/api/devices/{id}/workspace", get(connections::workspace))
+        .route(
+            "/api/projects",
+            get(connections::projects).post(connections::create_project),
+        )
+        .route("/api/projects/{id}", delete(connections::remove_project))
         .route("/api/distributed", get(distributed::state))
         .route("/api/distributed/catalog", get(distributed::catalog))
         .route("/api/distributed/events", get(distributed::events))
         .route("/api/distributed/enroll", post(distributed::enroll))
+        .route(
+            "/api/distributed/instances/{id}/capabilities",
+            post(distributed::configure),
+        )
         .route("/api/distributed/tasks", post(distributed::submit))
         .route("/api/distributed/tasks/{id}", get(distributed::task))
         .route(

@@ -1,6 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core'
 
-export type AxModel = { provider: string; id: string; display_name: string }
+export type AxModel = { provider: string; id: string; display_name: string; reasoning_efforts?: string[]; default_reasoning_effort?: string | null; reasoning_effort?: string | null }
 export type AxProvider = {
   auth_kind?: 'api_key' | 'oauth' | 'ambient'; id: string; name: string; configured: boolean; source: string | null; supported: boolean; unsupported_reason: string | null; model_source?: 'cache' | 'fallback' | 'none'; models: AxModel[] }
 /** Result of the model discovery run that follows storing an API key. */

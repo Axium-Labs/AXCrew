@@ -10,7 +10,10 @@ type SessionUi = {
   rightOpen: boolean
   rightTab: 'files' | 'details' | 'changes' | 'chat'
   drafts: Record<string, string>
+  draftUpdatedAt: Record<string, number>
   startingIds: string[]
+  selectedEnvironment: string | null
+  setSelectedEnvironment: (id: string | null) => void
   selectedCwd: string | null
   permissionModes: Record<string, 'ask' | 'read' | 'trust' | 'yolo'>
   defaultPermission: 'ask' | 'yolo'
@@ -28,16 +31,17 @@ type SessionUi = {
 export const useSessionUi = create<SessionUi>()(persist(set => ({
   metadata: {},
   setMetadata: (id, value) => set(state => ({ metadata: { ...state.metadata, [id]: { ...state.metadata[id], ...value } } })),
-  listOpen: true, rightOpen: false, rightTab: 'files', drafts: {}, startingIds: [], selectedCwd: null, permissionModes: {}, defaultPermission: 'ask', thinkingEffort: '',
+  listOpen: true, rightOpen: false, rightTab: 'files', drafts: {}, draftUpdatedAt: {}, startingIds: [], selectedCwd: null, selectedEnvironment: null, permissionModes: {}, defaultPermission: 'ask', thinkingEffort: '',
   setListOpen: listOpen => set({ listOpen }),
   setRightOpen: rightOpen => set({ rightOpen }),
   setRightTab: rightTab => set({ rightTab }),
-  setDraft: (key, text) => set(state => ({ drafts: { ...state.drafts, [key]: text } })),
+  setDraft: (key, text) => set(state => ({ drafts: { ...state.drafts, [key]: text }, draftUpdatedAt: { ...state.draftUpdatedAt, [key]: Math.max(Date.now(), (state.draftUpdatedAt[key] ?? 0) + 1) } })),
   addStarting: id => set(state => ({ startingIds: [...new Set([...state.startingIds, id])] })),
   setSelectedCwd: selectedCwd => set({ selectedCwd }),
+  setSelectedEnvironment: selectedEnvironment => set({ selectedEnvironment }),
   setPermissionMode: (key, mode) => set(state => ({ permissionModes: { ...state.permissionModes, [key]: mode }, defaultPermission: mode === 'yolo' ? 'yolo' : mode === 'ask' ? 'ask' : state.defaultPermission })),
   setThinkingEffort: thinkingEffort => set({ thinkingEffort }),
 }), {
   name: 'ax-crew-session-layout',
-  partialize: ({ metadata, listOpen, rightOpen, rightTab, selectedCwd, permissionModes, defaultPermission, thinkingEffort }) => ({ metadata, listOpen, rightOpen, rightTab, selectedCwd, permissionModes, defaultPermission, thinkingEffort }),
+  partialize: ({ metadata, listOpen, rightOpen, rightTab, selectedCwd, selectedEnvironment, permissionModes, defaultPermission, thinkingEffort, drafts, draftUpdatedAt }) => ({ metadata, listOpen, rightOpen, rightTab, selectedCwd, selectedEnvironment, permissionModes, defaultPermission, thinkingEffort, drafts, draftUpdatedAt }),
 }))

@@ -7,6 +7,7 @@
 //! decisions.
 
 pub mod approval;
+pub mod connections;
 pub mod crew;
 pub mod distributed;
 pub mod scheduler;

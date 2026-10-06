@@ -289,11 +289,27 @@ impl Scheduler {
                 .member(&task.assigned_member)?
                 .ok_or_else(|| anyhow!("assigned member missing"))?;
             let mut running = self.running.lock().unwrap();
-            if running.len() >= self.max_concurrency {
-                break;
+            // SSH uses independent local AX/SSH processes, with no fixed host,
+            // global task or per-environment SSH concurrency cap.
+            if !task.assigned_device.starts_with("ssh:") {
+                let bounded = running
+                    .values()
+                    .filter(|(id, _)| {
+                        self.db
+                            .member(id)
+                            .ok()
+                            .flatten()
+                            .is_some_and(|m| !m.device_id.starts_with("ssh:"))
+                    })
+                    .count();
+                let member_count = running.values().filter(|(id, _)| id == &member.id).count();
+                if bounded >= self.max_concurrency
+                    || member_count >= member.max_concurrency as usize
+                {
+                    continue;
+                }
             }
-            let member_count = running.values().filter(|(id, _)| id == &member.id).count();
-            if member_count >= member.max_concurrency as usize || running.contains_key(&task.id) {
+            if running.contains_key(&task.id) {
                 continue;
             }
             let Some(device) = self.db.device(&task.assigned_device)? else {

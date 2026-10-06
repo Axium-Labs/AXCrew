@@ -136,6 +136,22 @@
 .sidebar-utilities{margin-top:auto;flex:none;padding-bottom:12px}
 .sidebar-utilities .nav-item{width:100%;border:0;background:transparent;text-align:left;cursor:pointer;font-family:inherit}
 .sidebar-utilities .nav-item.active{background:color-mix(in srgb,var(--shell-accent) 18%,var(--shell-panel))}
+
+/* Keep normal text sizes on small monitors; reclaim space from navigation. */
+body{min-width:360px}
+@media(max-width:1100px){
+  .sidebar:not(.is-compact){width:200px}
+  .page{padding:20px 22px 36px}
+}
+@media(max-width:650px){
+  .workspace{gap:4px;padding:4px}.sidebar{width:48px;border-radius:14px}
+  .sidebar:not(.is-compact){position:absolute;z-index:40;top:48px;bottom:4px;left:4px;width:180px}
+  .sidebar-nav,.sidebar.is-compact .sidebar-nav{padding:8px 4px}.brand-mark{width:30px;height:30px}
+  .shell-titlebar{grid-template-columns:70px minmax(70px,1fr) 130px;padding:0 6px;gap:4px}
+  .shell-titlebar-right{gap:0}.shell-scan-button{display:none}
+  .page{padding:16px 12px 28px}.page-head{flex-wrap:wrap;gap:12px}.page-head h1{font-size:22px}
+  .form-grid{grid-template-columns:minmax(0,1fr)}
+}
 .main.has-terminal-right{flex-direction:row}
 .main.has-terminal-right .content{min-width:0;min-height:0}
 

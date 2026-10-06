@@ -8,6 +8,7 @@
 
 mod ax;
 mod device;
+pub(crate) mod ssh;
 
 pub use ax::LocalTransport;
 
@@ -46,6 +47,7 @@ pub struct DeviceRouter {
     pub local: LocalTransport,
     pub gateway: Gateway,
     pub approvals: ApprovalBroker,
+    pub db: crate::storage::Db,
 }
 
 pub struct Inspection {
@@ -81,23 +83,65 @@ impl DeviceRouter {
         params: Value,
     ) -> Result<Inspection> {
         let mut updates = Vec::new();
-        if device == "local" {
+        let ssh_device = device.starts_with("ssh:");
+        let remote_cwd = cwd;
+        let local_cwd;
+        let mut params = params;
+        let cwd = if ssh_device {
+            if method == "_ax/workspace" {
+                let config = self
+                    .db
+                    .ssh_connection(device)?
+                    .ok_or_else(|| anyhow!("SSH connection not found"))?;
+                return Ok(Inspection {
+                    result: ssh::workspace(&config, params["cwd"].as_str()).await?,
+                    updates,
+                });
+            }
+            local_cwd = ssh::local_workspace(device)?.to_string_lossy().into_owned();
+            if params.get("cwd").is_some() {
+                params["cwd"] = json!(local_cwd);
+            }
+            &local_cwd
+        } else {
+            cwd
+        };
+        if device == "local" || ssh_device {
             let mut cmd = Command::new(&self.local.ax);
+            cmd.env_remove("AX_SSH_CONTEXT")
+                .env_remove("AX_SSH_CONTEXT_FILE");
+            let _context_file;
             if let Some(home) = crate::ax::ax_home() {
                 cmd.env("AX_HOME", home);
             }
-            cmd.arg("acp")
-                .current_dir(cwd)
-                .stdin(std::process::Stdio::piped())
+            if ssh_device && self.db.ssh_connection(device)?.is_some() {
+                _context_file = Some(ssh::ContextFile::new(
+                    self.db.ssh_connections()?,
+                    device,
+                    remote_cwd,
+                )?);
+                cmd.env("AX_SSH_CONTEXT_FILE", &_context_file.as_ref().unwrap().path);
+            } else {
+                _context_file = None;
+            }
+            {
+                cmd.arg("acp")
+                    .current_dir(cwd)
+                    .stdin(std::process::Stdio::piped())
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::inherit())
+                    .kill_on_drop(true);
+                if let Some(p) = provider {
+                    cmd.arg("--provider").arg(p);
+                }
+                if let Some(m) = model {
+                    cmd.arg("--model").arg(m);
+                }
+            }
+            cmd.stdin(std::process::Stdio::piped())
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::inherit())
                 .kill_on_drop(true);
-            if let Some(p) = provider {
-                cmd.arg("--provider").arg(p);
-            }
-            if let Some(m) = model {
-                cmd.arg("--model").arg(m);
-            }
             let mut child = cmd.spawn()?;
             let mut input = child
                 .stdin
@@ -212,6 +256,31 @@ impl Transport for DeviceRouter {
             self.local
                 .execute(task, member, session, cancel, events)
                 .await
+        } else if task.assigned_device.starts_with("ssh:") {
+            if self.db.ssh_connection(&task.assigned_device)?.is_none() {
+                return Err(anyhow!("SSH connection not found"));
+            }
+            let mut local_member = member.clone();
+            local_member.cwd = ssh::local_workspace(&task.assigned_device)?
+                .to_string_lossy()
+                .into_owned();
+            let mut cmd = self.local.command_for(task, &local_member);
+            let context = ssh::ContextFile::new(
+                self.db.ssh_connections()?,
+                &task.assigned_device,
+                &member.cwd,
+            )?;
+            cmd.env("AX_SSH_CONTEXT_FILE", &context.path);
+            ax::execute_process(
+                cmd,
+                &self.approvals,
+                task,
+                &local_member,
+                session,
+                cancel,
+                events,
+            )
+            .await
         } else {
             device::RemoteTransport {
                 gateway: self.gateway.clone(),

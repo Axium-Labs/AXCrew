@@ -6,7 +6,12 @@ use tauri::State;
 use crate::{DesktopState, proc::command};
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct AxModel { pub provider: String, pub id: String, pub display_name: String }
+pub struct AxModel {
+    pub provider: String, pub id: String, pub display_name: String,
+    #[serde(default)] pub reasoning_efforts: Vec<String>,
+    #[serde(default)] pub default_reasoning_effort: Option<String>,
+    #[serde(default)] pub reasoning_effort: Option<String>,
+}
 /// Outcome of the model discovery run that follows storing a credential.
 #[derive(Serialize)]
 pub struct AxDiscovery { pub provider: String, pub models: usize, pub warning: Option<String> }
@@ -242,6 +247,8 @@ fn state(active: &Path) -> Result<AxLocalState, String> {
         provider: model.get("provider")?.as_str()?.to_owned(),
         id: model.get("model")?.as_str()?.to_owned(),
         display_name: model.get("model")?.as_str()?.to_owned(),
+        reasoning_efforts: Vec::new(), default_reasoning_effort: None,
+        reasoning_effort: model.get("reasoning_effort").and_then(Value::as_str).map(str::to_owned),
     }));
     let (providers, runtime_warning) = if !active.is_file() {
         (Vec::new(), Some("尚未安装 AX，请下载并安装后重启 AX Crew。".into()))
@@ -251,6 +258,14 @@ fn state(active: &Path) -> Result<AxLocalState, String> {
             Err(error) => (Vec::new(), Some(error)),
         }
     };
+    let selected = selected.map(|mut selected| {
+        if let Some(model) = providers.iter().flat_map(|provider| &provider.models).find(|model| model.provider == selected.provider && model.id == selected.id) {
+            selected.display_name = model.display_name.clone();
+            selected.reasoning_efforts = model.reasoning_efforts.clone();
+            selected.default_reasoning_effort = model.default_reasoning_effort.clone();
+        }
+        selected
+    });
     Ok(AxLocalState {
         installed_path: installed.as_ref().map(|path| path.to_string_lossy().into_owned()),
         installed_version: installed.as_deref().and_then(version),
@@ -499,6 +514,10 @@ pub async fn ax_manage_capability(desktop: State<'_, DesktopState>, cwd: String,
         backup_command(&ax, &cwd, &args)
     }).await.map_err(|error| error.to_string())?
 }
+
+#[cfg(test)]
+#[path = "../../../../tests/desktop/model_catalogue.rs"]
+mod catalogue_tests;
 
 #[cfg(test)]
 mod tests {

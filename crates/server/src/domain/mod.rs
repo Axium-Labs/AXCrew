@@ -5,6 +5,7 @@
 //! depend on them without pulling a storage or transport detail along.
 
 pub mod automation;
+pub mod connections;
 pub mod crew;
 pub mod device;
 pub mod distributed;

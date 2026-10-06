@@ -32,6 +32,11 @@ pub async fn local_ax_overview(State(app): State<App>, headers: HeaderMap) -> Ap
         .collect::<std::collections::HashMap<_, _>>();
     let mut projects = Vec::new();
     for project in ax::projects() {
+        if ax::ax_home().is_some_and(|home| {
+            std::path::Path::new(&project.root).starts_with(home.join("ssh-workspaces"))
+        }) {
+            continue;
+        }
         match ax::sessions(&project) {
             Ok(sessions) if sessions.is_empty() => continue,
             Ok(sessions) => projects.push(json!({

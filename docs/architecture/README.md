@@ -61,8 +61,8 @@ auth/ config/ error/ app.rs           cross-cutting support
 | `api/` | One module per resource; `request -> validation -> orchestration -> response`. | An endpoint or its request/response shape changes. |
 | `domain/` | Pure models and the wall-clock schedule maths. No SQLite, no HTTP, no tokio. | A persisted concept or a scheduling rule changes. |
 | `storage/` | `Db` facade, `schema.sql`, migrations and one repository module per aggregate. The only layer that writes SQL. | The schema, a query or a migration changes. |
-| `orchestration/` | Task scheduling, automations, approval brokering, crew rules. | A business process changes. |
-| `transport/` | Local ACP stdio and remote gateway runs behind one `Transport` trait. | How AX is reached changes. |
+| `orchestration/` | Task scheduling, automations, approval brokering, crew rules and host workspace validation. | A business process changes. |
+| `transport/` | Local AX ACP, paired AX gateway runs and local AX with OpenSSH tools behind one `Transport` trait. | How AX is reached changes. |
 | `gateway/` | The device WebSocket, its Ed25519 handshake and its links. | The device protocol changes. |
 | `ax/` | Read-only discovery of the local AX stores and usage aggregation. | Reading AX's own store changes. |
 
@@ -94,3 +94,11 @@ auth/ config/ error/ app.rs           cross-cutting support
 or `orchestration` into separate crates would add versioning and build cost before
 the boundaries have proven stable. `domain/` and `storage/` already provide the
 seam, so `crates/protocol` can be extracted later without moving any logic.
+
+
+Connections/projects have separate domain models, storage repositories,
+orchestration validation and authenticated API adapters in their respective
+connections.rs modules. transport/ssh.rs performs remote directory probes and resolves local transcript
+workspaces. transport/ax.rs owns the local ACP update/approval/cancellation
+lifecycle; SSH tasks inject a host context into that local AX process. The source
+selector never validates a remote directory on the gateway disk.

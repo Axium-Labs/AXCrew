@@ -81,13 +81,32 @@ Eligibility combines **AX Capability + Host Resource**:
 - Per-instance concurrency limits and shared Host CPU/RAM/GPU reservations must
   fit. Oldest eligible work is considered first, preferring less-busy instances.
 
-Admin enrollment approves stable Host identity/resources and per-instance
-capabilities, project IDs, concurrency and `can_delegate`. Adding another AX on
-the same Host cannot silently change its capacity. Resources are declared
-reservations, not measurements, OS quotas or GPU device allocation. Changing
-capacity does not evict already running valid work; it controls new placement.
-Capabilities are trusted declarations; local worker configuration is checked for
-projects/concurrency/model/selected Skill/MCP/profile, not hardware attestation.
+Enrollment approves stable Host identity, project IDs, concurrency and
+`can_delegate`. Resource/capability fields remain optional for legacy API clients,
+but the desktop enrollment form does not contain them. New Hosts have no scheduling
+capacity until an AX worker reports detected hardware. Reports contain hostname,
+OS/architecture, logical CPU count/name, physical RAM MiB, PCI/display GPU count
+and names, and errors. `Host.inventory_at` is a server timestamp; last-known
+inventory survives Crew restart and offline status. Native detection runs in a
+bounded background task every 60 seconds, outside the five-second lease loop.
+
+The authenticated instance can report only its own Host through a valid incarnation.
+All instances on that Host share the reported capacity; it is never summed.
+Unknown RAM/GPU are null in inventory and conservatively zero in available scheduling
+capacity. GPU detection includes integrated/display adapters, not just CUDA GPUs.
+Resource reservations are requested task capacity, not measured utilization, OS
+quotas or GPU device allocation. Refreshing capacity does not evict valid running
+work; it controls new placement. The legacy admin resource endpoint is retained;
+a subsequent worker inventory refresh replaces its capacity values.
+
+After first connection, admin may stage `pending_capabilities` using the instance
+capability endpoint. Active `capabilities` remain the last worker report and are
+the only capabilities used by scheduling. The UI generates fields to merge into
+local `worker.json`; install/enable dependencies on that Host and restart the worker.
+A matching worker report clears pending state. Startup checks the pending policy
+if present, otherwise the current policy, for model/Skill/MCP/profile. Capability
+selections remain trusted local configuration, not hardware attestation or a
+health check of every external service. Model credentials remain on the Host.
 
 Workers get separate credentials scoped to the distributed API and approved
 projects. Delegation requires `can_delegate`; child creation and checkpoints
@@ -128,7 +147,8 @@ allow admin where appropriate.
 | GET `/` | Project-filtered durable snapshot plus `revision`, `server_time`; excludes credential hashes/receipts |
 | GET `/catalog` | Hosts and AX capabilities/resources |
 | GET `/events?after_sequence=0&limit=256` | Ordered events and next `cursor`; max1000 events |
-| POST `/enroll` | `host_id, host_name, resources, name, capabilities, projects, max_executions, can_delegate` → `instance, token` (token shown once) |
+| POST `/enroll` | `host_id, host_name, name, projects, max_executions, can_delegate`; optional legacy `resources, capabilities` → `instance, token` (token shown once) |
+| POST `/instances/{id}/capabilities` | Capability string arrays (admin, after first connection) → pending local settings; does not immediately change scheduling |
 | POST `/tasks` | `request_id, title, input, project_id`, optional `context_summary, workspace_revision, workflow_id, requirements, dependencies, artifacts, parent_id, parent_generation, max_attempts` → Task |
 | GET `/tasks/{id}` | `task, workflow, observations, cursor`; event cursor query supported |
 | POST `/tasks/{id}/cancel` or `/retry` | Central task control |
@@ -136,7 +156,7 @@ allow admin where appropriate.
 | POST `/workflows/{id}/checkpoint` | `expected_revision, state`, worker also supplies source lease Report → Workflow |
 | GET `/worker/identity` | Authenticated `instance_id`, before worker start mutation |
 | POST `/worker/start` | `incarnation` → authenticated `instance_id`; replaces old epoch |
-| POST `/worker/heartbeat` | `incarnation, active:[{task_id,generation}]` → new/unacknowledged `assignments`, all owned `leases`, `server_time` |
+| POST `/worker/heartbeat` | `incarnation, active:[{task_id,generation}]`, optional `host_inventory, capabilities` → new/unacknowledged `assignments`, all owned `leases`, `server_time` |
 | POST `/worker/report` | `incarnation, task_id, generation, message_id, kind, text, artifacts`; kind `completed`, `failed` or `observation` |
 | POST `/{hosts|instances}/{id}/enabled` | `enabled` (admin) |
 | POST `/hosts/{id}/resources` | `cpu, ram_mb, gpu` (admin) |
@@ -154,7 +174,8 @@ durable Event stream; reads/polls support delayed/disconnected clients.
 
 The management page has Host, AX Instance, Workflow, Task, Artifact and Event tabs.
 It supports enrollment/config download, enabling/disabling Hosts/instances,
-Host resource editing, capability/resource/dependency/commit-aware task submission,
+automatic Host hardware/status viewing, post-connect instance capability configuration,
+capability/resource/dependency/commit-aware task submission,
 attempt/result/error inspection, cancellation/retry and artifact download.
 Downloaded configs select an independent execution root and AX home per instance.
 Paths/model credentials and capabilities still require correct local setup.

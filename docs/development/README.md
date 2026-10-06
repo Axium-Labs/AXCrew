@@ -95,3 +95,39 @@ the same AX Session, pairing and revocation.
 `cargo test --workspace` includes `tests/distributed.rs`: capability/resource scheduling, concurrent idempotent submissions, retry history, ownership/incarnation fencing, permissions, dependency outcomes and coordinator replacement with Workflow State. Desktop Vitest also includes `tests/desktop/distributed.test.tsx` (`cd apps/desktop; npm run test:ui`). Browser coverage uses `npx playwright test --config ../../tests/desktop/playwright.config.ts` from `apps/desktop`; screenshots/outputs are ignored under its `test-results/`.
 
 After building both binaries: `python tests/integration/distributed_process.py ../ax/target/debug/ax.exe target/debug/ax-crew.exe` (Windows; adjust paths on Linux). It launches three real workers on two logical Hosts against a local fake SSE model, verifies failed test → analysis → Patch → retest, auth scoping, immutable artifact hashes, ordered event reads and Crew restart. No physical multi-host networking/hardware isolation is implied by this test. Existing process tests remain `smoke.py`, `gateway_socket.py`, `model_catalog.py` and `workspace_recovery.py`.
+
+
+Connection/project regression uses tests/integration/connections_process.py with
+absolute AX and Crew executable paths. It runs an isolated authenticated gateway
+and a local model stub; no real credentials or external model calls are needed.
+The desktop connection browser suite is run from apps/desktop with:
+npx playwright test --config ../../tests/desktop/connections.playwright.config.ts
+It covers SSH forms, project host selection, cloud/model binding and dark/light
+layouts at 960/1440 pixels. Component coverage lives in
+tests/desktop/connections.test.tsx and runs with npm run test:ui.
+
+The additional tests/integration/ssh_local_process.py regression builds a small
+test SSH executable from ssh_fixture.rs and runs real local AX/Crew against
+a mock model and POSIX shell. On Windows it needs the installed Git Bash; it
+does not require an SSH server, remote AX, personal credentials or external APIs.
+It proves one-turn multi-host control, local history during SSH outages/removal,
+and eight concurrent tasks despite --concurrency 1 and member concurrency 1.
+
+Chat presentation regression: from apps/desktop, run
+`npx playwright test --config ../../tests/desktop/transcript.playwright.config.ts`.
+It covers static running status, related web-call grouping, automatic completion
+folding after manual expansion, a single final answer toolbar, and saved tool
+output after branching and returning, at desktop and HiDPI scales. Vitest includes
+tests/desktop/tool-presentation.test.ts plus transcript component/reconciliation
+tests. Screenshots and traces are ignored under apps/desktop/test-results/.
+
+Composer/responsive regression: from apps/desktop, run
+`npx playwright test --config ../../tests/desktop/composer.playwright.config.ts`.
+It covers catalogue-backed effort/model/Fast controls, follow-up effort payloads,
+new/existing draft navigation and reload, turn previews/jumps, 960/760/560px
+layouts and manual navigation at desktop/HiDPI pixel densities. Vitest includes
+tests/desktop/model-controls.test.tsx and drafts.test.tsx for unsupported/stale
+capabilities, local persistence and binding arrival while composing.
+Gateway: `cargo test -p ax-crew --lib effort_tests`; Tauri bridge (from src-tauri):
+`cargo test --lib catalogue_tests`. AX provider catalogue parsing is covered by
+`cargo test -p model --test reasoning_catalogue` in the AX workspace.

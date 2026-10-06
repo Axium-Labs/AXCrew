@@ -6,7 +6,7 @@ test.beforeEach(async({page})=>{
     const tasks=[],sessions=[];
     const updates=[{update:{sessionUpdate:'user_message_chunk',messageId:'u',content:{text:'修复校验错误'}}},{update:{sessionUpdate:'agent_message_chunk',messageId:'a',content:{text:'已修复字段校验。验证全部通过。'}}},{update:{sessionUpdate:'turn_changes',changedFiles:[{path:'src/schema.py',additions:3,deletions:1,diff:'@@ -42 +42 @@\\n-old\\n+new'}]}}];
     export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
-    export const api=async(path,method,body)=>{
+    export const api=async(path,method,body)=>{if(path==='/api/projects')return [];
       (window.__requests??=[]).push({path,method,body});
       if(path==='/api/sessions'){
         const input={prompt:body.text,display_text:body.text,context:body.context??[]};
@@ -73,7 +73,7 @@ test('live change summary opens and follows successful edits while replying text
     const task={id:'live-edit',crew_id:'crew',title:'修复代码',assigned_member:'member',assigned_device:'local',dependencies:[],status:'running',input:'修复代码',created_at:Date.now()/1000,started_at:Date.now()/1000};
     const session={task_id:'live-edit',ax_session_id:'s',member_id:'member',device_id:'local'};
     export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
-    export const api=async()=>({});
+    export const api=async(path)=>path==='/api/projects'?[]:{};
     export const endpoints={health:async()=>({status:'ok'}),crews:async()=>[],devices:async()=>[],tasks:async()=>[task],sessions:async()=>[session],permissions:async()=>[],members:async()=>[{id:'member',cwd:'C:/workspace',device_id:'local'}],events:async()=>[],settings:async()=>({default_cwd:'C:/workspace'}),automations:async()=>[],automationRuns:async()=>[],localAx:async()=>({projects:[]}),history:async()=>({task_id:'live-edit',updates:[]})};
   `}))
   let socket: import('@playwright/test').WebSocketRoute

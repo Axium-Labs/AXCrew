@@ -47,7 +47,7 @@ const zh: Record<string, string> = {
   'nav.schedule': '计划',
   'nav.artifacts': '产物',
   'nav.distributed': '分布式协作',
-  'nav.connect': '连接手机',
+  'nav.connect': '连接',
   'nav.capabilities': '代理能力',
   'nav.settings': '设置',
   'nav.overview': '概览',
@@ -346,7 +346,7 @@ const en: Record<string, string> = {
   'nav.schedule': 'Schedule',
   'nav.artifacts': 'Artifacts',
   'nav.distributed': 'Distributed',
-  'nav.connect': 'Connect phone',
+  'nav.connect': 'Connections',
   'nav.capabilities': 'Agent capabilities',
   'nav.settings': 'Settings',
   'nav.overview': 'Overview',
@@ -611,7 +611,7 @@ const sessionActions = {
   'session.moveProject':['项目','Project'], 'session.delete':['删除','Delete'], 'session.restore':['恢复','Restore'],
   'session.title':['会话名称','Session title'], 'session.originalProject':['原项目','Original project'],
   'session.showDeleted':['查看已删除','Show deleted'], 'session.showRecent':['返回最近会话','Back to recent'],
-  'common.cancel':['取消','Cancel'], 'common.save':['保存','Save'],
+  'common.close':['关闭','Close'], 'common.cancel':['取消','Cancel'], 'common.save':['保存','Save'],
 }
 for (const [key, values] of Object.entries(sessionActions)) { zh[key] = values[0]; en[key] = values[1] }
 const statusCopy: Record<string,[string,string]> = {

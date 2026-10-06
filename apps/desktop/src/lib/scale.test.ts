@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { startWindowScale, windowScale } from './scale'
 
 describe('window scale', () => {
-  it('grows with the window and stays inside its bounds', () => {
-    expect(windowScale(1080)).toBe(0.85)
+  it('keeps native DPI handling at every window size', () => {
+    expect(windowScale(1080)).toBe(1)
     expect(windowScale(1440)).toBe(1)
-    expect(windowScale(1800)).toBe(1.25)
-    expect(windowScale(2600)).toBe(1.6)
+    expect(windowScale(1800)).toBe(1)
+    expect(windowScale(2600)).toBe(1)
   })
 
   it('never falls back to CSS zoom on the document', () => {

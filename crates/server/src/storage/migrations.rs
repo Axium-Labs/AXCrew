@@ -15,6 +15,7 @@ use rusqlite::Connection;
 /// behind it, so it returns to `ready` and can be picked up again.
 pub(crate) fn apply(conn: &Connection) -> Result<()> {
     conn.execute_batch(include_str!("schema.sql"))?;
+    conn.execute("UPDATE devices SET status='offline' WHERE id IN (SELECT id FROM ssh_connections) AND revoked_at IS NULL", [])?;
     conn.execute(
         "UPDATE tasks SET status='ready' WHERE status IN ('running','waiting_permission')",
         [],

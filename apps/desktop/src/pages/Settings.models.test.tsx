@@ -14,12 +14,13 @@ const fixture = vi.hoisted(()=>({
   ]},
 }))
 vi.mock('../lib/ax',()=>({axAvailable:true,axLocalState:async()=>fixture.state,axRefreshModels:fixture.refresh,axStoreApiKey:fixture.store,axRemoveCredential:vi.fn(),axSelectModel:vi.fn(),axExport:vi.fn(),axImport:vi.fn()}))
-vi.mock('../lib/api',()=>({endpoints:{settings:async()=>({}),health:async()=>({})}}))
-vi.mock('../lib/query',()=>({useSessions:()=>({data:[]}),useTasks:()=>({data:[]})}))
+vi.mock('../lib/api',()=>({endpoints:{settings:async()=>({}),health:async()=>({}),authorizations:async()=>({pending:[],authorized:[]})}}))
+vi.mock('../lib/query',()=>({useSessions:()=>({data:[]}),useTasks:()=>({data:[]}),useDevices:()=>({data:[]})}))
 vi.mock('../lib/live',()=>({useLive:()=> 'Connected'}))
 vi.mock('../components/AxUpdater',()=>({AxUpdater:()=>null}))
 vi.mock('../components/AxCapabilities',()=>({AxCapabilities:()=>null}))
 vi.mock('../components/AndroidConnection',()=>({AndroidConnection:()=>null}))
+vi.mock('../lib/connections',()=>({connections:{ssh:async()=>[],discover:async()=>[]}}))
 import { act } from '@testing-library/react'
 import { useLang } from '../lib/i18n'
 import { Settings } from './Settings'
@@ -101,7 +102,7 @@ describe('authentication and settings pages',()=>{
   })
   it('keeps system controls on their own page and translates without remounting',async()=>{
     await start();fireEvent.click(screen.getByRole('button',{name:'连接'}))
-    expect(screen.getByText('公共网关 URL')).toBeTruthy();expect(screen.queryByText('桌面行为')).toBeNull()
+    expect(screen.getByRole('tab',{name:'控制此电脑'})).toBeTruthy();expect(screen.queryByText('桌面行为')).toBeNull()
     fireEvent.click(screen.getByRole('button',{name:'系统'}))
     expect(screen.getByText('桌面行为')).toBeTruthy();expect(screen.queryByText('公共网关 URL')).toBeNull()
     act(()=>useLang.setState({lang:'en'}))
