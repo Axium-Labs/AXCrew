@@ -3,7 +3,7 @@ import type { CrewEvent, SessionHistory, Task } from './types'
 export function transcriptTurns(lines: SessionLine[]) {
   const turns: SessionLine[][] = []
   for (const line of lines) {
-    if (line.type === 'user' || !turns.length) turns.push([])
+    if (line.type === 'user' && !line.steering || !turns.length) turns.push([])
     turns[turns.length - 1].push(line)
   }
   return turns
@@ -14,9 +14,9 @@ export function transcriptTurns(lines: SessionLine[]) {
  * `output` is a tool result: history replay and live updates both carry it, and
  * the collapsed transcript only shows it once the row is opened.
  */
-export type ChangedFile = { path:string; additions:number; deletions:number; diff?:string|null }
+export type ChangedFile = { path:string; additions:number; deletions:number; diff?:string|null; binary?:boolean; change?:'created'|'modified'|'deleted' }
 export type SessionImage = {path?:string;name:string;src?:string}
-export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; text:string; images?:SessionImage[]; operation?:string; output?:string; rawOutput?:string; toolKind?:string; toolInput?:Record<string,unknown>; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
+export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; steering?:boolean; text:string; images?:SessionImage[]; operation?:string; output?:string; rawOutput?:string; toolKind?:string; toolInput?:Record<string,unknown>; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
 
 /**
  * The view keeps one transcript row per message, so a tool result is capped
@@ -150,7 +150,7 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
   for(const {update,at} of entries){
     const kind=String(update.sessionUpdate??'')
     if(kind==='turn_changes'){
-      const key=`changes-${lines.findLast(line=>line.type==='user')?.key??'current'}`
+      const key=`changes-${lines.findLast(line=>line.type==='user'&&!line.steering)?.key??'current'}`
       const previous=lines.find(line=>line.key===key)
       const changedFiles=Array.isArray(update.changedFiles)?update.changedFiles as ChangedFile[]:[]
       if(previous)previous.changedFiles=changedFiles
@@ -161,10 +161,11 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
       const type=kind==='user_message_chunk'?'user':kind==='agent_message_chunk'?'agent':'thought'
       const text=String((update.content as {text?:string}|undefined)?.text??'')
       const key=update.messageId?String(update.messageId):undefined
+      const steering=type==='user'&&(update._ax as {steering?:boolean}|undefined)?.steering===true
       if(type==='user'&&!lines.length)lines.push(...contextLines(text))
       // A streamed message keeps the time of its first chunk, so the label does not drift.
       if(lines.at(-1)?.type===type&&(!key||lines.at(-1)?.key===key)){lines[lines.length-1].text+=text;lines[lines.length-1].end=at??lines.at(-1)?.end}
-      else lines.push({type,text,key:key??`${lines.length}-${type}`,...(at===undefined?{}:{at})})
+      else lines.push({type,text,key:key??`${lines.length}-${type}`,...(steering?{steering:true}:{}),...(at===undefined?{}:{at})})
     }else if(kind==='tool_call'||kind==='tool_call_update'){
       const call=lines.findLast(line=>line.key===update.toolCallId)
       const output=toolOutput(update)
@@ -189,14 +190,14 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
   if(!task)return saved.map(userLine)
   const prompt=typeof task.input==='string'?task.input:task.input&&typeof task.input==='object'&&'prompt' in task.input?String(task.input.prompt):''
   if(!prompt)return saved.map(userLine)
-  const lastUser=saved.findLastIndex(line=>line.type==='user')
+  const lastUser=saved.findLastIndex(line=>line.type==='user'&&!line.steering)
   const hasCurrent=lastUser>=0&&saved[lastUser].text===prompt&&(!history?.task_id||history.task_id===task.id)
   // Settled history can omit child tools or race with cancellation checkpoints.
   // Keep those rows by call ID, while saved message prose remains authoritative.
   if(!includeCurrent&&!events.some(event=>['tool_call','tool_call_update'].includes(String(event.payload.sessionUpdate))))return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
   const before=hasCurrent?saved.slice(0,lastUser):saved.length?saved:contextLines(prompt)
   const previous=hasCurrent?saved.slice(lastUser+1):[]
-  const streamed=transcript(undefined,events).filter(line=>includeCurrent?line.type!=='user':line.type==='tool')
+  const streamed=transcript(undefined,events).filter(line=>includeCurrent?line.type!=='user'||line.steering:line.type==='tool')
   const body=previous.map(line=>({...line}))
   const offsets=new Map<string,number>()
   const category=(line:SessionLine)=>line.changedFiles&&!line.text&&line.type==='agent'?'changes':line.type
@@ -204,7 +205,7 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
     const kind=category(line)
     const occurrence=offsets.get(kind)??0;offsets.set(kind,occurrence+1)
     const exact=body.findIndex(item=>category(item)===kind&&item.key===line.key)
-    const match=exact>=0?exact:line.type==='tool'?-1:body.map((item,index)=>({item,index})).filter(({item})=>category(item)===kind)[occurrence]?.index??-1
+    const match=exact>=0?exact:line.type==='tool'||line.steering?-1:body.map((item,index)=>({item,index})).filter(({item})=>category(item)===kind)[occurrence]?.index??-1
     if(match<0)body.push({...line})
     else{
       const previous=body[match],output=mergeOutput(previous.output,line.output)
@@ -244,5 +245,5 @@ export function turnChangedFiles(turn: SessionLine[]): ChangedFile[] {
 }
 
 export function latestTurnChangedFiles(lines: SessionLine[]): ChangedFile[] {
-  return turnChangedFiles(lines.slice(Math.max(0, lines.findLastIndex(line => line.type === 'user'))))
+  return turnChangedFiles(lines.slice(Math.max(0, lines.findLastIndex(line => line.type === 'user' && !line.steering))))
 }

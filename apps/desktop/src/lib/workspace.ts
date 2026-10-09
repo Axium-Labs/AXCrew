@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { call as invoke } from './errors'
 import { open } from '@tauri-apps/plugin-dialog'
 
 /** Do not run a draft in a different folder without the user's selection. */

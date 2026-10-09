@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Download, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { axApplyUpdate, axAvailable, axCheckUpdate, type AxUpdateStatus } from '../lib/ax'
-import { invoke } from '@tauri-apps/api/core'
+import { call as invoke } from '../lib/errors'
 
 /**
  * 设置 → 本地 AX → AX 更新。

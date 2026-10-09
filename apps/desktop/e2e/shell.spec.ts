@@ -16,7 +16,8 @@ for(const width of [960,1440]){
     await page.setViewportSize({width,height:900})
     await page.goto('/#/sessions')
     await expect(page.getByRole('textbox',{name:'发送消息'})).toBeVisible()
-    await page.locator('.sidebar-collapse').click()
+    // Navigation starts compact at or below 1100px; wide windows collapse it from the brand row.
+    if(width>1100)await page.locator('.sidebar .brand').click()
     await expect(page.locator('.sidebar')).toHaveClass(/is-compact/)
     await page.locator('.session-list-heading').getByRole('button',{name:'收起会话列表'}).click()
     await expect(page.locator('.session-list-panel')).toHaveClass(/is-closed/)
@@ -52,7 +53,6 @@ for(const width of [960,1440]){
     await expect(page.locator('.sidebar')).not.toHaveClass(/is-compact/)
     await page.getByRole('button',{name:'打开右侧面板',exact:true}).click()
     await page.keyboard.press('Escape')
-  console.log('DBG url',page.url(),JSON.stringify(await page.locator('.sidebar-utilities .nav-item').evaluateAll(nodes=>nodes.map(n=>[n.textContent,n.className]))))
     await expect(page.locator('.session-right-panel')).toHaveClass(/is-closed/)
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
     await expect(page.locator('.sidebar')).toHaveCSS('width',width<1200?'200px':'240px')
@@ -89,7 +89,7 @@ test('sidebar groups and terminal docking follow the shell layout',async({page})
   await page.setViewportSize({width:1280,height:800})
   await page.goto('/#/sessions')
   await expect(page.locator('.sidebar-primary .nav-item')).toHaveText(['会话','计划','产物','分布式协作'])
-  await expect(page.locator('.sidebar-utilities .nav-item')).toHaveText(['终端','连接','代理能力','设置'])
+  await expect(page.locator('.sidebar-utilities .nav-item')).toHaveText(['终端','连接','设置'])
   await page.getByRole('button',{name:'终端',exact:true}).click()
   await expect(page.locator('.terminal-dock')).toHaveClass(/is-bottom.*is-open/)
   await expect(page.locator('.terminal-dock')).toHaveCSS('height','300px')
@@ -133,10 +133,12 @@ test('light terminal has no black viewport gutter',async({page})=>{
   await page.getByRole('button',{name:'显示',exact:true}).click()
   await page.getByLabel('主题').click()
   await page.getByRole('menuitem',{name:'浅色'}).click()
-  await expect(page.locator('.settings-page-top h1')).toHaveCSS('color','rgb(56, 54, 67)')
+  // Light palette text (#2c2935) and shell background (#f6f5f9).
+  await expect(page.locator('.settings-page-top h1')).toHaveCSS('color','rgb(44, 41, 53)')
   await page.getByRole('button',{name:'终端',exact:true}).click()
   const screen=page.locator('.terminal-screen')
-  await expect(screen.locator('.xterm-viewport')).toHaveCSS('background-color','rgb(255, 255, 255)')
+  await expect(screen.locator('.xterm-viewport')).toHaveCSS('background-color','rgb(246, 245, 249)')
+  await expect(screen.locator('.xterm')).toHaveCSS('background-color','rgb(246, 245, 249)')
   await expect(page.locator('.terminal-dock')).toHaveCSS('border-top-width','0px')
   await page.screenshot({path:'test-results/terminal-light.png'})
 })
@@ -216,7 +218,7 @@ test('the session panel mirrors the reference list and reads local AX in place',
   await page.setViewportSize({width:1440,height:900})
   await page.goto('/#/sessions')
   await expect(page.locator('.session-new-chat')).toHaveText('新聊天')
-  await expect(page.locator('.session-section-head')).toHaveText(['项目','最近','远程项目'])
+  await expect(page.locator('.session-section-head')).toHaveText(['项目','最近'])
   await expect(page.locator('.session-new-button')).toHaveCount(0)
   await expect(page.locator('.session-older-button')).toHaveCount(0)
   // 项目 lists directories; expanding one reveals the sessions that ran inside it.
@@ -232,7 +234,7 @@ test('the session panel mirrors the reference list and reads local AX in place',
   await expect(page.locator('.session-local-bar')).toBeVisible()
   await expect(page.getByRole('textbox',{name:'发送消息'})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'在 Crew 中继续'})).toBeVisible()
-  await expect(page.locator('.session-transcript-meta')).toContainText('本地 AX')
+  await expect(page.locator('.session-transcript-meta')).toHaveCount(0)
   await page.screenshot({path:'test-results/local-ax-session.png'})
   // Sections collapse from their headers, and a project starts a session in its own directory.
   await expect(page.getByRole('button',{name:'在 workspace 中新建会话'})).toBeVisible()
@@ -240,14 +242,13 @@ test('the session panel mirrors the reference list and reads local AX in place',
   await expect(page.locator('.session-project-session')).toHaveCount(0)
   await page.getByRole('button',{name:'项目',exact:true}).click()
   await expect(page.locator('.session-project-session')).toHaveCount(1)
-  await page.getByRole('button',{name:'远程项目',exact:true}).click()
-  await expect(page.locator('.session-section.is-remote .session-local-note')).toContainText('还没有配对的远程 AX 设备')
+  await expect(page.locator('.session-section.is-remote')).toHaveCount(0)
   await page.getByRole('button',{name:'新聊天',exact:true}).click()
   await expect(page).toHaveURL(/#\/sessions$/)
   await expect(page.getByRole('textbox',{name:'发送消息'})).toBeVisible()
 })
 
-test('remote AX projects stay separate from the local ones',async({page})=>{
+test('remote conversations remain accessible without the remote projects section',async({page})=>{
   await page.route(/\/src\/lib\/api\.ts(?:\?.*)?$/,route=>route.fulfill({contentType:'application/javascript',body:`
     export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
     export const api=async(path)=>path==='/api/projects'?[]:{};
@@ -257,14 +258,8 @@ test('remote AX projects stay separate from the local ones',async({page})=>{
   await page.setViewportSize({width:1440,height:900})
   await page.goto('/#/sessions')
   await expect(page.locator('.session-project-pick').first()).toHaveText('workspace')
-  await page.getByRole('button',{name:'远程项目',exact:true}).click()
-  const remote=page.locator('.session-section.is-remote')
-  await expect(remote.locator('.session-remote-device')).toContainText('Pixel 8')
-  await expect(remote.locator('.session-remote-device')).toContainText('在线')
-  const remoteRow=remote.locator('.session-local-row').first()
-  await expect(remoteRow).toContainText('远程 AX')
-  await expect(remoteRow).toContainText('远程会话')
-  await remoteRow.click()
+  await expect(page.locator('.session-section.is-remote')).toHaveCount(0)
+  await page.locator('.session-recent-row').filter({hasText:'远程会话'}).click()
   await expect(page).toHaveURL(/\/sessions\/t-remote$/)
   await page.screenshot({path:'test-results/session-remote-projects.png'})
 })
@@ -381,13 +376,17 @@ test('utility navigation highlights only the entry you are actually on',async({p
   await page.getByRole('link',{name:'连接',exact:true}).click()
   await expect(page).toHaveURL(/\/connect$/)
   await expect(entry('连接')).toHaveClass(/active/)
-  await expect(entry('代理能力')).not.toHaveClass(/active/)
+  await expect(entry('设置')).not.toHaveClass(/active/)
   await page.keyboard.press('Escape')
-  await page.getByRole('link',{name:'代理能力',exact:true}).click()
-  await expect(entry('代理能力')).toHaveClass(/active/)
+  // Every settings section keeps the Settings entry active.
+  await page.getByRole('link',{name:'设置',exact:true}).click()
+  await expect(entry('设置')).toHaveClass(/active/)
   await expect(entry('连接')).not.toHaveClass(/active/)
+  await page.getByRole('button',{name:'插件',exact:true}).click()
+  await expect(page).toHaveURL(/settings\/capabilities/)
+  await expect(entry('设置')).toHaveClass(/active/)
   await page.getByRole('link',{name:'计划',exact:true}).click()
-  await expect(entry('代理能力')).not.toHaveClass(/active/)
+  await expect(entry('设置')).not.toHaveClass(/active/)
   await expect(entry('连接')).not.toHaveClass(/active/)
   await page.screenshot({path:'test-results/sidebar-active.png'})
 })
@@ -450,7 +449,9 @@ test('settings keeps the reference two-column layout and functional categories',
   await page.getByRole('button',{name:'显示',exact:true}).click()
   await page.getByLabel('主题').click()
   await page.getByRole('menuitem',{name:'浅色'}).click()
-  await expect(page.locator('.settings-workspace')).toHaveCSS('background-color','rgb(255, 255, 255)')
+  // Light shell background (#f6f5f9) behind the raised settings sidebar (#fdfcfe).
+  await expect(page.locator('.settings-workspace')).toHaveCSS('background-color','rgb(246, 245, 249)')
+  await expect(page.locator('.settings-sidebar')).toHaveCSS('background-color','rgb(253, 252, 254)')
   await page.screenshot({path:'test-results/settings-light.png'})
 })
 
@@ -476,10 +477,13 @@ test('goal loop dialog mirrors the goal and PR-monitor fields',async({page})=>{
 
 
 test('settings separates connections and system and switches both languages',async({page})=>{
+  // The old settings route forwards to the standalone Connections page.
   await page.goto('/#/settings/connections')
-  await expect(page.locator('.settings-page-top h1')).toHaveText('连接')
+  await expect(page).toHaveURL(/#\/connect$/)
+  await expect(page.locator('.connections-page h1')).toHaveText('连接')
   await expect(page.getByRole('tab',{name:'控制此电脑'})).toBeVisible()
   await expect(page.getByText('桌面行为')).toHaveCount(0)
+  await page.goto('/#/settings')
   await page.getByRole('button',{name:'系统',exact:true}).click()
   await expect(page).toHaveURL(/settings\/system/)
   await expect(page.getByText('桌面行为')).toBeVisible()
@@ -502,7 +506,7 @@ test('conversation inference button toggles Fast and pickers highlight only on i
     export const axSelectInferenceMode=async(value)=>{mode=value;window.__inferenceMode=value;return mode};
     export const axSelectModel=async()=>state();
     export const axStoreApiKey=async()=>state(),axRefreshModels=async()=>state(),axRemoveCredential=async()=>state();
-    export const axSelectSubagent=async()=>{},axSelectExecution=async()=>state();
+    export const axSelectExecution=async()=>state(),axSubagentSettings=async()=>({max_depth:1,max_concurrent:8});
     export function axTuiCommand(){return 'ax tui'}
     export const axScanCapabilitySources=async()=>[]; export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',axManageCapability=async()=>'ok',axCatalog=async()=>({skills:[],mcp_servers:[],tools:[],warnings:[]});
     export const axCheckUpdate=async()=>({action:'none'}),axApplyUpdate=axCheckUpdate;
@@ -520,7 +524,8 @@ test('conversation inference button toggles Fast and pickers highlight only on i
   await expect(fast).toHaveAttribute('aria-pressed','false')
   await expect.poll(()=>page.evaluate(()=>(window as any).__inferenceMode)).toBe('standard')
   await page.keyboard.press('Escape')
-  for(const selector of ['.session-footer-auto']){
+  // The side chat has its own model control; check the main composer's.
+  for(const selector of ['.session-chat-panel .session-footer-auto']){
     const picker=page.locator(selector)
     await page.getByRole('textbox',{name:'发送消息'}).click()
     await page.mouse.move(0,0)
@@ -580,7 +585,7 @@ for (const width of [960,1440]) {
     `}))
     await page.setViewportSize({width,height:900});await page.goto('/#/settings/usage')
     await expect(page.getByText('Test conversation')).toBeVisible()
-    await page.locator('.sidebar-collapse').click()
+    if(width>1100)await page.locator('.sidebar .brand').click()
     await expect(page.locator('.sidebar')).toHaveClass(/is-compact/)
     expect(await page.locator('.settings-main').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
     await expect(page.locator('.usage-chart')).toHaveCount(4)
@@ -613,9 +618,9 @@ for(const width of [960,1600]){
       const state=()=>({providers:['WorkBuddy China','DeepSeek','OpenAI','OpenAI Codex'].map((name,index)=>({id:String(index),name,configured:true,supported:true,source:'AX',models:[],auth_kind:'api_key',model_source:'cache'})),home:'C:/Users/me/.ax',selected_model:null});
       export const axLocalState=async()=>state(),axStoreApiKey=async()=>state(),axRefreshModels=async()=>state(),axRemoveCredential=async()=>state(),axSelectModel=async()=>state(),axSelectInferenceMode=async()=> 'standard';
       export const axCatalog=async()=>({skills:[],mcp_servers:[],tools:[],warnings:[],cwd:'C:/workspace'});
-      export const axSelectSubagent=async()=>{},axSelectExecution=async()=>state();
+      export const axSelectExecution=async()=>state(),axSubagentSettings=async()=>({max_depth:1,max_concurrent:8});
       export function axTuiCommand(){return 'ax tui'}
-      export const axScanCapabilitySources=async()=>[{id:'codex',name:'Codex',items:[{name:'review',kind:'skill',path:'C:/Users/me/.codex/skills/review'},{name:'MCP · User',kind:'mcp',path:'C:/Users/me/.codex/config.toml'}]}];
+      export const axScanCapabilitySources=async()=>[{id:'codex',name:'Codex',items:[{name:'review',kind:'skill',path:'C:/Users/me/.codex/skills/review'},{name:'MCP · User',kind:'mcp',path:'C:/Users/me/.codex/config.toml'}]},{id:'agents',name:'Agent Skills',items:Array.from({length:26},(_,index)=>({name:'skill-'+index,kind:'skill',path:'C:/Users/me/.agents/skills/skill-'+index}))}];
       export const axExport=async()=>'',axImport=async()=>'',axImportCapability=async()=>'',axManageCapability=async()=>'ok',workspaceFileExists=async()=>false;
       export const axCheckUpdate=async()=>({action:'none'}),axApplyUpdate=axCheckUpdate;
     `}))
@@ -626,10 +631,23 @@ for(const width of [960,1600]){
     for(const row of columns)expect(row).toEqual(columns[0])
     expect(await page.locator('.settings-main').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
     await page.screenshot({path:`test-results/adaptive-providers-${width}.png`})
-    await page.goto('/#/settings/capabilities')
+    // Discovered imports live under Settings → Import / Export.
+    await page.goto('/#/settings/backup')
+    const codex=page.getByRole('button',{name:/Codex.*2/}),agents=page.getByRole('button',{name:/Agent Skills.*26/})
+    await expect(codex).toHaveAttribute('aria-expanded','false');await expect(agents).toHaveAttribute('aria-expanded','false')
+    await expect(page.locator('.settings-import-item')).toHaveCount(0)
+    await page.screenshot({path:`test-results/imports-collapsed-${width}.png`})
+    await codex.click()
     await expect(page.getByText('Skill · review')).toBeVisible()
     await page.getByText('Skill · review').click()
     await expect(page.getByRole('button',{name:'导入所选（1）'})).toBeEnabled()
+    await codex.focus();await page.keyboard.press('Enter')
+    await expect(page.getByText('Skill · review')).toHaveCount(0)
+    await expect(page.getByRole('button',{name:'导入所选（1）'})).toBeEnabled()
+    await agents.click();await expect(page.getByText('Skill · skill-25',{exact:true})).toBeVisible()
+    await expect(codex).toHaveAttribute('aria-expanded','false')
+    await agents.click();await codex.focus();await page.keyboard.press('Space')
+    await expect(page.getByRole('checkbox',{name:/Skill · review/})).toBeChecked()
     expect(await page.locator('.settings-main').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
     await page.screenshot({path:`test-results/discovered-imports-${width}.png`})
   })

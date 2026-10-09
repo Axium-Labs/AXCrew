@@ -67,15 +67,14 @@ function ToolGroup({lines}:{lines:SessionLine[]}){
   </section>
 }
 export function DiffLines({diff}:{diff:string}){
-  let old=0,next=0
+  let old=0,next=0,inHunk=false
   return <pre className="session-diff">{diff.split('\n').map((line,index)=>{
     const hunk=/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line)
-    if(hunk){old=Number(hunk[1]);next=Number(hunk[2]);return <div className="session-diff-hunk" key={index}>{line}</div>}
-    if(!line||/^(diff |index |--- |\+\+\+ |\\)/.test(line))return null
+    if(hunk){inHunk=true;old=Number(hunk[1]);next=Number(hunk[2]);return <div className="session-diff-hunk" key={index}>{line}</div>}
+    if(!line||line.startsWith('\\')||!inHunk)return null
     const added=line.startsWith('+'),deleted=line.startsWith('-')
-    const number=deleted?old++:added?next++:next++
-    if(!added&&!deleted)old++
-    return <div key={index} className={added?'is-added':deleted?'is-deleted':'is-context'}><span className="session-diff-number">{number}</span><code>{line.slice(1)}</code></div>
+    const oldNumber=added?'':old++,newNumber=deleted?'':next++
+    return <div key={index} className={added?'is-added':deleted?'is-deleted':'is-context'}><span className={`session-diff-old-number${deleted?' session-diff-number':''}`}>{oldNumber}</span><span className={`session-diff-new-number${!deleted?' session-diff-number':''}`}>{newNumber}</span><span className="session-diff-sign" aria-hidden="true">{added?'+':deleted?'-':' '}</span><code>{line.slice(1)}</code></div>
   })}</pre>
 }
 function Changes({files}:{files:ChangedFile[]}){
@@ -120,7 +119,8 @@ function TranscriptTurn({turn,active,finishedAt,hideActiveChanges}:{turn:Session
   // details and must not cause the final answer to disappear into that block.
   const answerIndex=!active?lastAnswer:-1
   const answer=answerIndex>=0?body[answerIndex]:undefined
-  const process=body.filter((_,index)=>index!==answerIndex)
+  const guidance=body.filter(line=>line.steering)
+  const process=body.filter((line,index)=>index!==answerIndex&&!line.steering)
   const open=expanded??active
   const [mountedAt]=useState(Date.now())
   const start=user?.at??body.find(line=>line.at)?.at??(active?mountedAt:undefined)
@@ -134,6 +134,7 @@ function TranscriptTurn({turn,active,finishedAt,hideActiveChanges}:{turn:Session
       <button type="button" className="session-process-summary" aria-expanded={open} onClick={()=>setExpanded(!open)}><span>{lang==='zh'?(active?'思考中':!duration?'执行过程':''):(active?'Thinking':!duration?'Work details':'')}</span>{duration&&<time>{lang==='zh'?`用时 ${duration}`:`Worked for ${duration}`}</time>}<ChevronDown size={14} className={open?'is-open':''}/></button>
       <div className="session-process-content" hidden={!open}><Steps lines={process}/></div>
     </section>}
+    {guidance.map(line=><div className="session-guidance" key={line.key}><small>{lang==='zh'?'补充指导':'Guidance'}</small><TranscriptLine line={line}/></div>)}
     {answer&&<TranscriptLine line={answer} showActions={false}/>}
     {!(active&&hideActiveChanges)&&<Changes files={files}/>}
     {answer&&<div className="session-turn-actions"><MessageActions line={answer}/></div>}

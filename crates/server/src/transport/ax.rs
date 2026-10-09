@@ -1,7 +1,7 @@
 //! The local AX transport: line-delimited JSON-RPC 2.0 over the stdio of an
 //! `ax acp` child process, started in the member's workspace.
 
-use super::{Transport, TransportEvent, permission};
+use super::{RunControl, SteerReplies, Transport, TransportEvent, permission};
 use crate::domain::{crew::Member, task::Task};
 use crate::orchestration::approval::ApprovalBroker;
 use anyhow::{Result, anyhow};
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines},
     process::{ChildStdin, ChildStdout, Command},
-    sync::{mpsc, watch},
+    sync::mpsc,
 };
 
 #[derive(Clone)]
@@ -54,11 +54,11 @@ impl Transport for LocalTransport {
         task: &Task,
         member: &Member,
         session: Option<String>,
-        cancel: watch::Receiver<bool>,
+        control: RunControl,
         events: mpsc::UnboundedSender<TransportEvent>,
     ) -> Result<Value> {
         let cmd = self.command_for(task, member);
-        execute_process(cmd, &self.approvals, task, member, session, cancel, events).await
+        execute_process(cmd, &self.approvals, task, member, session, control, events).await
     }
 }
 
@@ -69,9 +69,13 @@ pub(super) async fn execute_process(
     task: &Task,
     member: &Member,
     session: Option<String>,
-    mut cancel: watch::Receiver<bool>,
+    control: RunControl,
     events: mpsc::UnboundedSender<TransportEvent>,
 ) -> Result<Value> {
+    let RunControl {
+        mut cancel,
+        mut steering,
+    } = control;
     let mut child = cmd.spawn()?;
     let mut input = child
         .stdin
@@ -118,6 +122,9 @@ pub(super) async fn execute_process(
     send(&mut input,&json!({"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{"sessionId":session,"prompt":[{"type":"text","text":prompt}]}})).await?;
     let mut output = String::new();
     let mut cancellation_sent = false;
+    let mut steer_replies = SteerReplies::default();
+    let mut steering_open = true;
+    let mut permissions = tokio::task::JoinSet::new();
     loop {
         let msg = tokio::select! {
             biased;
@@ -128,15 +135,29 @@ pub(super) async fn execute_process(
                 }
                 continue;
             }
+            request=steering.recv(), if steering_open && !cancellation_sent => {
+                if let Some(request)=request { send(&mut input,&steer_replies.frame(request,&session)).await?; }
+                else { steering_open=false; }
+                continue;
+            }
+            choice=permissions.join_next(), if !permissions.is_empty() => {
+                let (id,choice)=choice.ok_or_else(||anyhow!("permission task missing"))??;
+                send(&mut input,&json!({"jsonrpc":"2.0","id":id,"result":{"outcome":{"outcome":"selected","optionId":choice}}})).await?;
+                continue;
+            }
             msg=next(&mut reader)=>msg?,
         };
+        if steer_replies.receive(&msg) {
+            continue;
+        }
         if msg["method"] == "session/request_permission" {
-            let choice = permission(approvals, &msg, &events, &mut cancel).await;
-            send(&mut input,&json!({"jsonrpc":"2.0","id":msg["id"],"result":{"outcome":{"outcome":"selected","optionId":choice}}})).await?;
-            if *cancel.borrow() && !cancellation_sent {
-                send(&mut input,&json!({"jsonrpc":"2.0","method":"session/cancel","params":{"sessionId":session}})).await?;
-                cancellation_sent = true;
-            }
+            let approvals = approvals.clone();
+            let events = events.clone();
+            let mut cancel = cancel.clone();
+            permissions.spawn(async move {
+                let choice = permission(&approvals, &msg, &events, &mut cancel).await;
+                (msg["id"].clone(), choice)
+            });
         } else if msg["method"] == "session/update" {
             let update = &msg["params"]["update"];
             if update["sessionUpdate"] == "agent_message_chunk"

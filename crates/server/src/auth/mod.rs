@@ -1,10 +1,11 @@
 //! Authentication primitives.
 //!
 //! The gateway has one permission model: a bearer token. Three things can satisfy
-//! it — the fixed `AX_CREW_ADMIN_TOKEN`, a token issued through `/api/tokens`
-//! (persisted next to the database), or a phone device credential granted through
-//! the pairing flow. This module owns the token store and the header parsing;
-//! the checks that need database access live on `crate::app::App`.
+//! it — the fixed `AX_CREW_ADMIN_TOKEN`, a token previously issued into
+//! `gateway.tokens.json` next to the database (issuing them through the API was
+//! removed; existing unexpired records remain valid), or a phone device credential
+//! granted through the pairing flow. This module owns the token store and the
+//! header parsing; the checks that need database access live on `crate::app::App`.
 
 use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};

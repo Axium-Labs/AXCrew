@@ -18,6 +18,25 @@ agent runtime and the control plane that coordinates it.
 
 - **One control surface** — drive AX on your laptop, server, GPU server and
   cloud VMs from a single desktop app, or from your phone.
+- **Settings → Plugins** — manage Mods, MCP and skills in settings. The page
+  keeps workspace paths and scope explanations out of the plugin list, and
+  explains when the installed AX needs updating to support Mods.
+  Responsive lists keep scope/status visible, support keyboard tabs and plugin
+  details, and refresh inherited configuration after changes.
+  The Agents tab controls global/project delegation depth (0 off, 1 direct
+  children, 2+ nested children) and shared parallelism (1–64). Save applies
+  on the next turn; reset restores defaults or inheritance. Project-scoped
+  settings and reset/inheritance require an updated AX; older AX can still
+  read and write global limits.
+  Other settings show complete readable absolute paths in rounded icon labels.
+- **Compact conversation controls** — a model/effort card with Fast, a stepped
+  reasoning slider; click the central card for the model
+  menu. Session IDs live in the Details sidebar, leaving transcripts clean.
+  The composer leaves bottom space and shows project/location setup only before
+  starting a new conversation. The compact model card follows the app theme,
+  with lightly damped effort dragging, gentle attraction near steps, and small
+  a forward-dash particle wake behind the thumb when Fast is enabled;
+  remote conversations stay accessible in Recent without a separate Remote projects section.
 - **Cross-machine delegation** — hand a task to another machine; Crew routes
   it to that machine's AX and streams the result back.
 - **Task orchestration** — deterministic task DAGs with dependencies, retries,
@@ -203,7 +222,7 @@ Start with [docs/README.md](docs/README.md), the documentation map:
 | [docs/protocol/api.md](docs/protocol/api.md) | REST/WebSocket API, authentication, pairing |
 | [docs/architecture/storage.md](docs/architecture/storage.md) | Database and durability boundary |
 | [docs/development/README.md](docs/development/README.md) | Build, test and packaging |
-| [docs/desktop/README.md](docs/desktop/README.md) | Desktop settings and scoped capabilities |
+| [docs/desktop/README.md](docs/desktop/README.md) | Desktop settings and scoped plugins |
 | [docs/releases/0.3.0.md](docs/releases/0.3.0.md) | Release snapshots |
 
 ## Development

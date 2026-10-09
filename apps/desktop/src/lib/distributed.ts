@@ -17,6 +17,5 @@ export const distributed = {
   submit:(body:unknown)=>api<DistributedTask>('/api/distributed/tasks','POST',body),
   control:(id:string,action:'cancel'|'retry')=>api(`/api/distributed/tasks/${encodeURIComponent(id)}/${action}`,'POST',{}),
   enable:(kind:'hosts'|'instances',id:string,enabled:boolean)=>api(`/api/distributed/${kind}/${encodeURIComponent(id)}/enabled`,'POST',{enabled}),
-  resources:(id:string,body:Resources)=>api(`/api/distributed/hosts/${encodeURIComponent(id)}/resources`,'POST',body),
   artifact:(id:string)=>api<{artifact:ClusterArtifact;content_base64:string}>(`/api/distributed/artifacts/${encodeURIComponent(id)}`),
 }

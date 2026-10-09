@@ -205,7 +205,7 @@ fn to_update(session: &str, message: &Value) -> Option<Value> {
     let at = message["created_at"].as_i64().unwrap_or(0);
     let update = match role {
         "user" => {
-            json!({"sessionUpdate":"user_message_chunk","messageId":id,"content":{"type":"text","text":content}})
+            json!({"sessionUpdate":"user_message_chunk","messageId":message.pointer("/metadata/provider_metadata/axMessageId").and_then(Value::as_str).map_or_else(||id.clone(),str::to_owned),"content":{"type":"text","text":content},"_ax":{"steering":message.pointer("/metadata/provider_metadata/axSteering").and_then(Value::as_bool).unwrap_or(false)}})
         }
         "assistant" => {
             json!({"sessionUpdate":"agent_message_chunk","messageId":id,"content":{"type":"text","text":content}})
@@ -262,7 +262,8 @@ fn tool_starts(session: &str, message: &Value) -> Vec<Value> {
 
 fn with_time(mut update: Value, at: i64) -> Value {
     if let Value::Object(ref mut map) = update {
-        map.insert("_ax".to_owned(), json!({"createdAt": at}));
+        let meta = map.entry("_ax").or_insert_with(|| json!({}));
+        meta["createdAt"] = json!(at);
     }
     update
 }

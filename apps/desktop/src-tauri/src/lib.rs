@@ -3,6 +3,7 @@ mod capability_sources;
 mod ax;
 mod ax_login;
 mod ax_catalog;
+mod subagent_settings;
 mod ax_update;
 mod crew_update;
 mod release_source;
@@ -145,7 +146,13 @@ async fn read_workspace_file(root: String, relative: String) -> Result<String, S
 }
 
 fn read_workspace_file_sync(root: String, relative: String) -> Result<String, String> {
-    let path = workspace_path(&root, &relative)?;
+    let path = if Path::new(&relative).is_absolute() {
+        // Tool change events may report absolute paths; canonical containment still applies.
+        let base=PathBuf::from(&root).canonicalize().map_err(|error|error.to_string())?;
+        let path=PathBuf::from(&relative).canonicalize().map_err(|error|error.to_string())?;
+        if !path.starts_with(&base) { return Err("Path must stay inside the workspace".into()); }
+        path
+    } else { workspace_path(&root, &relative)? };
     let metadata = fs::metadata(&path).map_err(|error| error.to_string())?;
     if !metadata.is_file() { return Err("Not a file".into()); }
     if metadata.len() > 256 * 1024 { return Err("File is too large to preview".into()); }
@@ -246,6 +253,8 @@ mod workspace_tests {
         let path = root.to_string_lossy().into_owned();
 
         assert_eq!(read_workspace_file_sync(path.clone(), "note.txt".into()).unwrap(), "hello");
+        assert_eq!(read_workspace_file_sync(path.clone(), root.join("note.txt").to_string_lossy().into_owned()).unwrap(), "hello");
+        assert!(read_workspace_file_sync(path.clone(), std::env::current_exe().unwrap().to_string_lossy().into_owned()).is_err());
         assert_eq!(list_workspace_files_sync(path.clone(), "".into()).unwrap().entries.len(), 1);
         assert!(read_workspace_file_sync(path.clone(), "../outside.txt".into()).is_err());
         assert!(list_workspace_files_sync(path, "C:\\Windows".into()).is_err());
@@ -335,7 +344,7 @@ pub fn run() {
             .build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, read_workspace_image, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax_login::ax_begin_login, ax_login::ax_cancel_login, ax_login::ax_open_login_url, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_select_inference_mode, ax::ax_select_execution, ax::ax_select_subagent, ax::ax_export, ax::ax_import, ax::ax_import_capability, ax::ax_manage_capability, capability_sources::ax_scan_capability_sources, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, desktop_restart, ax_catalog::ax_catalog])
+        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, read_workspace_image, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax_login::ax_begin_login, ax_login::ax_cancel_login, ax_login::ax_open_login_url, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_select_inference_mode, ax::ax_select_execution, subagent_settings::ax_subagent_settings, ax::ax_export, ax::ax_import, ax::ax_import_capability, ax::ax_manage_capability, capability_sources::ax_scan_capability_sources, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, desktop_restart, ax_catalog::ax_catalog])
         .setup(|app| {
             // `CARGO_MANIFEST_DIR` is `apps/desktop/src-tauri`, so the workspace
             // root (and the AX checkout next to it) are three and four levels up.

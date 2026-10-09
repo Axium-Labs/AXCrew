@@ -132,15 +132,47 @@ plain `cargo build --release` does not embed the production frontend.
 
 ## Usage
 
-The model/effort trigger beside Send opens one panel for model selection,
-provider-supported **思考强度 / Reasoning effort** and a lightning button that
-toggles AX's **Fast** inference mode. Its title reads “更快 · 用量更多”.
+The model/effort trigger beside Send opens a compact card with a lightning button,
+a central effort/model button, without a reset control. Clicking the central button
+opens a separate provider-grouped model menu with selected/hover states and
+keyboard navigation; selection or Escape returns to the card. Escape again or
+clicking outside closes it. The theme-colored **思考强度 / Reasoning effort** slider supports
+click, drag and arrow keys. The 28px white thumb sits over a 24px rounded track,
+with the fill ending underneath its center. Dragging has 80ms light damping and
+gentle attraction near the model's supported stops, then eases into a step over
+200ms on release.
+Fast gives the thumb a forward-dash effect with small particles trailing leftward
+from behind it on a 0.9-second cycle, confined to the filled portion of the bar. The minimum
+has no colored fill peeking around the thumb. Reduced-motion preferences disable
+these animations.
+The lightning button toggles AX's **Fast**
+inference mode. Its title reads “更快 · 用量更多”.
 This saves `inference.mode` in the local AX `config.json`, preserving the model,
 reasoning effort, and advanced Fast settings. It applies to subsequent local AX
 turns; running turns keep their current mode. Paired devices use their own AX
 configuration. Use an AX build that supports Fast mode.
 
 The model/effort trigger highlights on hover, keyboard focus, or while open.
+Settings → Plugins → Agents manages delegation depth (0 off, 1 direct
+children, 2+ nested children) and shared parallelism (1–64), using the
+global/project selector. Save applies on the next turn; reset restores global
+defaults or project inheritance. Only edited fields are written, preserving
+inheritance for other project fields. AX owns validation/persistence through
+its settings command. Older AX can read and write global limits, while
+project-scoped settings and reset/inheritance require an updated AX. Settings
+→ AX has no separate Subagents switch.
+In Capabilities → Import from other AI apps, each app starts collapsed. Click
+its header to show/hide skills and MCP configurations; collapsing preserves
+selections. Rescanning or changing workspace closes all source groups.
+Settings success notices clear after four seconds and on section changes.
+Remove provider also works for environment credentials through AX's
+`auth remove` command, preserving system environment variables. Re-entering
+credentials or signing in again re-enables the provider; this requires a
+compatible AX build. Distributed cards and empty states have 24px separation.
+The popup is 260px wide with a 26px slider. Its central model button is transparent
+until hovered, focused from the keyboard or its menu is open; the accent follows
+the app theme. The conversation list contains Project and Recent sections, with
+remote conversations in Recent and cloud selection available before starting a chat.
 The slider uses the selected model catalogue's exact supported effort values;
 models without advertised values do not expose invented strength choices.
 The native WebView stays at zoom 1; system DPI and responsive layouts handle
@@ -148,6 +180,12 @@ monitor/window changes. Side navigation collapses on smaller windows and remains
 manually accessible. A turn rail previews and jumps to each request/answer pair.
 Terminal tabs use an unnumbered label; drag a tab along the strip to reorder it
 without restarting its shell.
+
+Conversation transcripts start with messages without a session-ID metadata line.
+The AX Session ID is available in the Details sidebar.
+The composer leaves 20px of space below it. Its project/location strip appears
+only before the first send in a new chat, hides when work begins and stays hidden
+in existing chats. Failed first sends restore it; a new chat shows it again.
 
 The desktop app uses the React frontend in `src/`. Its Windows window uses a custom titlebar without system decorations. Window size and position are persisted, while titlebar decorations always follow `src-tauri/tauri.conf.json`.
 
@@ -165,20 +203,57 @@ happens after AX exits) or, when nothing is installed yet, the official install
 script; the panel prints whichever ran verbatim. It manages the installed AX
 only. Release builds use system AX and never a bundled or workspace AX. Without AX, Settings remains available for installation. Restart Crew after installing or updating AX.
 
-Settings → AX 能力 lists what AX reports through its read-only ACP catalog
+Settings → 插件 lists what AX reports through its ACP catalog
 extensions, so the panel and AX can never disagree: installed skills with any
 missing required tools (`_ax/skills`), configured MCP servers with description,
-enabled flag and declared capabilities (`_ax/mcp`), and AX's built-in tool
-catalog (`_ax/tools`). Project skills (`<project root>/skills`) and the MCP
+enabled flag and declared capabilities (`_ax/mcp`), Mods and Agents. AX's
+built-in tools (`_ax/tools`) are not plugins and are not listed there; their
+names are offered as toggles when configuring a distributed AX instance's Tool
+field. Project skills (`<project root>/.ax/skills`, with legacy `skills` support) and the MCP
 config (`<project root>/.ax/mcp.toml`) are resolved from AX's working directory,
-so the panel queries the workspace selected in the session view; with no
-workspace it shows the global skills in AX home plus the built-in tools.
-MCP-provided tools are not listed among the tools — they only exist once a
+so the panel queries the workspace selected in the session view. With no
+workspace, the project view asks for a directory instead of querying an unrelated
+working directory; the Global configuration selector still allows catalog browsing.
+MCP-provided tools are not listed individually — they only exist once a
 session connects to a server, so the servers are listed instead.
 
-The sidebar keeps conversations, schedule, and artifacts at the top, with terminal, connections, agent capabilities, and settings at the bottom. Click Terminal or press `Ctrl+Backquote` to toggle the dock. The first opening creates a PowerShell tab in the configured workspace. Use `+` for another tab, the `…` menu to dock at the right or bottom, and the panel edge to resize it. Hiding the dock preserves its live tabs; closing a tab stops that shell. The dock uses a 220 ms size transition and remembers its position and dimensions. Shell sessions themselves are not restored after quitting the desktop app. The interactive terminal requires Tauri and is unavailable in a regular browser preview.
+Settings → Plugins is the sole plugin entry. The page omits the workspace path
+and scope explanation, and uses searchable Mod/MCP/Skills/Agents tabs and
+scope-aware rows, menus and switches. Plugin names open full details.
+Scope and enabled status remain visible in narrow windows; tabs
+support arrow keys/Home/End. Search can be cleared, failed catalog reads offer
+Retry, and the add dialog asks for the source first (path shown, directory names
+pre-fill the name), then the name, and retains
+failed drafts. Native pickers and saves prevent duplicate submissions; changing
+workspace discards old dialogs and late feedback. Saves invalidate all inherited
+catalog views, and success notices expire after four seconds. Imports live
+under Settings → Import / Export. Mod loading/execution/management runs in AX,
+requiring updated AX and Node.js 20.6+. If the installed AX lacks `_ax/mods`,
+the page shows a local AX update hint; see [the desktop guide](../../docs/desktop/README.md)
+and [AX Mods](../../../ax/docs/mods.md) for packaging and compatibility limits.
+Settings selectors use rounded app-themed menus and circular checkboxes.
+Settings location readouts use rounded directory/file labels showing complete
+absolute paths, with Windows verbatim prefixes removed and long paths wrapped.
+Native operations keep their
+original paths.
+Connections is available only through the outer `/connect` page.
+
+The sidebar keeps conversations, schedule, and artifacts at the top, with terminal, connections, and settings at the bottom. Click Terminal or press `Ctrl+Backquote` to toggle the dock. The first opening creates a PowerShell tab in the configured workspace. Use `+` for another tab, the `…` menu to dock at the right or bottom, and the panel edge to resize it. Hiding the dock preserves its live tabs; closing a tab stops that shell. The dock uses a 220 ms size transition and remembers its position and dimensions. Shell sessions themselves are not restored after quitting the desktop app. The interactive terminal requires Tauri and is unavailable in a regular browser preview.
 
 An AX session is one conversation, even when follow-up messages create multiple Crew tasks. Its first task supplies the title and route; sends and cancellation target its latest turn. Drafts stay separate while navigating within the app. Enter sends, Shift+Enter adds a newline, and IME confirmation does not send. Failed sends retain their draft. Unsent text drafts persist locally across reopening; image attachments remain in memory only.
+
+During active work, Send/Enter forwards guidance to the same task and AX goal
+through `_ax/steer`; the separate Stop button still cancels. This also works in
+side chat and while waiting for tool permission. Guidance does not change the
+running model, effort or permissions, survives replay and stays outside folded
+work details. AX acknowledgement is required before clearing the draft; an old
+remote runtime reports an update requirement instead of pretending acceptance.
+
+Changed-file review compares this turn's start/end contents, including deleted
+and newly created files. Saved diffs show old/new line numbers in a wider panel;
+File explicitly reads current local text. Missing historical diffs, binary and
+deleted files are explained. Adopted local AX sessions can browse their own
+workspace. See [chat execution details](../../docs/desktop/README.md).
 
 Local conversations use a local execution environment. Cloud conversations require selecting an online remote project environment; missing or offline environments cannot send. Paired AX validation/history run on that AX host. SSH directories are inspected remotely, while inference and history stay local. Remote images, local file preview, Fast inference and goal loops are currently unavailable. The desktop titlebar checks the authenticated settings endpoint and offers a retry when the local service is unavailable. In development, Tauri prefers system AX, with a workspace AX fallback; Crew uses the freshly built debug backend.
 

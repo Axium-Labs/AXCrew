@@ -32,5 +32,5 @@
 .terminal-screen{height:100%;width:100%}
 .terminal-screen .xterm{height:100%;padding:2px;background:var(--shell-bg)}
 .terminal-screen .xterm-viewport{background-color:var(--shell-bg)!important}
-.terminal-error{position:absolute;inset:0;padding:15px;background:var(--shell-bg);color:#e88389;font-size:12px}
+.terminal-error{position:absolute;inset:0;padding:15px;background:var(--shell-bg);color:var(--color-danger);font-size:12px}
 @media(prefers-reduced-motion:reduce){.terminal-dock{transition:none}}

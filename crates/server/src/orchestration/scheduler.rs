@@ -12,7 +12,7 @@ use crate::{
         task::{NewTask, Task},
     },
     storage::Db,
-    transport::{Transport, TransportEvent},
+    transport::{RunControl, Steering, Transport, TransportEvent},
 };
 use anyhow::{Result, anyhow};
 use serde_json::{Value, json};
@@ -20,8 +20,13 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-use tokio::sync::{broadcast, mpsc, watch};
-type Running = Arc<Mutex<HashMap<String, (String, watch::Sender<bool>)>>>;
+use tokio::sync::{broadcast, mpsc, oneshot, watch};
+struct ActiveRun {
+    member: String,
+    cancel: watch::Sender<bool>,
+    steering: mpsc::UnboundedSender<Steering>,
+}
+type Running = Arc<Mutex<HashMap<String, ActiveRun>>>;
 
 /// Validates an automation payload before it is persisted.
 ///
@@ -121,8 +126,8 @@ impl Scheduler {
         if matches!(task.status.as_str(), "completed" | "failed" | "cancelled") {
             return Err(anyhow!("task already finished"));
         }
-        if let Some((_, tx)) = self.running.lock().unwrap().get(id) {
-            tx.send(true).ok();
+        if let Some(run) = self.running.lock().unwrap().get(id) {
+            run.cancel.send(true).ok();
         }
         self.db.set_status(id, "cancelled", None)?;
         self.db.finish_run(id, "cancelled", None)?;
@@ -132,6 +137,24 @@ impl Scheduler {
     pub fn retry(&self, id: &str) -> Result<Task> {
         self.db.retry(id)?;
         self.db.task(id)?.ok_or_else(|| anyhow!("task missing"))
+    }
+    pub async fn steer(&self, id: &str, text: String) -> Result<()> {
+        let sender = self
+            .running
+            .lock()
+            .unwrap()
+            .get(id)
+            .map(|run| run.steering.clone())
+            .ok_or_else(|| anyhow!("task is no longer accepting guidance"))?;
+        let (reply, response) = oneshot::channel();
+        sender
+            .send(Steering { text, reply })
+            .map_err(|_| anyhow!("task finished before guidance was sent"))?;
+        tokio::time::timeout(std::time::Duration::from_secs(30), response)
+            .await
+            .map_err(|_| anyhow!("AX guidance acknowledgement timed out"))?
+            .map_err(|_| anyhow!("task finished without accepting guidance"))??;
+        Ok(())
     }
     pub fn revoke_device(&self, id: &str) -> Result<()> {
         if id == "local" {
@@ -144,8 +167,8 @@ impl Scheduler {
                     "pending" | "ready" | "running" | "waiting_permission"
                 )
         }) {
-            if let Some((_, tx)) = self.running.lock().unwrap().get(&task.id) {
-                tx.send(true).ok();
+            if let Some(run) = self.running.lock().unwrap().get(&task.id) {
+                run.cancel.send(true).ok();
             }
             let reason = json!({"error":"assigned device was revoked"});
             self.db
@@ -294,15 +317,18 @@ impl Scheduler {
             if !task.assigned_device.starts_with("ssh:") {
                 let bounded = running
                     .values()
-                    .filter(|(id, _)| {
+                    .filter(|run| {
                         self.db
-                            .member(id)
+                            .member(&run.member)
                             .ok()
                             .flatten()
                             .is_some_and(|m| !m.device_id.starts_with("ssh:"))
                     })
                     .count();
-                let member_count = running.values().filter(|(id, _)| id == &member.id).count();
+                let member_count = running
+                    .values()
+                    .filter(|run| run.member == member.id)
+                    .count();
                 if bounded >= self.max_concurrency
                     || member_count >= member.max_concurrency as usize
                 {
@@ -329,7 +355,15 @@ impl Scheduler {
                 continue;
             }
             let (tx, rx) = watch::channel(false);
-            running.insert(task.id.clone(), (member.id.clone(), tx));
+            let (steer_tx, steer_rx) = mpsc::unbounded_channel();
+            running.insert(
+                task.id.clone(),
+                ActiveRun {
+                    member: member.id.clone(),
+                    cancel: tx,
+                    steering: steer_tx,
+                },
+            );
             drop(running);
             self.db.start_run(&task)?;
             self.db.set_status(&task.id, "running", None)?;
@@ -341,12 +375,21 @@ impl Scheduler {
             );
             let worker = self.clone();
             tokio::spawn(async move {
-                worker.execute(task, member, rx).await;
+                worker
+                    .execute(
+                        task,
+                        member,
+                        RunControl {
+                            cancel: rx,
+                            steering: steer_rx,
+                        },
+                    )
+                    .await;
             });
         }
         Ok(())
     }
-    async fn execute(&self, task: Task, mut member: Member, cancel: watch::Receiver<bool>) {
+    async fn execute(&self, task: Task, mut member: Member, control: RunControl) {
         let (tx, mut rx) = mpsc::unbounded_channel();
         let session = self.db.binding(&task.id).unwrap_or(None);
         let transport = self.transport.clone();
@@ -362,7 +405,7 @@ impl Scheduler {
         }
         let handle = tokio::spawn(async move {
             transport
-                .execute(&task_copy, &member, session, cancel, tx)
+                .execute(&task_copy, &member, session, control, tx)
                 .await
         });
         tokio::pin!(handle);

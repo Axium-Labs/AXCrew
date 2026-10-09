@@ -12,6 +12,14 @@ them instead of restating them, so the contract cannot drift out of sync.
 
 ## Compatibility commitments
 
+The desktop-only Tauri command `ax_subagent_settings` accepts `cwd`,
+`scope` (`global` / `project`), optional `{max_depth, max_concurrent}` settings,
+and an optional reset flag. It returns AX's validated effective values by
+delegating to AX's settings command. Global settings work with older AX
+executables; project settings require `settings --scope` and return a visible
+compatibility error when unavailable. This does not add a Crew REST/ACP method.
+See [desktop delegation settings](../desktop/README.md#subagents).
+
 These are treated as contracts, not implementation details:
 
 - **REST**: no route is removed or renamed, and no request or response field is
@@ -22,7 +30,10 @@ These are treated as contracts, not implementation details:
   shared with the ACP adapter.
 - **ACP**: line-delimited JSON-RPC 2.0 with `initialize`, `session/new`,
   `session/load`, `session/resume`, `session/prompt`, `session/cancel`, the
-  permission response, and the read-only `_ax/*` catalogue extensions.
+  permission response, the read-only `_ax/*` catalogue extensions and additive
+  `_ax/steer` guidance for the active turn. Acceptance is acknowledged without
+  cancelling the prompt; `user_message_chunk` includes `_ax.steering` and a
+  stable message ID for replay.
 - **Database**: the SQLite file format is unchanged. `schema.sql` is idempotent,
   so an existing database opens without a conversion step.
 

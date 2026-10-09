@@ -48,7 +48,7 @@ const zh: Record<string, string> = {
   'nav.artifacts': '产物',
   'nav.distributed': '分布式协作',
   'nav.connect': '连接',
-  'nav.capabilities': '代理能力',
+  'nav.capabilities': '插件',
   'nav.settings': '设置',
   'nav.overview': '概览',
   'nav.crews': '团队',
@@ -347,7 +347,7 @@ const en: Record<string, string> = {
   'nav.artifacts': 'Artifacts',
   'nav.distributed': 'Distributed',
   'nav.connect': 'Connections',
-  'nav.capabilities': 'Agent capabilities',
+  'nav.capabilities': 'Plugins',
   'nav.settings': 'Settings',
   'nav.overview': 'Overview',
   'nav.crews': 'Crews',
@@ -638,6 +638,10 @@ const newCopy:Record<string,[string,string]>={
  'usage.model':['按模型','By model'],'usage.client':['按使用端','By client'],'usage.ranking':['会话用量排行','Conversation usage'],
  'usage.input':['输入','Input'],'usage.output':['输出','Output'],'usage.cached':['缓存输入','Cached input'],'usage.more':['显示更多','Show more'],
  'usage.empty':['暂无用量记录','No usage records yet'],'usage.unreported':['未报告 token 用量','Token usage unreported'],
+ 'usage.warning.unreadable_projects':['有 {count} 个项目的会话列表无法读取，这部分用量没有计入。','{count} project session list(s) could not be read; their usage is not included.'],
+ 'usage.warning.unreadable_sessions':['有 {count} 个会话的历史记录无法打开，这部分用量没有计入。','{count} conversation history file(s) could not be opened; their usage is not included.'],
+ 'usage.warning.damaged_lines':['跳过了 {count} 条损坏的历史记录。','Skipped {count} damaged history record(s).'],
+ 'settings.personalization':['个性化','Personalization'],
 };
 for(const [key,values] of Object.entries(newCopy)){zh[key]=values[0];en[key]=values[1]}
 export const dictionaries: Record<Lang, Record<string, string>> = { zh, en }

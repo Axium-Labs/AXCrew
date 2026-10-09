@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { distributed, type AxInstance, type Capabilities, type ClusterHost } from '../lib/distributed'
+import { axAvailable, axCatalog } from '../lib/ax'
 import { Field } from '../components/shared'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -26,13 +28,21 @@ export function ConfigureInstance({instance,close,run,busy,label,error}:{instanc
   const [form,setForm]=useState({...Object.fromEntries(Object.entries(caps).map(([key,values])=>[key,values.join(', ')])),provider:'',skills_dir:'',mcp_config:''} as Record<string,string>)
   const [settings,setSettings]=useState<Record<string,unknown>|null>(null)
   const field=(key:string,cn:string,en:string)=><Field label={label(cn,en)}><Input value={form[key]??''} onChange={e=>setForm({...form,[key]:e.target.value})}/></Field>
+  // Built-in tool names come from the local AX catalog; the target machine's AX may differ.
+  const builtins=useQuery({queryKey:['ax-catalog','','global'],queryFn:()=>axCatalog(undefined,'global'),enabled:axAvailable,retry:false}).data?.tools??[]
+  const chosenTools=list(form.tools??'')
+  const toggleTool=(name:string)=>setForm({...form,tools:(chosenTools.includes(name)?chosenTools.filter(tool=>tool!==name):[...chosenTools,name]).join(', ')})
   const download=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(settings,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='worker-settings.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
   return <Dialog open onOpenChange={open=>{if(!open)close()}} title={`${label('配置 AX 能力','Configure AX capabilities')} · ${instance.name}`}>
-    {error&&<p role="alert" className="text-danger mb-4">{error}</p>}
+    {error&&<p role="alert" className="ax-notice is-error is-flush">{error}</p>}
     {settings?<div className="cluster-detail"><p>{label('配置已保存为待生效。将以下字段合并到目标机器原有 worker.json，安装或配置对应 Skill/MCP 后重启 Worker。保留原有连接凭证和项目路径；AX 回传实际能力后才用于调度。','Configuration saved as pending. Merge these fields into the target machine’s existing worker.json, install/configure the selected skills and MCP, then restart the worker. Keep connection credentials and project mappings. Scheduling uses capabilities reported by AX.')}</p><pre>{JSON.stringify(settings,null,2)}</pre><Button onClick={download}>{label('下载配置字段','Download settings')}</Button></div>:<div className="cluster-form">
       <p className="text-sm text-muted">{label('这里配置已连接实例的能力。Skill/MCP 必须在目标机器安装并启用；Tool 名称填写 AX 内置工具，MCP 工具通过 MCP 配置。模型填写一个 ID，认证保留在目标机器。','Configure a connected instance. Install and enable skills/MCP locally. Tool names select AX built-ins; configure MCP tools through MCP. Use one model ID; credentials stay on the target machine.')}</p>
       <div className="cluster-form-grid">
         {field('roles','角色（逗号分隔）','Roles (comma separated)')}{field('models','模型 ID','Model ID')}{field('provider','Provider ID（可选）','Provider ID (optional)')}{field('skills','Skill 名称','Skill names')}{field('skills_dir','目标机器 Skill 目录（可选）','Local skill directory (optional)')}{field('mcp','MCP 名称','MCP names')}{field('mcp_config','目标机器 MCP 配置路径（可选）','Local MCP config path (optional)')}{field('tools','Tool 名称','Tool names')}{field('environments','环境标签','Environment tags')}
+        {builtins.length>0&&<div className="cluster-tool-picker" role="group" aria-label={label('可选内置工具','Available built-in tools')}>
+          <span>{label('点选本机 AX 内置工具（以目标机器 AX 为准）','Pick from this machine’s AX built-in tools (the target AX decides)')}</span>
+          <div>{builtins.map(tool=><button key={tool.name} type="button" title={tool.description||undefined} aria-pressed={chosenTools.includes(tool.name)} onClick={()=>toggleTool(tool.name)}>{tool.name}</button>)}</div>
+        </div>}
         <Field label={label('执行权限','Execution permissions')}><select value={form.permissions||'ask'} onChange={e=>setForm({...form,permissions:e.target.value})}><option value="ask">Ask</option><option value="allow">Allow</option><option value="deny">Deny</option></select></Field>
       </div>
       <Button disabled={busy||list(form.models??'').length>1} onClick={()=>void run(async()=>{

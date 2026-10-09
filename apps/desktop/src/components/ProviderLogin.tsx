@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { call as invoke } from '../lib/errors'
 import { listen } from '@tauri-apps/api/event'
 import { Check, Copy, ExternalLink, LoaderCircle, RefreshCw } from 'lucide-react'
 import { Dialog } from './ui/dialog'

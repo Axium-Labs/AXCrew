@@ -1,5 +1,47 @@
 import { expect, test } from '@playwright/test'
 
+test('sends guidance during work with an independent stop control and preserves the single turn on reload',async({page})=>{
+  await page.route('**/src/lib/api.ts*',route=>route.fulfill({contentType:'application/javascript',body:`
+    const task={id:'guided',title:'继续当前工作',assigned_member:'member',assigned_device:'local',dependencies:[],status:'running',input:'original work',created_at:Date.now()/1000,started_at:Date.now()/1000};
+    const session={task_id:'guided',ax_session_id:'s',member_id:'member',device_id:'local'};
+    const updates=[{update:{sessionUpdate:'user_message_chunk',messageId:'u',content:{text:'original work'}}},...JSON.parse(localStorage.getItem('guidance-fixture')??'[]')];
+    export const getConnection=async()=>({endpoint:'http://127.0.0.1:1421',token:'test'});
+    export const api=async(path,method,body)=>{if(path==='/api/projects')return []; (window.__requests??=[]).push({path,method,body});
+      if(path==='/api/sessions/guided/message'){
+        if(body.text==='simulate failure')throw new Error('runtime did not accept guidance');
+        const steering={sessionUpdate:'user_message_chunk',messageId:'steer-1',content:{text:body.text},_ax:{steering:true}};updates.push({update:steering});
+        localStorage.setItem('guidance-fixture',JSON.stringify([{update:steering}]));return task;
+      }return {};
+    };
+    export const endpoints={health:async()=>({status:'ok'}),crews:async()=>[],devices:async()=>[],tasks:async()=>[task],sessions:async()=>[session],permissions:async()=>[],members:async()=>[{id:'member',cwd:'C:/workspace',device_id:'local'}],events:async()=>[],settings:async()=>({default_cwd:'C:/workspace'}),automations:async()=>[],automationRuns:async()=>[],localAx:async()=>({projects:[]}),history:async()=>({task_id:'guided',updates})};
+  `}))
+  let socket:import('@playwright/test').WebSocketRoute
+  await page.routeWebSocket('**/api/ws*',ws=>{socket=ws})
+  await page.goto('/#/sessions/guided')
+  const input=page.getByRole('textbox',{name:'发送消息',exact:true})
+  const send=page.locator('.session-chat-panel button[type=submit].session-send-button')
+  await expect(page.locator('.session-chat-panel .session-stop-button')).toBeVisible()
+  await input.fill('additional information')
+  await expect(send).toBeEnabled()
+  await input.press('Enter')
+  await expect(input).toHaveValue('')
+  socket!.send(JSON.stringify({event_id:'guide',task_id:'guided',session_id:'s',kind:'agent.update',timestamp:Date.now()/1000,payload:{sessionUpdate:'user_message_chunk',messageId:'steer-1',content:{text:'additional information'},_ax:{steering:true}}}))
+  await expect(page.locator('.session-guidance')).toContainText('additional information')
+  await expect(page.locator('.session-chat-panel .session-turn')).toHaveCount(1)
+  const requests=await page.evaluate(()=>(window as unknown as {__requests:{path:string;body:{text:string}}[]}).__requests)
+  expect(requests.map(request=>request.path)).toEqual(['/api/sessions/guided/message'])
+  expect(requests[0].body.text).toBe('additional information')
+  await expect(page.locator('.session-chat-panel .session-stop-button')).toBeVisible()
+  await input.fill('simulate failure');await send.click()
+  await expect(page.locator('.session-inline-error')).toContainText('runtime did not accept guidance')
+  await expect(input).toHaveValue('simulate failure')
+  expect(await page.locator('.session-chat-panel .session-process-summary').count()).toBe(1)
+  await page.reload()
+  await expect(page.locator('.session-guidance')).toContainText('additional information')
+  await expect(page.locator('.session-chat-panel .session-turn')).toHaveCount(1)
+  await page.screenshot({path:'test-results/guidance-during-work.png'})
+})
+
 const image='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=='
 test.beforeEach(async({page})=>{
   await page.route('**/src/lib/api.ts*',route=>route.fulfill({contentType:'application/javascript',body:`
@@ -28,7 +70,7 @@ test('changed files open in the sidebar and selected text starts an independent 
   await expect(page.locator('.session-changes-panel .is-added code')).toHaveText('new')
   await expect(page.locator('.session-changes-panel .is-deleted .session-diff-number')).toHaveText('42')
   await page.locator('.session-changes-panel').getByRole('button',{name:'文件',exact:true}).click()
-  await expect(page.getByText('此记录未保存差异；文件内容可在本地桌面端查看。')).toBeVisible()
+  await expect(page.getByText('文件内容可在本地桌面端查看。')).toBeVisible()
   const answer=page.locator('.session-chat-panel .session-transcript-line.is-agent .session-markdown p')
   await answer.evaluate(node=>{const selection=window.getSelection(),range=document.createRange();range.selectNodeContents(node);selection?.removeAllRanges();selection?.addRange(range);node.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}))})
   await page.getByRole('button',{name:'在侧边聊天中提问'}).click()

@@ -248,10 +248,10 @@ export function Schedule() {
   const memberName = (id: string | null) => id ? members.data?.find(member => member.id === id)?.name ?? translate("copy.253") : 'default'
   const createFrom = (draft: Draft) => { setTemplate(draft); setEditing('new') }
   return <div className="page schedule-page">
-    <PageHead eyebrow={translate("english.107")} title={translate("copy.205")} description={translate("copy.254")} actions={<div className="schedule-views" role="tablist">
+    <PageHead eyebrow={translate("english.107")} title={translate("copy.205")} description={translate("copy.254")} actions={<div className="ax-segmented schedule-views" role="tablist">
       {([['list', translate("copy.255"), List], ['calendar', translate("copy.256"), CalendarDays], ['runs', translate("copy.257"), Clock]] as const).map(([value, label, Icon]) => <button key={value} role="tab" aria-selected={view === value} className={view === value ? 'is-active' : ''} onClick={() => setView(value)}><Icon size={14}/> {label}</button>)}
     </div>}/>
-    {automations.isError ? <div className="panel schedule-error">{translate("copy.258")}{String(automations.error)} <Button variant="secondary" onClick={() => void automations.refetch()}>{translate("copy.259")}</Button></div> : automations.isLoading ? <div className="panel schedule-error">{translate("copy.260")}</div>
+    {automations.isError ? <div role="alert" className="panel schedule-error is-error">{translate("copy.258")}{String(automations.error)} <Button variant="secondary" onClick={() => void automations.refetch()}>{translate("copy.259")}</Button></div> : automations.isLoading ? <div className="panel schedule-error">{translate("copy.260")}</div>
       : view === 'calendar' ? <CalendarView automations={filtered}/>
       : view === 'runs' ? <RunHistory runs={runs.data ?? []} automations={list}/>
       : !list.length ? <div className="schedule-empty">

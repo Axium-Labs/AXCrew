@@ -70,6 +70,19 @@ fn count_message(message: &Value) -> Counts {
     }
     counts
 }
+/// What could not be counted, as `{code, count}` so each client words it in its
+/// own language; empty when everything was read.
+fn usage_warnings(projects: usize, sessions: usize, lines: usize) -> Vec<Value> {
+    [
+        ("unreadable_projects", projects),
+        ("unreadable_sessions", sessions),
+        ("damaged_lines", lines),
+    ]
+    .into_iter()
+    .filter(|(_, count)| *count > 0)
+    .map(|(code, count)| json!({"code": code, "count": count}))
+    .collect()
+}
 /// Aggregates reported local history. Cached tokens are a subset of input, never added twice.
 pub fn usage(days: i64, offset: i64, crew: &HashSet<String>) -> Result<Value> {
     let now = std::time::SystemTime::now()
@@ -80,12 +93,14 @@ pub fn usage(days: i64, offset: i64, crew: &HashSet<String>) -> Result<Value> {
     let mut totals = Counts::default();
     let mut daily = std::collections::BTreeMap::<(i64, String, String), Counts>::new();
     let mut ranking = Vec::new();
-    let mut warnings = Vec::new();
+    // Problems are counted and reported as one readable sentence each; raw
+    // OS/JSON errors and session IDs mean nothing to the person reading Usage.
+    let (mut unreadable_projects, mut unreadable, mut damaged) = (0_usize, 0_usize, 0_usize);
     for project in super::projects() {
         let sessions = match super::sessions(&project) {
             Ok(s) => s,
-            Err(e) => {
-                warnings.push(e.to_string());
+            Err(_) => {
+                unreadable_projects += 1;
                 continue;
             }
         };
@@ -97,8 +112,11 @@ pub fn usage(days: i64, offset: i64, crew: &HashSet<String>) -> Result<Value> {
             }
             let file = match fs::File::open(super::transcript_path(&project, id)) {
                 Ok(file) => file,
-                Err(e) => {
-                    warnings.push(format!("{id}: {e}"));
+                // An indexed session whose history was never written or was
+                // removed simply has no reported usage; it is not an error.
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(_) => {
+                    unreadable += 1;
                     continue;
                 }
             };
@@ -109,7 +127,7 @@ pub fn usage(days: i64, offset: i64, crew: &HashSet<String>) -> Result<Value> {
             for line in BufReader::new(file).lines() {
                 match line.and_then(|s| serde_json::from_str(&s).map_err(std::io::Error::other)) {
                     Ok(message) => messages.push(message),
-                    Err(e) => warnings.push(format!("{id}: {e}")),
+                    Err(_) => damaged += 1,
                 }
             }
             let mut turn_model = "Unreported".to_owned();
@@ -161,6 +179,7 @@ pub fn usage(days: i64, offset: i64, crew: &HashSet<String>) -> Result<Value> {
         )
     });
     let daily = daily.into_iter().map(|((day,model,client),counts)|json!({"day":day,"model":model,"client":client,"counts":counts})).collect::<Vec<_>>();
+    let warnings = usage_warnings(unreadable_projects, unreadable, damaged);
     Ok(
         json!({"days":days,"start":start,"today":today,"totals":totals,"daily":daily,"ranking":ranking,"warnings":warnings}),
     )
@@ -168,6 +187,18 @@ pub fn usage(days: i64, offset: i64, crew: &HashSet<String>) -> Result<Value> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn warnings_are_codes_without_raw_errors_or_session_ids() {
+        assert!(super::usage_warnings(0, 0, 0).is_empty());
+        let warnings = super::usage_warnings(1, 0, 3);
+        assert_eq!(
+            warnings,
+            vec![
+                serde_json::json!({"code":"unreadable_projects","count":1}),
+                serde_json::json!({"code":"damaged_lines","count":3}),
+            ]
+        );
+    }
     #[test]
     fn usage_counts_reported_tokens_and_keeps_cache_inside_input() {
         let row = serde_json::json!({"role":"assistant","metadata":{"usage":{"reported":{"prompt_tokens":100,"completion_tokens":20,"prompt_tokens_details":{"cached_tokens":80}}}}});

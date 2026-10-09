@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 
 const fixture = vi.hoisted(()=>({
-  refresh: vi.fn(), store: vi.fn(),
+  refresh: vi.fn(), store: vi.fn(), remove:vi.fn(), select:vi.fn(),
   state: {active_path:'ax.exe', providers:[
     {auth_kind:'api_key',id:'deepseek',name:'DeepSeek',configured:true,supported:true,source:'AX',model_source:'fallback',models:[{provider:'deepseek',id:'deepseek-chat',display_name:'DeepSeek Chat'}]},
     {auth_kind:'api_key',id:'anthropic',name:'Anthropic',configured:true,supported:false,source:'AX',unsupported_reason:'No adapter',models:[]},
@@ -13,11 +13,13 @@ const fixture = vi.hoisted(()=>({
     {auth_kind:'ambient',id:'amazon-bedrock',name:'Bedrock',configured:false,supported:false,source:null,models:[]},
   ]},
 }))
-vi.mock('../lib/ax',()=>({axAvailable:true,axLocalState:async()=>fixture.state,axRefreshModels:fixture.refresh,axStoreApiKey:fixture.store,axRemoveCredential:vi.fn(),axSelectModel:vi.fn(),axExport:vi.fn(),axImport:vi.fn()}))
+vi.mock('../lib/ax',()=>({axAvailable:true,axLocalState:async()=>fixture.state,axRefreshModels:fixture.refresh,axStoreApiKey:fixture.store,axRemoveCredential:fixture.remove,axSelectModel:fixture.select,axExport:vi.fn(),axImport:vi.fn()}))
 vi.mock('../lib/api',()=>({endpoints:{settings:async()=>({}),health:async()=>({}),authorizations:async()=>({pending:[],authorized:[]})}}))
 vi.mock('../lib/query',()=>({useSessions:()=>({data:[]}),useTasks:()=>({data:[]}),useDevices:()=>({data:[]})}))
 vi.mock('../lib/live',()=>({useLive:()=> 'Connected'}))
 vi.mock('../components/AxUpdater',()=>({AxUpdater:()=>null}))
+vi.mock('../components/CapabilityImports',()=>({CapabilityImports:()=>null}))
+vi.mock('../components/ui/settings-select',()=>({SettingsSelect:({label,value,onChange,options,disabled}:any)=><select aria-label={label} value={value} disabled={disabled} onChange={event=>onChange(event.target.value)}>{[...new Set(options.map((option:any)=>option.group??''))].map((group:any)=>group?<optgroup label={group} key={group}>{options.filter((option:any)=>option.group===group).map((option:any)=><option key={option.value} value={option.value}>{option.label}</option>)}</optgroup>:options.filter((option:any)=>!option.group).map((option:any)=><option key={option.value} value={option.value}>{option.label}</option>))}</select>}))
 vi.mock('../components/AxCapabilities',()=>({AxCapabilities:()=>null}))
 vi.mock('../components/AndroidConnection',()=>({AndroidConnection:()=>null}))
 vi.mock('../lib/connections',()=>({connections:{ssh:async()=>[],discover:async()=>[]}}))
@@ -77,6 +79,47 @@ describe('model settings',()=>{
 })
 
 describe('authentication and settings pages',()=>{
+  it('allows removal of environment providers and refreshes the provider list',async()=>{
+    const providers=fixture.state.providers
+    fixture.state.providers=providers.map(provider=>provider.id==='deepseek'?{...provider,source:'environment'}:provider)
+    fixture.remove.mockImplementation(async()=>{fixture.state.providers=fixture.state.providers.map(provider=>provider.id==='deepseek'?{...provider,configured:false}:provider);return fixture.state})
+    try{
+      await start()
+      const row=screen.getByText('DeepSeek',{exact:true}).closest('div')!
+      const remove=within(row).getByRole('button',{name:'移除提供商'}) as HTMLButtonElement
+      expect(remove.disabled).toBe(false)
+      fireEvent.click(remove)
+      await waitFor(()=>expect(fixture.remove).toHaveBeenCalledWith('deepseek'))
+      await waitFor(()=>expect(row.isConnected).toBe(false))
+      expect(await screen.findByRole('status')).toHaveProperty('textContent','提供商已移除。')
+    }finally{fixture.state.providers=providers}
+  })
+  it('expires success notices and clears them when navigating to another settings page',async()=>{
+    fixture.select.mockResolvedValue(fixture.state)
+    await start()
+    const choose=()=>fireEvent.change(screen.getByLabelText('AX 默认模型'),{target:{value:'deepseek::deepseek-chat'}})
+    choose();await screen.findByText('已保存到本地 AX。')
+    await waitFor(()=>expect(screen.queryByText('已保存到本地 AX。')).toBeNull(),{timeout:5000})
+    choose();await screen.findByText('已保存到本地 AX。')
+    fireEvent.click(screen.getByRole('button',{name:'系统'}))
+    expect(screen.queryByText('已保存到本地 AX。')).toBeNull()
+  })
+  it('keeps failed removals visible without reporting success',async()=>{
+    fixture.remove.mockRejectedValueOnce(Error('removal failed'))
+    await start()
+    fireEvent.click(within(screen.getByText('DeepSeek',{exact:true}).closest('div')!).getByRole('button',{name:'移除提供商'}))
+    expect((await screen.findByRole('alert')).textContent).toContain('removal failed')
+    expect(screen.queryByText('提供商已移除。')).toBeNull()
+  })
+  it('does not put a late save result onto the newly opened settings page',async()=>{
+    let finish!: (value:unknown)=>void
+    fixture.select.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve}))
+    await start()
+    fireEvent.change(screen.getByLabelText('AX 默认模型'),{target:{value:'deepseek::deepseek-chat'}})
+    fireEvent.click(screen.getByRole('button',{name:'系统'}))
+    await act(async()=>{finish(fixture.state)})
+    expect(screen.queryByText('已保存到本地 AX。')).toBeNull()
+  })
   it('separates regional account login from API keys and environment credentials',async()=>{
     await start()
     const select=screen.getByLabelText('模型提供商')
@@ -101,13 +144,12 @@ describe('authentication and settings pages',()=>{
     fireEvent.click(screen.getByRole('button',{name:'隐藏密钥'}));expect(key.type).toBe('password')
   })
   it('keeps system controls on their own page and translates without remounting',async()=>{
-    await start();fireEvent.click(screen.getByRole('button',{name:'连接'}))
-    expect(screen.getByRole('tab',{name:'控制此电脑'})).toBeTruthy();expect(screen.queryByText('桌面行为')).toBeNull()
+    await start();expect(screen.queryByRole('button',{name:'连接'})).toBeNull();expect(screen.queryByText('桌面行为')).toBeNull()
     fireEvent.click(screen.getByRole('button',{name:'系统'}))
     expect(screen.getByText('桌面行为')).toBeTruthy();expect(screen.queryByText('公共网关 URL')).toBeNull()
     act(()=>useLang.setState({lang:'en'}))
     expect(screen.getByText('Desktop behavior')).toBeTruthy();expect(screen.queryByText('桌面行为')).toBeNull()
-    expect(screen.getByRole('button',{name:'Connections'})).toBeTruthy()
+    expect(screen.queryByRole('button',{name:'Connections'})).toBeNull()
     act(()=>useLang.setState({lang:'zh'}));expect(screen.getByText('桌面行为')).toBeTruthy()
   })
 })

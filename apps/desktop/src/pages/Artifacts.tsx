@@ -78,7 +78,7 @@ export function Artifacts() {
       <div className="artifacts-toolbar-actions">
         <Menu trigger={<Button>{translate("copy.308")}<ChevronDown size={14}/></Button>} items={[{ get label() { return translate("copy.309") }, action: () => navigate('/sessions') }, { get label() { return translate("copy.310") }, action: () => navigate('/tasks') }]}/>
         <Button variant="secondary" onClick={() => { setFolderName(''); setFolderOpen(true) }}><FolderPlus size={14}/> {translate("copy.269")}</Button>
-        <div className="artifacts-views" role="tablist" aria-label={translate("copy.311")}>
+        <div className="ax-segmented artifacts-views" role="tablist" aria-label={translate("copy.311")}>
           <button role="tab" aria-selected={view === 'gallery'} className={view === 'gallery' ? 'is-active' : ''} onClick={() => setView('gallery')}><LayoutGrid size={14}/> {translate("copy.312")}</button>
           <button role="tab" aria-selected={view === 'table'} className={view === 'table' ? 'is-active' : ''} onClick={() => setView('table')}><Rows3 size={14}/> {translate("copy.299")}</button>
         </div>
@@ -89,7 +89,7 @@ export function Artifacts() {
       <div className="artifacts-select"><Select value={kind} onChange={setKind}><option value="all">{translate("copy.315")}</option>{Object.entries(KINDS).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</Select></div>
       <div className="artifacts-select"><Select value={tag} onChange={setTag}><option value="all">{translate("copy.316")}</option>{tags.map(value => <option key={value} value={value}>{value}</option>)}</Select></div>
     </div>
-    {tasks.isError ? <div className="panel artifacts-empty">{translate("copy.317")}{String(tasks.error)} <Button variant="secondary" onClick={() => void tasks.refetch()}>{translate("copy.259")}</Button></div>
+    {tasks.isError ? <div role="alert" className="panel artifacts-empty is-error">{translate("copy.317")}{String(tasks.error)} <Button variant="secondary" onClick={() => void tasks.refetch()}>{translate("copy.259")}</Button></div>
       : !filtered.length ? <div className="artifacts-empty">
         <Bookmark size={26}/>
         <strong>{items.length ? translate("copy.318") : translate("copy.319")}</strong>

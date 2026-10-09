@@ -1,9 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { conversationTranscript, transcript, transcriptBlocks, latestTurnChangedFiles } from './sessionTranscript'
+import { conversationTranscript, transcript, transcriptBlocks, transcriptTurns, latestTurnChangedFiles } from './sessionTranscript'
 import type { CrewEvent, SessionHistory, Task } from './types'
 
 const history=(updates:Record<string,unknown>[]):SessionHistory=>({task_id:'t',ax_session_id:'s',updates:updates.map(update=>({sessionId:'s',update}))})
 const event=(timestamp:number,payload:Record<string,unknown>):CrewEvent=>({event_id:'e',timestamp,kind:'agent.message',crew_id:null,member_id:null,device_id:null,task_id:'t',session_id:'s',payload})
+
+describe('active guidance',()=>{
+  it('keeps guidance in one turn and merges live and replayed messages by stable ID',()=>{
+    const initial={sessionUpdate:'user_message_chunk',messageId:'u',content:{text:'original'}}
+    const steering={sessionUpdate:'user_message_chunk',messageId:'steer-1',content:{text:'additional detail'},_ax:{steering:true,createdAt:101}}
+    const change={sessionUpdate:'tool_call_update',toolCallId:'edit',status:'completed',rawOutput:{raw_output:JSON.stringify({changed_files:[{path:'a.ts',additions:1,deletions:0}]})}}
+    const saved=history([initial,change,steering])
+    const task={id:'t',input:'original',status:'running'} as Task
+    const lines=conversationTranscript(saved,[event(101,steering)],task,true)
+    expect(lines.filter(line=>line.type==='user').map(line=>line.text)).toEqual(['original','additional detail'])
+    expect(lines.find(line=>line.key==='steer-1')?.steering).toBe(true)
+    expect(transcriptTurns(lines)).toHaveLength(1)
+    expect(latestTurnChangedFiles(lines)).toHaveLength(1)
+    const withFinal=transcript(history([initial,change,steering,{sessionUpdate:'turn_changes',changedFiles:[]}]))
+    expect(latestTurnChangedFiles(withFinal)).toEqual([])
+  })
+})
 
 describe('message time',()=>{
   it('reads the private _ax stamp AX puts on a replayed message',()=>{

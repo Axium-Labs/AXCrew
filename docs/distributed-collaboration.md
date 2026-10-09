@@ -4,6 +4,9 @@ Introduced in AXCrew 0.3.3 with AX 0.3.7, alongside existing Crew/Task/Session/d
 control. Open the desktop sidebar **Distributed** (`/distributed`) to manage the
 cluster. Existing routes, SQLite data and Android controls remain compatible;
 the dedicated cluster management page is currently desktop-only.
+Desktop cluster cards have 24px vertical spacing, including the first-instance
+intro and empty task/artifact/event/workflow states. Empty list states use one
+border rather than nesting a dashed card inside another bordered panel.
 
 ## Model and boundaries
 

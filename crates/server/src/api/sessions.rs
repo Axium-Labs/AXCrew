@@ -333,19 +333,7 @@ pub async fn session_history(
     }
 }
 
-pub async fn resume_session(
-    State(app): State<App>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-) -> Api<Value> {
-    app.authorize(&headers)?;
-    let (task, member, ax_id) = session_context(&app, &id).await?;
-    app.router.inspect(&task.assigned_device,&member.cwd,member.provider.as_deref(),member.model.as_deref(),"session/resume",json!({"sessionId":ax_id,"cwd":member.cwd,"mcpServers":[],"_ax":{"skills":member.skills,"mcpServers":member.mcp_servers,"permissionProfile":member.permission_profile}})).await?;
-    Ok(Json(json!({"resumed":true,"ax_session_id":ax_id})))
-}
-
-/// Appends a turn to an existing conversation: a new task bound to the same AX
-/// session, rejected while the previous turn is still active.
+/// Steers active work without restarting it; otherwise appends an ordinary new turn.
 pub async fn session_message(
     State(app): State<App>,
     headers: HeaderMap,
@@ -357,16 +345,38 @@ pub async fn session_message(
         return Err(ApiError(anyhow::anyhow!("message required")));
     }
     let (parent, member, ax_id) = session_context(&app, &id).await?;
-    if matches!(
-        parent.status.as_str(),
-        "running" | "waiting_permission" | "ready"
-    ) {
-        return Err(ApiError(anyhow::anyhow!("session already has active work")));
-    }
     if member.device_id != "local" && (!body.images.is_empty() || !body.files.is_empty()) {
         return Err(ApiError(anyhow::anyhow!(
             "attachments currently require the Gateway local device"
         )));
+    }
+    let active = app
+        .db
+        .conversation_tasks(&parent.assigned_device, &ax_id)?
+        .into_iter()
+        .find(|task| {
+            matches!(
+                task.status.as_str(),
+                "running" | "waiting_permission" | "ready"
+            )
+        });
+    if let Some(active) = active {
+        // Active guidance changes neither the current model nor its permission policy.
+        let input = conversation_input(
+            session_input(body.text, None, None, body.images, body.files, &member.cwd)?,
+            body.context,
+        )?;
+        let text = input
+            .as_str()
+            .or_else(|| input["prompt"].as_str())
+            .unwrap_or_default()
+            .to_owned();
+        app.scheduler.steer(&active.id, text).await?;
+        return Ok(Json(
+            app.db
+                .task(&active.id)?
+                .ok_or_else(|| anyhow::anyhow!("task missing"))?,
+        ));
     }
     let followup = app.db.create_task(NewTask {
         crew_id: parent.crew_id,

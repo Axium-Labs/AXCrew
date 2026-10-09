@@ -16,7 +16,7 @@ focused document; this page is the map.
 | [protocol/README.md](protocol/README.md) | REST, WebSocket and ACP contracts |
 | [protocol/api.md](protocol/api.md) | REST/WebSocket API reference, authentication, pairing and connection |
 | [development/README.md](development/README.md) | Build, test and packaging commands |
-| [desktop/README.md](desktop/README.md) | Desktop settings, imports, subagents and scoped AX capabilities |
+| [desktop/README.md](desktop/README.md) | Desktop chat, settings, imports and scoped AX capabilities |
 | [releases/0.2.5.md](releases/0.2.5.md) | AX Crew 0.2.5 release snapshot |
 | [releases/0.2.6.md](releases/0.2.6.md) | AX Crew 0.2.6 release snapshot |
 | [releases/0.2.7.md](releases/0.2.7.md) | AX Crew 0.2.7 release snapshot |

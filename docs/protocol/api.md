@@ -47,9 +47,19 @@ does not generate or revise the DAG with a model.
 ## Sessions and devices
 
 - `POST /api/sessions` creates a conversation; `POST /api/sessions/{task_id}/message`
-  appends a follow-up. Both accept optional `reasoning_effort` with the selected
+  appends a follow-up when idle. During active work it sends guidance to the
+  currently running task in that conversation and returns that same task after
+  AX acknowledges `_ax/steer`, without starting another run or cancelling work.
+  This includes permission waits; guidance does not authorize a pending tool.
+  A rejected/unsupported steering request returns an error so clients retain
+  the draft. For new/follow-up turns both accept optional `reasoning_effort` with the selected
   provider's advertised wire value. It is saved in task input and forwarded to AX
   for that turn; omitted values retain existing default behavior.
+  Active guidance retains the running turn's model, effort and permissions;
+  new selections apply on a subsequent ordinary turn. Local guidance supports
+  the existing attachment payloads. Paired/SSH attachment restrictions remain.
+  Guidance updates use `user_message_chunk`, `_ax.steering:true` and a stable
+  `messageId` in live events and durable history.
 - Model capability catalogues expose each model's `reasoning_efforts` and
   `default_reasoning_effort`. Desktop clients must use that subset rather than
   synthesizing universal effort levels; empty or missing values offer no slider.

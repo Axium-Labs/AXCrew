@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { HashRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
-import { Activity, CalendarDays, Cpu, House, ListTodo, Monitor, Settings2, ShieldCheck, Users, MessagesSquare, Plus, PanelLeftClose, PanelLeftOpen, SquareTerminal, Globe, Sparkles, Package } from 'lucide-react'
+import { Activity, CalendarDays, Cpu, House, ListTodo, Monitor, Settings2, ShieldCheck, Users, MessagesSquare, Plus, PanelLeftClose, PanelLeftOpen, SquareTerminal, Globe, Package } from 'lucide-react'
 import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Dialog } from './components/ui/dialog'
 import { Input } from './components/ui/input'
@@ -30,7 +30,7 @@ import { Distributed } from './pages/Distributed'
 import './styles.css'
 
 const primaryNav=[['/sessions','nav.sessions',MessagesSquare],['/schedule','nav.schedule',CalendarDays],['/artifacts','nav.artifacts',Package],['/distributed','nav.distributed',Users]] as const
-const utilityNav=[['/connect','nav.connect',Globe],['/devices/local','nav.capabilities',Sparkles],['/settings','nav.settings',Settings2]] as const
+const utilityNav=[['/connect','nav.connect',Globe],['/settings','nav.settings',Settings2]] as const
 const nav=[...primaryNav,...utilityNav,['/overview','nav.overview',House],['/crews','nav.crews',Users],['/tasks','nav.tasks',ListTodo],['/devices','nav.devices',Monitor],['/activity','nav.activity',Activity]] as const
 function Shell(){
   const {sidebar:preferredSidebar,setSidebar:saveSidebar,palette,setPalette,theme,focus,setFocus}=useUi()

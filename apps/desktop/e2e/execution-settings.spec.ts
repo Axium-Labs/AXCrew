@@ -30,6 +30,7 @@ test('execution choices save independently and expose failures', async ({page}) 
   await environment.click()
   await page.screenshot({path:'test-results/execution-environment.png'})
   await page.getByRole('option', {name:/适用于 Linux/}).click()
-  await expect(page.getByRole('status')).toContainText('WSL requires Linux AX')
+  // Failures are announced as alerts; successes use status.
+  await expect(page.getByRole('alert')).toContainText('WSL requires Linux AX')
   await expect(environment).toContainText('Windows 原生')
 })

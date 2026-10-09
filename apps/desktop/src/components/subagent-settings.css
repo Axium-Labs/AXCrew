@@ -1,9 +1,0 @@
-.subagent-settings-row{display:flex;align-items:center;justify-content:space-between;gap:24px}
-.subagent-settings-row h2{margin:0 0 5px}.subagent-settings-row p{margin:0;color:var(--shell-muted)}
-.subagent-settings-help{margin:14px 0 0;font-size:12px;color:var(--shell-muted);line-height:1.6}
-.settings-card .subagent-switch{display:flex;align-items:center;justify-content:flex-start;min-height:24px;gap:0;flex-shrink:0;width:42px;height:24px;border:1px solid var(--shell-border);border-radius:999px;padding:2px;background:var(--shell-hover);cursor:pointer}
-.settings-card .subagent-switch[data-state=checked],.settings-card .subagent-switch[data-state=checked]:hover:not(:disabled){background:var(--shell-accent)}
-.subagent-switch:disabled{opacity:.5;cursor:default}.subagent-switch:focus-visible{outline:2px solid var(--shell-accent);outline-offset:3px}
-.subagent-switch-thumb{display:block;width:18px;height:18px;background:var(--shell-text);border-radius:50%;transition:transform .15s}
-.subagent-switch-thumb[data-state=checked]{background:#fff;transform:translateX(18px)}
-@media(prefers-reduced-motion:reduce){.subagent-switch-thumb{transition:none}}

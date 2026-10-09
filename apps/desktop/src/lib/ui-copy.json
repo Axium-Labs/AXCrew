@@ -8,8 +8,8 @@
     "en": "Local AX"
   },
   "copy.2": {
-    "zh": "AX 能力",
-    "en": "AX capabilities"
+    "zh": "插件",
+    "en": "Plugins"
   },
   "copy.3": {
     "zh": "模型与登录",
@@ -128,7 +128,7 @@
     "en": "Configure iFlytek streaming speech recognition for your phone"
   },
   "copy.32": {
-    "zh": "AX 已装的技能、MCP 服务器与内置工具",
+    "zh": "管理 Mod、MCP、技能和内置工具",
     "en": "Skills, MCP servers and built-in AX tools"
   },
   "copy.33": {
@@ -356,8 +356,8 @@
     "en": "Workspace"
   },
   "copy.89": {
-    "zh": "AX 的项目记忆与会话按工作目录保存；当前操作目标：",
-    "en": "AX stores project memory and sessions by workspace. Current destination:"
+    "zh": "AX 的项目记忆与会话按工作目录保存。",
+    "en": "AX stores project memory and sessions by workspace."
   },
   "copy.90": {
     "zh": "未选择",

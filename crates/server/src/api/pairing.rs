@@ -9,7 +9,7 @@
 
 use crate::{
     app::App,
-    domain::device::{AuthorizedClient, Device},
+    domain::device::Device,
     error::{Api, ApiError},
 };
 use axum::{
@@ -101,14 +101,6 @@ pub async fn list_client_authorizations(State(app): State<App>, headers: HeaderM
         "pending": app.db.pending_client_authorizations()?,
         "authorized": app.db.client_authorizations()?,
     })))
-}
-
-pub async fn pending_client_authorizations(
-    State(app): State<App>,
-    headers: HeaderMap,
-) -> Api<Vec<AuthorizedClient>> {
-    app.authorize(&headers)?;
-    Ok(Json(app.db.pending_client_authorizations()?))
 }
 
 pub async fn confirm_client_device(

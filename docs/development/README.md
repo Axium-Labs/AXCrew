@@ -13,6 +13,12 @@ Run every command from the repository root. The root is a Cargo workspace whose
 only member is `crates/server`, so the artifact lands at
 `target/debug/ax-crew.exe` exactly as before.
 
+`python tests/integration/active_guidance_process.py ../ax/target/debug/ax.exe
+target/debug/ax-crew.exe` uses a local mock model and isolated data to verify ACP,
+local and paired-device guidance, pending permissions, one run per task, durable
+replay and real tool-created file diffs. It requires current builds of both AX
+and Crew, without production credentials or model calls.
+
 ```powershell
 cargo build
 cargo fmt --check
@@ -43,6 +49,48 @@ npm run test:e2e
 `cargo tauri build` and `npm run pack:portable` both work from `apps/desktop`;
 the packaging scripts themselves live in the repository's `scripts/` directory
 because they also build the backend.
+
+### Desktop theming
+
+The desktop UI has one palette system, defined in `apps/desktop/src/styles.css`:
+
+- Tailwind v4 `@theme` tokens (`--color-surface`, `--color-accent`,
+  `--color-success`, …) hold the dark values at `:root`; light overrides live
+  under `[data-theme="light"]`. The theme is selected by the `ax-crew-ui`
+  zustand store (`theme: dark | light | system`), which sets
+  `document.documentElement.dataset.theme`.
+- Shell CSS variables (`--shell-bg`, `--shell-panel`, `--shell-text`,
+  `--shell-border`, `--shell-hover`, `--shell-active`, …) mirror the same
+  values for plain CSS files.
+- The accent is a single low-saturation iris used only for selection, toggles,
+  focus and primary actions. It has two roles: `accent-text` /
+  `--shell-accent` for text, links and tinted backgrounds, and
+  `--color-accent` / `--shell-accent-strong` for solid fills with white text
+  (primary buttons, switches, sliders, the chat send button). Never reintroduce
+  a second blue for generic controls.
+- Green / amber / red exist only as `success` / `warning` / `danger` status
+  colors and are defined separately for both themes.
+- Dark theme is graphite (near-black blue-gray surfaces); light theme is warm
+  white. Page-level CSS files consume the tokens via `var(--shell-*)` /
+  `var(--color-*)`; do not hardcode hex colors outside `styles.css` (exceptions:
+  OS conventions such as the Windows close button, QR codes and chart
+  palettes).
+- Shape and size tokens (`styles.css` `:root`): `--radius-control` (11px) and
+  `--control-h` (32px) for every button, input, select trigger and search
+  field; `--radius-chip` (12px) for segmented containers, notices and small
+  boxes; `--radius-card` (16px) for cards, lists and rows; `--radius-panel`
+  (20px) for `.panel` and dialogs. Pill radius (999px) is only for chips, tags
+  and switches — not for action buttons or selects. `--page-title` (26px) is
+  the size of every top-level page title (`PageHead`, Settings, Connections,
+  Artifacts); narrow layouts drop to 22px.
+- Shared classes: every view switcher (list/calendar, gallery/table, 7/30
+  days) uses `.ax-segmented` with `.is-active` or `aria-pressed`; every inline
+  notice or error box uses `.ax-notice` / `.ax-notice.is-error` (`.is-flush`
+  removes the top margin). Input focus uses the solid accent
+  (`--color-accent` / `--shell-accent-strong`) ring. Switches are 38×22 with a
+  16px thumb and `--shell-active` when off. Dialogs use `ui/Dialog`; the
+  hand-rolled session dialogs match its radius, surface, overlay and
+  animation.
 
 ## Android
 

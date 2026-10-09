@@ -148,7 +148,6 @@ def main(ax, crew):
             first_session = request(base, f"/api/sessions/{first['id']}")["ax_session_id"]
             history = request(base, f"/api/sessions/{first['id']}/history")
             assert any(u["update"].get("sessionUpdate") == "agent_message_chunk" for u in history["updates"])
-            assert request(base, f"/api/sessions/{first['id']}/resume", {})["ax_session_id"] == first_session
             followup = request(base, f"/api/sessions/{first['id']}/message", {"text": "follow up"})
             assert followup["parent_id"] == first["id"]
             assert wait_until(lambda: request(base, f"/api/tasks/{followup['id']}")["status"] == "completed", 15)

@@ -8,3 +8,7 @@ globalThis.ResizeObserver = class {
   unobserve() {}
   disconnect() {}
 }
+Element.prototype.scrollIntoView ??= () => {}
+Element.prototype.hasPointerCapture ??= () => false
+Element.prototype.setPointerCapture ??= () => {}
+Element.prototype.releasePointerCapture ??= () => {}

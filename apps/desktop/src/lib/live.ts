@@ -3,6 +3,7 @@ import { getConnection } from './api'
 import { queryClient } from './runtime'
 import type { CrewEvent } from './types'
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 export type ConnectionStatus='Disconnected'|'Connecting'|'Connected'|'Reconnecting'
 type Live={status:ConnectionStatus;events:CrewEvent[];streams:Record<string,CrewEvent[]>;setStatus:(status:ConnectionStatus)=>void;add:(items:CrewEvent[])=>void}
@@ -32,8 +33,26 @@ let batch:CrewEvent[]=[]
 let flushTimer:ReturnType<typeof setTimeout>|undefined
 function flush(){if(batch.length){useLive.getState().add(batch.reverse());batch=[]}flushTimer=undefined}
 async function notify(event:CrewEvent){
-  if(!['device.disconnected','permission.requested'].includes(event.kind))return
-  try{let granted=await isPermissionGranted();if(!granted)granted=(await requestPermission())==='granted';const request=event.payload?.request as {toolCall?:{title?:string}}|undefined;if(granted)sendNotification({title:event.kind==='permission.requested'?'AX Crew 需要授权':'AX 设备已断开',body:String(event.payload?.reason??request?.toolCall?.title??event.device_id??'AX Crew')})}catch{/* permission declined or unavailable */}
+  if(!['device.disconnected','permission.requested','task.completed','task.failed'].includes(event.kind))return
+  try{
+    let granted=await isPermissionGranted();if(!granted)granted=(await requestPermission())==='granted'
+    if(!granted)return
+    const request=event.payload?.request as {toolCall?:{title?:string}}|undefined
+    if(event.kind==='device.disconnected'){
+      sendNotification({title:'AX 设备已断开',body:String(event.payload?.reason??event.device_id??'AX Crew')})
+    }else if(event.kind==='permission.requested'){
+      sendNotification({title:'AX Crew 需要授权',body:String(request?.toolCall?.title??'AX Crew')})
+    }else if(event.kind==='task.completed'||event.kind==='task.failed'){
+      const window=getCurrentWindow()
+      const visible=await window.isVisible().catch(()=>true)
+      const minimized=await window.isMinimized().catch(()=>false)
+      if(!visible||minimized){
+        const task=event.payload as {title?:string}|undefined
+        const title=task?.title??'任务'
+        sendNotification({title:event.kind==='task.completed'?'任务已完成':'任务失败',body:title})
+      }
+    }
+  }catch{/* permission declined or unavailable */}
 }
 function consume(event:CrewEvent){
   if(seen.has(event.event_id))return

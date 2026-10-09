@@ -84,7 +84,7 @@ export function AndroidConnection() {
     const content = `axcrew://pair?host=${encodeURIComponent(url)}&code=${encodeURIComponent(pairing.code)}`
     QRCode.toDataURL(content, {
       width: 236, margin: 1, errorCorrectionLevel: 'M',
-      color: { dark: '#151a24', light: '#ffffff' },
+      color: { dark: '#2c2935', light: '#ffffff' },
     }).then((data) => { if (alive) setQr(data) }).catch(() => { if (alive) setQr('') })
     return () => { alive = false }
   }, [pairing, pairingExpired, url])

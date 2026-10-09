@@ -1,7 +1,7 @@
 import { translate, useLang } from '../lib/i18n'
 import { useState } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
-import { invoke } from '@tauri-apps/api/core'
+import { call as invoke } from '../lib/errors'
 import { useQuery } from '@tanstack/react-query'
 import { Download, RefreshCw } from 'lucide-react'
 import { axAvailable } from '../lib/ax'

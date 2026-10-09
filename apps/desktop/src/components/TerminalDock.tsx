@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { invoke, isTauri } from '@tauri-apps/api/core'
+import { isTauri } from '@tauri-apps/api/core'
+import { call as invoke } from '../lib/errors'
 import { listen } from '@tauri-apps/api/event'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
@@ -13,6 +14,13 @@ import './terminal.css'
 type Output = { id: string; data: number[] }
 type Exit = { id: string }
 
+// xterm paints rows on a canvas, so it needs literal colours; they mirror the
+// --shell-bg / --shell-text / accent tokens so the canvas and the
+// surrounding viewport (var(--shell-bg)) never show a different-coloured gutter.
+const terminalTheme = (theme: 'dark' | 'light') => theme === 'dark'
+  ? { background: '#171a20', foreground: '#e7e9ef', cursor: '#b3a4f7' }
+  : { background: '#f6f5f9', foreground: '#2c2935', cursor: '#6f56d6' }
+
 function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: boolean; theme: 'dark' | 'light' }) {
   const host = useRef<HTMLDivElement>(null)
   const terminal = useRef<Terminal | null>(null)
@@ -22,7 +30,7 @@ function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: bool
 
   useEffect(() => {
     if (!host.current || !isTauri()) return
-    const term = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: 'Cascadia Mono, Consolas, monospace', fontSize: 13, scrollback: 4000, theme: theme === 'dark' ? { background: '#191d26', foreground: '#e7e9ef', cursor: '#b283ff' } : { background: '#ffffff', foreground: '#383643', cursor: '#8f3dff' } })
+    const term = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: 'Cascadia Mono, Consolas, monospace', fontSize: 13, scrollback: 4000, theme: terminalTheme(theme) })
     const addon = new FitAddon()
     term.loadAddon(addon)
     term.open(host.current)
@@ -66,7 +74,7 @@ function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: bool
   }, [tab.id, tab.cwd, tab.initialCommand])
 
   useEffect(() => {
-    if (terminal.current) terminal.current.options.theme = theme === 'dark' ? { background: '#191d26', foreground: '#e7e9ef', cursor: '#b283ff' } : { background: '#ffffff', foreground: '#383643', cursor: '#8f3dff' }
+    if (terminal.current) terminal.current.options.theme = terminalTheme(theme)
   }, [theme])
   useEffect(() => { if (visible) { const frame = requestAnimationFrame(() => { fit.current?.fit(); terminal.current?.focus() }); return () => cancelAnimationFrame(frame) } }, [visible])
   return <div className="terminal-view" hidden={!visible}><div ref={host} className="terminal-screen"/>{error&&<div className="terminal-error" role="alert">{error}</div>}{!isTauri()&&<div className="terminal-error">{t('terminal.desktopOnly')}</div>}</div>

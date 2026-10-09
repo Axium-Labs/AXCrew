@@ -22,7 +22,49 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, oneshot, watch};
+
+pub struct Steering {
+    pub text: String,
+    pub reply: oneshot::Sender<Result<Value>>,
+}
+
+/// One execution's control channel. Guidance and cancellation are independent.
+pub struct RunControl {
+    pub cancel: watch::Receiver<bool>,
+    pub steering: mpsc::UnboundedReceiver<Steering>,
+}
+
+#[derive(Default)]
+pub(super) struct SteerReplies {
+    next: i64,
+    pending: std::collections::HashMap<i64, oneshot::Sender<Result<Value>>>,
+}
+impl SteerReplies {
+    pub fn frame(&mut self, request: Steering, session: &str) -> Value {
+        self.next = self.next.max(3) + 1;
+        self.pending.insert(self.next, request.reply);
+        json!({"jsonrpc":"2.0","id":self.next,"method":"_ax/steer","params":{"sessionId":session,"prompt":[{"type":"text","text":request.text}]}})
+    }
+    pub fn receive(&mut self, message: &Value) -> bool {
+        let Some(reply) = message["id"]
+            .as_i64()
+            .and_then(|id| self.pending.remove(&id))
+        else {
+            return false;
+        };
+        let result = if message["result"]["accepted"] == true {
+            Ok(message["result"].clone())
+        } else {
+            Err(anyhow!(
+                "AX did not accept guidance: {}. Update the corresponding AX runtime if this method is unavailable.",
+                message["error"]
+            ))
+        };
+        reply.send(result).ok();
+        true
+    }
+}
 
 #[derive(Debug)]
 pub enum TransportEvent {
@@ -37,7 +79,7 @@ pub trait Transport: Send + Sync {
         task: &Task,
         member: &Member,
         session: Option<String>,
-        cancel: watch::Receiver<bool>,
+        control: RunControl,
         events: mpsc::UnboundedSender<TransportEvent>,
     ) -> Result<Value>;
 }
@@ -249,12 +291,12 @@ impl Transport for DeviceRouter {
         task: &Task,
         member: &Member,
         session: Option<String>,
-        cancel: watch::Receiver<bool>,
+        control: RunControl,
         events: mpsc::UnboundedSender<TransportEvent>,
     ) -> Result<Value> {
         if task.assigned_device == "local" {
             self.local
-                .execute(task, member, session, cancel, events)
+                .execute(task, member, session, control, events)
                 .await
         } else if task.assigned_device.starts_with("ssh:") {
             if self.db.ssh_connection(&task.assigned_device)?.is_none() {
@@ -277,7 +319,7 @@ impl Transport for DeviceRouter {
                 task,
                 &local_member,
                 session,
-                cancel,
+                control,
                 events,
             )
             .await
@@ -286,7 +328,7 @@ impl Transport for DeviceRouter {
                 gateway: self.gateway.clone(),
                 approvals: self.approvals.clone(),
             }
-            .execute(task, member, session, cancel, events)
+            .execute(task, member, session, control, events)
             .await
         }
     }
@@ -294,6 +336,18 @@ impl Transport for DeviceRouter {
 
 /// The permission round-trip both transports share: register the request, tell
 /// the clients, and wait for an answer (a cancel or a five-minute timeout denies).
+struct PermissionLease {
+    approvals: ApprovalBroker,
+    id: String,
+    events: mpsc::UnboundedSender<TransportEvent>,
+    choice: Option<String>,
+}
+impl Drop for PermissionLease {
+    fn drop(&mut self) {
+        self.approvals.forget(&self.id);
+        self.events.send(TransportEvent::Update(json!({"kind":"permission.resolved","request_id":self.id,"choice":self.choice.as_deref().unwrap_or("reject_once")}))).ok();
+    }
+}
 pub(crate) async fn permission(
     approvals: &ApprovalBroker,
     request: &Value,
@@ -304,6 +358,12 @@ pub(crate) async fn permission(
         return "reject_once".into();
     };
     let receiver = approvals.register(id.clone(), request["params"].clone());
+    let mut lease = PermissionLease {
+        approvals: approvals.clone(),
+        id: id.clone(),
+        events: events.clone(),
+        choice: None,
+    };
     events
         .send(TransportEvent::Update(
             json!({"kind":"permission.requested","request_id":id,"request":request["params"]}),
@@ -313,11 +373,10 @@ pub(crate) async fn permission(
         result=tokio::time::timeout(std::time::Duration::from_secs(300),receiver)=>result.ok().and_then(Result::ok).unwrap_or_else(||"reject_once".into()),
         _=cancel.changed()=>"reject_once".into(),
     };
-    approvals.forget(&id);
-    events
-        .send(TransportEvent::Update(
-            json!({"kind":"permission.resolved","request_id":id,"choice":choice}),
-        ))
-        .ok();
+    lease.choice = Some(choice.clone());
     choice
 }
+
+#[cfg(test)]
+#[path = "../../../../tests/steering.rs"]
+mod steering_tests;

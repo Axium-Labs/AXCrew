@@ -170,14 +170,4 @@ impl App {
         }
         false
     }
-
-    /// Writes the issued-token store back to disk.
-    pub fn persist_tokens(&self) -> std::result::Result<(), ApiError> {
-        let store = self
-            .tokens
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        fs::write(&self.token_path, serde_json::to_vec(&*store)?)?;
-        Ok(())
-    }
 }

@@ -12,6 +12,8 @@
     "core:window:allow-close",
     "core:window:allow-start-dragging",
     "core:window:allow-is-maximized",
+    "core:window:allow-is-visible",
+    "core:window:allow-is-minimized",
     "core:webview:allow-set-webview-zoom",
     "notification:default",
     "dialog:default",

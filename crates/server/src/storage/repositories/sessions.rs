@@ -6,17 +6,22 @@ use anyhow::{Result, anyhow};
 use rusqlite::{OptionalExtension, params};
 
 impl Db {
+    /// Read-only membership; unlike deletion validation this permits active work.
+    pub fn conversation_tasks(&self, device: &str, session: &str) -> Result<Vec<Task>> {
+        let mut group = Vec::new();
+        for task in self.tasks()? {
+            if task.assigned_device == device && self.binding(&task.id)?.as_deref() == Some(session)
+            {
+                group.push(task);
+            }
+        }
+        Ok(group)
+    }
     /// The tasks of one AX session, rejecting the group while any turn is still
     /// active or while another task depends on it.
     pub fn session_tasks(&self, device: &str, session: &str) -> Result<Vec<Task>> {
         let tasks = self.tasks()?;
-        let mut group = Vec::new();
-        for task in &tasks {
-            if task.assigned_device == device && self.binding(&task.id)?.as_deref() == Some(session)
-            {
-                group.push(task.clone());
-            }
-        }
+        let group = self.conversation_tasks(device, session)?;
         if group.iter().any(|t| {
             matches!(
                 t.status.as_str(),
@@ -125,6 +130,7 @@ mod workspace_tests {
         };
         let first = make(None);
         db.bind(&first, "session").unwrap();
+        assert_eq!(db.conversation_tasks("local", "session").unwrap().len(), 1);
         assert!(db.delete_session_tasks("local", "session").is_err());
         db.set_status(&first.id, "completed", None).unwrap();
         let child = make(Some(first.id.clone()));

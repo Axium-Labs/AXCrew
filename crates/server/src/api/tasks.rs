@@ -5,14 +5,13 @@
 use crate::{
     app::App,
     domain::task::{NewTask, Task, TaskEdit},
-    error::{Api, ApiError},
+    error::Api,
 };
 use axum::{
     Json,
     extract::{Path, State},
     http::HeaderMap,
 };
-use serde::Deserialize;
 use serde_json::{Value, json};
 
 pub async fn tasks(State(app): State<App>, headers: HeaderMap) -> Api<Vec<Task>> {
@@ -56,38 +55,6 @@ pub async fn delete_task(
     app.authorize(&headers)?;
     app.db.delete_task(&id)?;
     Ok(Json(json!({"deleted":true})))
-}
-
-#[derive(Deserialize)]
-pub struct Reassign {
-    member_id: String,
-}
-
-/// Moves a task to another member by reading the current row and re-submitting it
-/// as a full edit, so the graph rules apply unchanged.
-pub async fn reassign_task(
-    State(app): State<App>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-    Json(body): Json<Reassign>,
-) -> Api<Task> {
-    app.authorize(&headers)?;
-    let task = app
-        .db
-        .task(&id)?
-        .ok_or_else(|| ApiError(anyhow::anyhow!("task not found")))?;
-    Ok(Json(app.db.update_task(
-        &id,
-        TaskEdit {
-            title: task.title,
-            description: task.description,
-            assigned_member: body.member_id,
-            parent_id: task.parent_id,
-            dependencies: task.dependencies,
-            priority: task.priority,
-            input: task.input,
-        },
-    )?))
 }
 
 pub async fn start_task(

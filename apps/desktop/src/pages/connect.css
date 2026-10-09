@@ -27,9 +27,9 @@
   height: 46px;
   flex: none;
   border-radius: 13px;
-  background: linear-gradient(135deg, var(--shell-accent), color-mix(in srgb, var(--shell-accent) 55%, #000));
+  background: linear-gradient(135deg, var(--shell-accent-strong), var(--shell-accent-strong-hover));
   color: #fff;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--shell-accent) 26%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--shell-accent-strong) 26%, transparent);
 }
 .connect-head h1 {
   margin: 0;
@@ -74,7 +74,7 @@
   font-weight: 600;
 }
 .connect-steps li.active b {
-  background: var(--shell-accent);
+  background: var(--shell-accent-strong);
   color: #fff;
 }
 .connect-steps li:not(:last-child)::after {
@@ -118,7 +118,7 @@
   color: var(--shell-text);
 }
 .connect-mode-tabs button.active {
-  background: var(--shell-accent);
+  background: var(--shell-accent-strong);
   color: #fff;
 }
 
@@ -234,7 +234,7 @@
   color: var(--shell-text);
 }
 .connect-seg button.active {
-  background: var(--shell-accent);
+  background: var(--shell-accent-strong);
   color: #fff;
 }
 
@@ -368,7 +368,7 @@
   margin-left: auto;
 }
 .connect-token-state.dead {
-  color: var(--color-danger, #ef5350);
+  color: var(--color-danger);
 }
 .connect-token-copy,
 .connect-token-revoke {
@@ -389,8 +389,8 @@
   border-color: var(--shell-accent);
 }
 .connect-token-revoke:hover {
-  color: var(--color-danger, #ef5350);
-  border-color: var(--color-danger, #ef5350);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 /* 远程连接占位 */
@@ -443,7 +443,7 @@
 
 .connect-error {
   margin: 12px 0 0;
-  color: var(--color-danger, #ef5350);
+  color: var(--color-danger);
   font-size: 12px;
 }
 
@@ -570,16 +570,16 @@
   font-weight: 600;
 }
 .connect-device-state.online {
-  background: rgba(46, 204, 113, 0.16);
-  color: #2ecc71;
+  background: color-mix(in srgb, var(--color-success) 16%, transparent);
+  color: var(--color-success);
 }
 .connect-device-state.offline {
   background: var(--shell-hover);
   color: var(--shell-muted);
 }
 .connect-device-state.pending {
-  background: color-mix(in srgb, #f39c12 20%, transparent);
-  color: #f39c12;
+  background: color-mix(in srgb, var(--color-warning) 20%, transparent);
+  color: var(--color-warning);
 }
 .connect-device-actions {
   flex: none;
@@ -601,19 +601,19 @@
   transition: color var(--dur-quick) ease, border-color var(--dur-quick) ease, background-color var(--dur-quick) ease;
 }
 .connect-device-confirm {
-  color: #2ecc71 !important;
-  border-color: rgba(46, 204, 113, 0.4) !important;
+  color: var(--color-success) !important;
+  border-color: color-mix(in srgb, var(--color-success) 40%, transparent) !important;
 }
 .connect-device-confirm:hover {
-  background: rgba(46, 204, 113, 0.12) !important;
+  background: color-mix(in srgb, var(--color-success) 12%, transparent) !important;
 }
 .connect-device-deny:hover {
-  color: var(--color-danger, #ef5350) !important;
-  border-color: var(--color-danger, #ef5350) !important;
+  color: var(--color-danger) !important;
+  border-color: var(--color-danger) !important;
 }
 .connect-device-revoke:hover {
-  color: var(--color-danger, #ef5350) !important;
-  border-color: var(--color-danger, #ef5350) !important;
+  color: var(--color-danger) !important;
+  border-color: var(--color-danger) !important;
 }
 
 /* ---- 新设备授权确认弹窗 ---- */
@@ -642,8 +642,8 @@
   height: 46px;
   margin: 0 auto 12px;
   border-radius: 13px;
-  background: color-mix(in srgb, #f39c12 18%, transparent);
-  color: #f39c12;
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  color: var(--color-warning);
 }
 .connect-confirm h3 {
   margin: 0 0 10px;
@@ -681,11 +681,11 @@
   color: #fff;
 }
 
-.connections-page{max-width:1050px;margin:0 auto;padding:70px 40px 50px;color:var(--shell-text)}
-.connections-page h1{font-size:34px;font-weight:650;letter-spacing:-.03em;margin:0 0 40px}
-.connections-tabs{display:flex;gap:4px;margin-bottom:65px;flex-wrap:wrap}.connections-tabs button{background:transparent;border:0;border-radius:13px;color:var(--shell-muted);padding:9px 13px;font-size:16px;cursor:pointer}.connections-tabs button.active{background:var(--shell-hover);color:var(--shell-text)}
-.connections-page h2{font-size:17px;font-weight:600;margin-bottom:22px}
-.connections-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:186px;padding:25px;border:1px solid var(--shell-border);border-radius:21px;background:var(--shell-panel)}
-.connections-empty>div{display:flex;align-items:center;gap:7px}.connections-empty p{margin:0;color:var(--shell-muted);text-align:center;font-size:16px}.connections-empty .connection-primary{font-size:14px;padding:5px 13px;border-radius:24px;text-decoration:none}
-.connections-row{display:flex;align-items:center;gap:16px;border:1px solid var(--shell-border);border-radius:17px;background:var(--shell-panel);padding:16px 20px;margin-bottom:12px}.connections-row>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}.connections-row small{color:var(--shell-muted);overflow-wrap:anywhere}.connections-row button,.connections-row a,.connections-add{color:var(--shell-text);border:0;border-radius:12px;background:var(--shell-hover);padding:8px 13px;text-decoration:none;cursor:pointer}.connections-row button:disabled{opacity:.45}.connections-add{display:flex;gap:10px;align-items:center;margin-top:24px}.connections-hint{font-size:13px;line-height:1.7;color:var(--shell-muted);margin-top:20px}
-@media(max-width:760px){.connections-page{padding:30px 18px}.connections-tabs{margin-bottom:40px}.connections-row{flex-wrap:wrap}}
+.connections-page{max-width:1050px;margin:0 auto;padding:26px 34px 55px;color:var(--shell-text)}
+.connections-page h1{font-size:var(--page-title);font-weight:600;letter-spacing:-.035em;line-height:1.25;margin:0 0 20px}
+.connections-tabs{display:flex;gap:4px;margin-bottom:28px;flex-wrap:wrap}.connections-tabs button{background:transparent;border:0;border-radius:var(--radius-control);color:var(--shell-muted);padding:7px 12px;font-size:13px;cursor:pointer}.connections-tabs button:hover{background:var(--shell-hover);color:var(--shell-text)}.connections-tabs button.active{background:var(--shell-hover);color:var(--shell-text)}
+.connections-page h2{font-size:15px;font-weight:600;margin-bottom:14px}
+.connections-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:186px;padding:48px 22px;border:1px dashed var(--shell-border);border-radius:var(--radius-card);background:transparent}
+.connections-empty>div{display:flex;align-items:center;gap:7px}.connections-empty p{margin:0;color:var(--shell-muted);text-align:center;font-size:13px;line-height:1.7}.connections-empty .connection-primary{font-size:13px;text-decoration:none}
+.connections-row{display:flex;align-items:center;gap:16px;border:1px solid var(--shell-border);border-radius:var(--radius-card);background:var(--shell-panel);padding:16px 18px;margin-bottom:12px}.connections-row>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}.connections-row small{color:var(--shell-muted);overflow-wrap:anywhere}.connections-row button,.connections-row a,.connections-add{display:inline-flex;align-items:center;min-height:var(--control-h);color:var(--shell-text);border:1px solid var(--shell-border);border-radius:var(--radius-control);background:var(--shell-input);padding:4px 12px;font-size:13px;text-decoration:none;cursor:pointer;transition:background-color var(--dur-quick) ease,border-color var(--dur-quick) ease}.connections-row button:hover:not(:disabled),.connections-row a:hover,.connections-add:hover{background:var(--shell-hover);border-color:var(--shell-accent)}.connections-row button:disabled{opacity:.45}.connections-add{display:flex;gap:10px;align-items:center;margin-top:24px}.connections-hint{font-size:13px;line-height:1.7;color:var(--shell-muted);margin-top:20px}
+@media(max-width:760px){.connections-page{padding:16px 12px 28px}.connections-page h1{font-size:22px}.connections-tabs{margin-bottom:20px}.connections-row{flex-wrap:wrap}}

@@ -1,7 +1,7 @@
 //! The remote AX transport: ACP frames wrapped in the gateway's routed envelope
 //! and carried over the outbound WebSocket a paired device opened.
 
-use super::{Transport, TransportEvent, permission};
+use super::{RunControl, SteerReplies, Transport, TransportEvent, permission};
 use crate::{
     domain::{crew::Member, task::Task},
     gateway::{Gateway, Link},
@@ -10,7 +10,7 @@ use crate::{
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::{Value, json};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::mpsc;
 
 pub(super) struct RemoteTransport {
     pub gateway: Gateway,
@@ -24,9 +24,13 @@ impl Transport for RemoteTransport {
         task: &Task,
         member: &Member,
         session: Option<String>,
-        mut cancel: watch::Receiver<bool>,
+        control: RunControl,
         events: mpsc::UnboundedSender<TransportEvent>,
     ) -> Result<Value> {
+        let RunControl {
+            mut cancel,
+            mut steering,
+        } = control;
         let link = self
             .gateway
             .link(&task.assigned_device)
@@ -53,16 +57,25 @@ impl Transport for RemoteTransport {
             let prompt=task.input.as_str().map(str::to_owned).unwrap_or_else(||task.input.to_string());
             remote_send(&link,&run,json!({"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{"sessionId":session,"prompt":[{"type":"text","text":prompt}]}})).await?;
             let mut output=String::new();let mut cancellation_sent=false;
+            let mut steer_replies=SteerReplies::default();let mut steering_open=true;
+            let mut permissions=tokio::task::JoinSet::new();
             loop {
                 let msg=tokio::select!{
                     biased;
                     changed=cancel.changed(),if !cancellation_sent=>{if changed.is_ok()&&*cancel.borrow(){remote_send(&link,&run,json!({"jsonrpc":"2.0","method":"session/cancel","params":{"sessionId":session}})).await?;cancellation_sent=true;}continue;}
+                    request=steering.recv(),if steering_open&&!cancellation_sent=>{
+                        if let Some(request)=request {remote_send(&link,&run,steer_replies.frame(request,&session)).await?;}else{steering_open=false;}continue;
+                    }
+                    choice=permissions.join_next(),if !permissions.is_empty()=>{
+                        let (id,choice)=choice.ok_or_else(||anyhow!("permission task missing"))??;
+                        remote_send(&link,&run,json!({"jsonrpc":"2.0","id":id,"result":{"outcome":{"outcome":"selected","optionId":choice}}})).await?;continue;
+                    }
                     msg=remote_next(&mut rx)=>msg?,
                 };
+                if steer_replies.receive(&msg){continue;}
                 if msg["method"]=="session/request_permission" {
-                    let choice=permission(&self.approvals,&msg,&events,&mut cancel).await;
-                    remote_send(&link,&run,json!({"jsonrpc":"2.0","id":msg["id"],"result":{"outcome":{"outcome":"selected","optionId":choice}}})).await?;
-                    if *cancel.borrow()&&!cancellation_sent {remote_send(&link,&run,json!({"jsonrpc":"2.0","method":"session/cancel","params":{"sessionId":session}})).await?;cancellation_sent=true;}
+                    let approvals=self.approvals.clone();let events=events.clone();let mut cancel=cancel.clone();
+                    permissions.spawn(async move {let choice=permission(&approvals,&msg,&events,&mut cancel).await;(msg["id"].clone(),choice)});
                 }else if msg["method"]=="session/update" {
                     let update=&msg["params"]["update"];
                     if update["sessionUpdate"]=="agent_message_chunk"&&let Some(text)=update["content"]["text"].as_str(){output.push_str(text);}

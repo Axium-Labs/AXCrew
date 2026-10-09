@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { Copy, Check, GitBranch, X } from 'lucide-react'
-import { invoke, isTauri } from '@tauri-apps/api/core'
+import { isTauri } from '@tauri-apps/api/core'
+import { call as invoke } from '../lib/errors'
 import { Dialog } from './ui/dialog'
 import { useLang } from '../lib/i18n'
 import type { ChangedFile, SessionLine, SessionImage } from '../lib/sessionTranscript'

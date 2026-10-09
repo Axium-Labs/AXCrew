@@ -18,7 +18,6 @@ pub mod permissions;
 pub mod sessions;
 pub mod system;
 pub mod tasks;
-pub mod tokens;
 
 use crate::app::App;
 use axum::{
@@ -126,7 +125,6 @@ pub fn router(state: App) -> Router {
                 .put(tasks::edit_task)
                 .delete(tasks::delete_task),
         )
-        .route("/api/tasks/{id}/reassign", post(tasks::reassign_task))
         .route("/api/tasks/{id}/start", post(tasks::start_task))
         .route("/api/tasks/{id}/cancel", post(tasks::cancel_task))
         .route("/api/tasks/{id}/retry", post(tasks::retry_task))
@@ -145,7 +143,6 @@ pub fn router(state: App) -> Router {
             get(sessions::session).delete(sessions::delete_session),
         )
         .route("/api/sessions/{id}/history", get(sessions::session_history))
-        .route("/api/sessions/{id}/resume", post(sessions::resume_session))
         .route(
             "/api/sessions/{id}/message",
             post(sessions::session_message),
@@ -192,10 +189,6 @@ pub fn router(state: App) -> Router {
             get(pairing::list_client_authorizations),
         )
         .route(
-            "/api/authorizations/pending",
-            get(pairing::pending_client_authorizations),
-        )
-        .route(
             "/api/authorizations/{id}/confirm",
             post(pairing::confirm_client_device),
         )
@@ -207,11 +200,6 @@ pub fn router(state: App) -> Router {
             "/api/authorizations/{id}",
             delete(pairing::revoke_client_authorization),
         )
-        .route(
-            "/api/tokens",
-            get(tokens::list_tokens).post(tokens::create_token),
-        )
-        .route("/api/tokens/{value}", delete(tokens::revoke_token))
         .route("/api/xfy", get(system::xfy_get).post(system::xfy_set))
         .route("/api/gateway/ws", get(events::gateway_ws))
         .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
