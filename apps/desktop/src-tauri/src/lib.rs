@@ -3,10 +3,13 @@ mod capability_sources;
 mod ax;
 mod ax_login;
 mod ax_catalog;
+mod ax_personalize;
 mod subagent_settings;
 mod ax_update;
 mod crew_update;
 mod release_source;
+mod system_info;
+mod desktop_behavior;
 mod proc;
 
 use std::{fs, path::{Component, Path, PathBuf}, process::{Child, Stdio}, sync::{Mutex, atomic::{AtomicBool, Ordering}}};
@@ -18,6 +21,7 @@ struct DesktopState {
     ax: PathBuf,
     backend: Mutex<Child>,
     quitting: AtomicBool,
+    close_preference: desktop_behavior::ClosePreference,
 }
 
 /// Gateway 启动配置（持久化到 app data 的 gateway.json）：端口 / Token / 监听地址
@@ -125,7 +129,6 @@ fn list_workspace_files_sync(root: String, relative: String) -> Result<Workspace
     if !path.is_dir() { return Err("Not a directory".into()); }
     let mut entries = Vec::new();
     for item in fs::read_dir(path).map_err(|error| error.to_string())? {
-        if entries.len() >= 500 { break; }
         let item = item.map_err(|error| error.to_string())?;
         let kind = item.file_type().map_err(|error| error.to_string())?;
         if kind.is_symlink() { continue; }
@@ -219,6 +222,7 @@ fn search_workspace_files_sync(root: String, query: String) -> Result<Vec<String
     Ok(found)
 }
 
+
 #[cfg(test)]
 mod workspace_tests {
     #[test]
@@ -310,6 +314,43 @@ fn desktop_restart(app: tauri::AppHandle) -> Result<(), String> {
     app.restart();
 }
 
+#[tauri::command]
+fn desktop_quit(app: tauri::AppHandle) -> Result<(), String> {
+    let state = app.state::<DesktopState>();
+    shutdown_runtime(&app)?;
+    state.quitting.store(true, Ordering::SeqCst);
+    app.exit(0);
+    Ok(())
+}
+
+#[tauri::command]
+fn get_minimize_on_close(app: tauri::AppHandle) -> bool {
+    app.state::<DesktopState>().close_preference.enabled()
+}
+
+#[tauri::command]
+fn set_minimize_on_close(enabled: bool, app: tauri::AppHandle) -> Result<bool, String> {
+    let state = app.state::<DesktopState>();
+    state.close_preference.save(enabled).map_err(|error| format!("无法保存窗口关闭设置：{error}"))
+}
+
+#[tauri::command]
+async fn write_file(path: String, content: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::write(&path, content).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn get_system_info() -> Result<system_info::SystemInfo, String> {
+    blocking(|| Ok(system_info::get_system_info())).await
+}
+
+
+
+
 fn stop_backend(child: &mut Child) -> Result<(), String> {
     if child.try_wait().map_err(|e| e.to_string())?.is_none() {
         if let Err(error) = child.kill() {
@@ -344,7 +385,7 @@ pub fn run() {
             .build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, read_workspace_image, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax_login::ax_begin_login, ax_login::ax_cancel_login, ax_login::ax_open_login_url, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_select_inference_mode, ax::ax_select_execution, subagent_settings::ax_subagent_settings, ax::ax_export, ax::ax_import, ax::ax_import_capability, ax::ax_manage_capability, capability_sources::ax_scan_capability_sources, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, desktop_restart, ax_catalog::ax_catalog])
+        .invoke_handler(tauri::generate_handler![backend_connection, validate_workspace, list_workspace_files, read_workspace_file, read_workspace_image, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax_login::ax_begin_login, ax_login::ax_cancel_login, ax_login::ax_open_login_url, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_select_inference_mode, ax::ax_select_execution, ax_personalize::ax_tui_command, subagent_settings::ax_subagent_settings, ax::ax_export, ax::ax_import, ax::ax_import_capability, ax::ax_manage_capability, capability_sources::ax_scan_capability_sources, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, desktop_restart, desktop_quit, get_minimize_on_close, set_minimize_on_close, write_file, get_system_info, ax_catalog::ax_catalog])
         .setup(|app| {
             // `CARGO_MANIFEST_DIR` is `apps/desktop/src-tauri`, so the workspace
             // root (and the AX checkout next to it) are three and four levels up.
@@ -417,22 +458,33 @@ pub fn run() {
                 .env("AX_CREW_ADMIN_TOKEN",&token)
                 .env("AX_CREW_WORKSPACE",&workspace)
                 .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn()?;
-            app.manage(DesktopState{endpoint:format!("http://127.0.0.1:{port}"),token,ax,backend:Mutex::new(child),quitting:AtomicBool::new(false)});
+            let preference_path = data.join("desktop-settings.json");
+            let close_preference = desktop_behavior::ClosePreference::load(preference_path.clone()).unwrap_or_else(|error| {
+                log::warn!("Could not load desktop close preference: {error}");
+                desktop_behavior::ClosePreference::default_at(preference_path)
+            });
+            app.manage(DesktopState{endpoint:format!("http://127.0.0.1:{port}"),token,ax,backend:Mutex::new(child),quitting:AtomicBool::new(false),close_preference});
             app.manage(terminal::TerminalState::default());
             let show=MenuItem::with_id(app,"show","Show AX Crew",true,None::<&str>)?;
             let quit=MenuItem::with_id(app,"quit","Quit AX Crew",true,None::<&str>)?;
             let menu=Menu::with_items(app,&[&show,&quit])?;
             TrayIconBuilder::new().icon(app.default_window_icon().ok_or("default icon missing")?.clone()).menu(&menu)
                 .on_menu_event(|app,event|match event.id.as_ref(){
-                    "show"=>{if let Some(w)=app.get_webview_window("main"){w.show().ok();w.set_focus().ok();}},
-                    "quit"=>{if shutdown_runtime(app).is_ok(){app.state::<DesktopState>().quitting.store(true,Ordering::SeqCst);app.exit(0);}},
+                    "show"=>{if let Some(w)=app.get_webview_window("main"){w.show().ok();w.unminimize().ok();w.set_focus().ok();}},
+                    "quit"=>{if let Err(error)=desktop_quit(app.clone()){log::error!("Could not quit AX Crew: {error}");}},
                     _=>{},
                 }).build(app)?;
             Ok(())
         })
         .on_window_event(|window,event| {
+            if window.label() != "main" { return; }
             if let tauri::WindowEvent::CloseRequested{api,..}=event {
-                if !window.app_handle().state::<DesktopState>().quitting.load(Ordering::SeqCst){window.hide().ok();api.prevent_close();}
+                let state = window.app_handle().state::<DesktopState>();
+                match state.close_preference.close_action(state.quitting.load(Ordering::SeqCst)) {
+                    desktop_behavior::CloseAction::Hide => { api.prevent_close(); if let Err(error)=window.hide(){log::error!("Could not hide AX Crew: {error}");} },
+                    desktop_behavior::CloseAction::Quit => { api.prevent_close(); if let Err(error)=desktop_quit(window.app_handle().clone()){log::error!("Could not quit AX Crew: {error}");} },
+                    desktop_behavior::CloseAction::Allow => {},
+                }
             }
         })
         .build(tauri::generate_context!()).expect("failed to build AX Crew desktop");

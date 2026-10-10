@@ -98,7 +98,7 @@ pub fn supports_acp(path: &Path) -> bool {
     probed
 }
 
-pub(crate) fn ax_home() -> PathBuf {
+pub fn ax_home() -> PathBuf {
     std::env::var_os("AX_HOME").map(PathBuf::from).unwrap_or_else(|| {
         std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
             .map(PathBuf::from).unwrap_or_default().join(".ax")
@@ -429,8 +429,8 @@ pub async fn ax_refresh_models(desktop: State<'_, DesktopState>, provider: Optio
 }
 
 fn workspace_path(value: &str) -> Result<PathBuf, String> {
+    crate::validate_workspace_sync(value)?;
     let path = PathBuf::from(value);
-    if !path.is_absolute() || !path.is_dir() { return Err("Choose an existing workspace directory".into()); }
     Ok(path)
 }
 

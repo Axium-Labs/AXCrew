@@ -87,8 +87,8 @@ The desktop UI has one palette system, defined in `apps/desktop/src/styles.css`:
   days) uses `.ax-segmented` with `.is-active` or `aria-pressed`; every inline
   notice or error box uses `.ax-notice` / `.ax-notice.is-error` (`.is-flush`
   removes the top margin). Input focus uses the solid accent
-  (`--color-accent` / `--shell-accent-strong`) ring. Switches are 38×22 with a
-  16px thumb and `--shell-active` when off. Dialogs use `ui/Dialog`; the
+  (`--color-accent` / `--shell-accent-strong`) ring. Settings switches are 42×26 with a
+  20px thumb and `--shell-active` when off. Dialogs use `ui/Dialog`; the
   hand-rolled session dialogs match its radius, surface, overlay and
   animation.
 

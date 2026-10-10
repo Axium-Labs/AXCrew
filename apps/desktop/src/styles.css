@@ -210,3 +210,12 @@ textarea.ax-field{line-height:1.6}
 .ax-notice.is-error{border-color:color-mix(in srgb,var(--color-danger) 40%,var(--shell-border));background:color-mix(in srgb,var(--color-danger) 8%,var(--shell-panel));color:var(--color-danger)}
 .ax-notice.is-flush{margin:0 0 16px}
 @media(prefers-reduced-motion:reduce){.ax-segmented button{transition:none}}
+
+/* Main navigation consumes the same workspace budget as the session panes. */
+.managed-workspace{position:relative;gap:10px}
+.managed-workspace .sidebar{width:var(--navigation-width);transition:background-color .2s ease;border-radius:20px}
+.managed-workspace .sidebar.is-hidden{display:none}
+.managed-workspace .sidebar.is-drawer{display:flex;position:absolute;z-index:45;inset:10px auto 10px 10px;width:min(240px,90%);box-shadow:12px 0 28px #0002}
+.workspace-nav-backdrop{position:absolute;inset:0;z-index:44;border:0;background:#0003}
+.shell-titlebar:has(.shell-navigation-toggle){grid-template-columns:104px minmax(0,1fr) 130px;gap:4px}
+@media(max-width:650px){.managed-workspace{gap:10px}.managed-workspace .sidebar{border-radius:14px}}

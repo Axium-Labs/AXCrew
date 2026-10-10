@@ -11,11 +11,64 @@ Connections lives in the outer **Connections** (`/connect`) page, with Control
 this computer, Control other devices and SSH tabs, including phone authorization,
 paired AX devices and persisted OpenSSH hosts. Settings has no duplicate
 Connections page; old `/settings/connections` links redirect to `/connect`.
-**System** (`/settings/system`) contains service status, desktop behaviour and Crew updates.
+**System** (`/settings/system`) contains service status, local system metrics,
+desktop behaviour and Crew updates.
 Model settings group account sign-in, API-key and environment providers.
 WorkBuddy China and International are separate accounts. Account sign-in shows
 a URL to click or copy; closing the dialog cancels waiting. AX stores the
 credentials and refreshes models after authorization.
+
+### Local system metrics
+
+The desktop System page refreshes local CPU usage, physical memory usage, the
+Windows system volume's used/total capacity, and system uptime every three
+seconds while the card is mounted. CPU is measured from the change in Windows
+idle/kernel/user counters, with a 250 ms initial sample on the blocking pool;
+an inactive interval longer than ten seconds starts a fresh sample. A real zero
+is displayed as `0%`; positive readings below 0.1% show `<0.1%` instead of
+rounding down to zero. Other percentages retain up to one decimal place.
+
+Memory and disk capacities use binary **GiB** (`_mb` command fields contain
+whole MiB). The disk label includes the actual Windows volume drive letter,
+derived from the Windows directory instead of hardcoding C:. Its capacity is
+the space available to the current user, including any disk quota, and is not
+a sum of all disks. System uptime uses the Windows uptime counter, rendered in
+the selected language. Loading, unavailable readings, and command failures are
+distinct; failures offer retry and suppress stale readings. Missing/failed
+readings are `null`, never fallback capacities or fictitious zero usage.
+
+`get_system_info` is a local Tauri command; the browser preview does not poll
+it. CPU, memory, disk and uptime collectors are currently Windows-only; other
+platforms return unavailable readings for these collectors. GPU collection
+uses the installed NVIDIA NVML driver through `nvml-wrapper`, loaded lazily
+and reused. Each supported NVIDIA GPU has its own name, usage and used/total
+dedicated VRAM row in GiB; driver/permission/unsupported-field failures remain
+unavailable. Intel/AMD GPU telemetry is not yet collected; no GPU reading does
+not imply that the host has no GPU. The `gpus` array contains these per-device
+nullable fields; legacy `gpu_count` / `gpu_memory_mb` cover NVML devices only.
+On hosts with more than 64 logical processors, `GetSystemTimes` is limited to the calling
+thread's primary processor group.
+
+### Window closing and quitting
+
+System settings has one **Desktop behavior** card. **Hide to the system tray when
+closing the window** is enabled by default, preserving background service
+operation from earlier releases. When enabled, closing the main window hides it
+while the service and tasks keep running; the tray's Show action restores and
+unminimizes it. When disabled, closing the main window quits AX Crew and shuts
+down the local service. This card contains only the close-behavior switch. The
+tray's Quit action always shuts down and exits, regardless of the switch. Other
+windows are not subject to the main-window close preference.
+
+The native shell loads `desktop-settings.json` in its app data directory before
+the UI opens. `get_minimize_on_close` returns the actual native state;
+`set_minimize_on_close {enabled}` atomically persists it and returns the saved
+boolean. Opening Settings does not write or reset this preference. UI state
+changes only after a successful save; read/save errors stay visible and
+read errors can be retried. An old localStorage-only preference is no longer
+used, since it never changed the previous native close behavior. The browser
+preview disables these desktop controls. Failed runtime shutdown does not mark
+the application as already quitting.
 
 ## Chat execution view
 
@@ -51,14 +104,42 @@ accumulated patch stats and the card is kept in history replay.
 AX compares workspace contents before/after this run, excluding untouched
 pre-existing user edits and including creation, deletion and ordinary non-Git
 files. An empty authoritative snapshot clears earlier incremental changes.
-Click a file or View changes to open the wider changes panel. Saved unified
-diffs survive reopening, with old/new line numbers and +/- signs. Selecting a
-different file returns to Diff. Binary changes and old records without a diff
-display an explicit explanation. File mode explicitly reads the current local
-UTF-8 file (up to 256 KiB), and never substitutes live content for a missing
-historical diff. Deleted/binary files have an explicit message. Adopted local
-AX conversations can browse their project files without requiring a Crew member.
-Absolute tool paths can be previewed only when canonically inside the workspace.
+Click a file or View changes to open the Files panel's **Review** tab. The Files
+panel shares a resizable split with the main chat, defaulting to 45% of the
+space remaining after navigation and Sessions. The preview is at least 420px
+when docked (Chat/Details at least 320px), up to 980px; chat retains at least
+520px. When both minima cannot fit, the preview becomes a drawer at up to 94%
+of the workspace width. Panel layout also offers a sidebar-only view and a
+return to main chat without changing file tabs.
+Review lists files changed in the selected conversation turn with line totals.
+Opening Files directly shows the latest turn, including adopted local AX chats.
+Saved unified diffs survive reopening with old/new line numbers and +/- signs.
+Selecting a different changed file returns to Diff. Deleted files, binary changes
+and old records without a diff display explicit explanations. **Current file**
+reads live local UTF-8 text (up to 256 KiB); it never substitutes current text for
+a missing historical diff.
+
+The **+ → Open file** menu, folder button or **All files** switch opens the
+workspace explorer. Directories expand in place and load lazily, retaining the
+tree beside the reader. Directory listings include hidden and ignored entries
+without a 500-entry truncation; symlinks are skipped. Filter applies to paths in
+loaded directories; collapsed directories remain navigable and it is not a
+recursive full-project search. Files open in individually closable tabs; repeated
+opens select the existing tab. Tabs remain open when switching to Chat/Details
+or collapsing the side panel, and reset when changing conversations/workspaces.
+The file tree can be hidden for more reading space. Markdown (`.md`, `.markdown`,
+`.mdown`, case-insensitive) opens in rendered Preview with a Source switch; other
+UTF-8 text opens as source, including empty files. Refresh reloads directory
+listings and current text. Path copying and file references remain available.
+Arrow keys/Home/End navigate document tabs; Ctrl/Cmd+P within the file panel opens
+the workspace tree. At very narrow widths the tree overlays the reader and
+automatically hides after opening a file.
+
+Local file browsing requires the desktop app and works without a Crew member.
+Remote/SSH conversations can review saved diffs but cannot read remote paths
+through this computer's filesystem. Absolute tool paths can be previewed only
+when canonically inside the workspace. The reader is read-only and does not
+initialize Git repositories or revert files.
 
 The composer auto-grows with the text and panel width, then scrolls once it
 reaches its cap. Enter sends, Shift+Enter adds a newline and IME confirmation
@@ -129,11 +210,31 @@ previews the user request and latest answer text; clicking a mark scrolls to tha
 turn. It is built from conversation history and does not create tasks or branches.
 
 Native minimum window size is 640×480 logical pixels. WebView zoom stays at 1;
-monitor DPI is handled by the system. Window width
-does not enlarge fonts. The main navigation collapses automatically at 1100px
-and can still be opened manually; the conversation list initially collapses below
-900px without changing the saved large-window preference. Narrow layouts overlay
-side panes, constrain popovers to the viewport and reflow Settings below 650px.
+monitor DPI is handled by the system. Window width does not enlarge fonts.
+A single layout manager measures the actual outer workspace and any right-docked
+terminal. It budgets a 560px chat target (520px minimum), collapses main navigation
+first, then Sessions, then switches the preview to a drawer. On exceptionally
+small effective viewports, the navigation rail also disappears and can be opened
+from the title bar. If the entire viewport is smaller than 520px, chat uses the
+available width and the composer adapts to it instead of overflowing.
+
+Automatic collapse never writes user preferences. Navigation, Sessions, main
+Chat visibility and right-panel visibility have independent state. Sessions and
+navigation can be opened as drawers when there is insufficient docking space;
+Escape or the backdrop dismisses them. Preview tabs and drafts stay mounted when
+hidden. Expanding a viewport restores preferred panels with a 24px restoration
+margin to avoid oscillating around a threshold. The preview split ratio persists
+in the existing session-layout store, separately from visibility.
+
+Drag the separator between chat and preview to resize within both panel minima.
+Arrow keys adjust by 20px; Home/End move to the preview limits; Enter or double-click
+restores the default 55:45 chat/preview split. Restore default layout in the chat
+or panel menu restores navigation, Sessions and Chat, closes the right panel and
+resets the ratio, retaining drafts and file tabs. Composer secondary actions move
+into More composer actions below 600px of actual form width; model selection and
+Send stay visible. The shared auto-grow hook still resizes textarea height after
+text or container-width changes. Popovers remain constrained to the viewport;
+Settings reflows below 650px.
 
 The input area shows the number of successfully modified files and inserted /
 deleted lines for the current turn, updated live while work is in progress;
@@ -156,7 +257,11 @@ buttons.
 
 The language and theme pickers in Settings → Display use the app's shared
 dropdown menu. Model/provider, backup and capability-scope pickers use a shared
-rounded Radix Select with app-themed menus; Settings checkboxes are circular.
+rounded Radix Select with app-themed menus. Settings boolean controls and import
+selections use pill switches: titles and descriptions on the left, controls on the
+right, with separators between rows. Enabled switches use the theme accent with
+a white thumb; disabled controls and keyboard focus remain visible. Memory
+deletion is a separate action row and keeps its confirmation dialog.
 
 After a task stops, the chat keeps the tool calls and output it already
 received; refreshing history merges and deduplicates by call ID. Long-running
@@ -171,6 +276,13 @@ configurations, and imports a skill package or a whole MCP configuration into
 the current project or global AX; a manual path can be picked instead.
 Scanning only reads configuration; imports are shown per item, name conflicts
 are left for AX to reject, and failed items are kept for retry.
+Plugins, Import / Export and Local AX validate the selected directory before
+using it. A removed or inaccessible persisted directory displays its path and
+an explicit **Choose workspace** action; cancelling preserves the selection.
+Crew never silently substitutes another project. User-level import discovery
+continues without a valid project; project scanning and import/export actions
+resume after the user chooses an existing directory. The native scanner also
+skips invalid optional project paths without blocking user-level discovery.
 Each source app starts collapsed, showing its name and available-item count.
 Click its header (or use Enter/Space) to expand or collapse its Skill/MCP list;
 apps expand independently and selected items remain selected while collapsed.
@@ -204,14 +316,16 @@ deadlocking. Named-Agent switches independently control which roles can be used.
 
 The existing Global configuration / Current project selector controls these
 settings too. Crew reads/saves through the installed AX's `settings --scope`
-command, using AX_HOME and the chosen workspace. Global settings remain
-available with older AX binaries; project settings require an AX binary that
-advertises `--scope` and show an update instruction otherwise. Save applies on
-the next turn and leaves running children alone. Restore defaults and project
-inheritance require an AX binary with the scoped settings/reset options.
+command, using AX_HOME and the chosen workspace. Both scopes explicitly pass
+`--scope`; the current AX scoped-settings/reset interface is required. There
+is no legacy global-settings fallback or help-output capability probe. Save
+applies on the next turn and leaves running children alone.
 Opening the page never writes settings. Saving writes only edited fields, so changing project depth
 does not freeze inherited global parallelism. Invalid values cannot be saved; failed saves retain drafts and
-show the AX error, including an update instruction for older AX binaries.
+show the AX error.
+Directory validation runs before executing AX, so an
+unavailable project reports a directory-selection instruction rather than a
+process-launch failure or generic restart advice. Failed reads offer retry.
 Settings → AX retains no separate Subagents switch.
 
 ## Scoped AX plugins

@@ -1,11 +1,12 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Copy, Minus, ScanLine, Square, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Copy, Minus, PanelLeftOpen, ScanLine, Square, X } from 'lucide-react'
 import { useLang, useT , translate} from '../lib/i18n'
 
 type Props = {
   sidebarExpanded: boolean
+  showNavigationToggle?: boolean
   canGoBack: boolean
   canGoForward: boolean
   focus: boolean
@@ -19,7 +20,7 @@ type Props = {
 
 const desktopWindow = isTauri() ? getCurrentWindow() : null
 
-export function Titlebar({canGoBack,canGoForward,focus,hidden,onFocus,onBack,onForward,onCommand}: Props) {
+export function Titlebar({sidebarExpanded,showNavigationToggle,canGoBack,canGoForward,focus,hidden,onFocus,onMenu,onBack,onForward,onCommand}: Props) {
   useLang(state=>state.lang);
 
   const [maximized, setMaximized] = useState(false)
@@ -58,6 +59,7 @@ export function Titlebar({canGoBack,canGoForward,focus,hidden,onFocus,onBack,onF
 
   return <header className="shell-titlebar" onMouseDown={handleTitlebarMouseDown} inert={hidden||undefined} aria-label={translate("english.151")}>
     <div className="shell-titlebar-left">
+      {showNavigationToggle&&<button className="shell-icon-button shell-navigation-toggle" aria-label={t(sidebarExpanded?'titlebar.collapseNav':'titlebar.expandNav')} aria-expanded={sidebarExpanded} title={t(sidebarExpanded?'titlebar.collapseNav':'titlebar.expandNav')} onClick={onMenu}><PanelLeftOpen size={18}/></button>}
       <button className="shell-icon-button" aria-label={t('titlebar.back')} title={t('titlebar.back')} disabled={!canGoBack} onClick={onBack}><ArrowLeft size={18}/></button>
       <button className="shell-icon-button" aria-label={t('titlebar.forward')} title={t('titlebar.forward')} disabled={!canGoForward} onClick={onForward}><ArrowRight size={18}/></button>
 

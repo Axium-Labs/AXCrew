@@ -41,7 +41,7 @@ export function AgentDelegationSettings({ workspace, scope }: { workspace?: stri
     <p>{copy('由主智能体根据任务决定是否委派。0 关闭；1 只允许主智能体创建子智能体；2 或更大值允许继续向下委派。', 'The main agent decides when to delegate. 0 disables delegation; 1 permits direct children; 2 or more permits nested delegation.')}</p>
     {!workspace && <p>{copy('请先选择工作目录。', 'Select a workspace first.')}</p>}
     {query.isPending && axAvailable && workspace && <p role="status">{copy('正在读取子智能体设置…', 'Loading subagent settings…')}</p>}
-    {query.error && <p role="alert" className="settings-notice is-error">{String(query.error)}</p>}
+    {query.error && <div role="alert" className="settings-notice is-error"><p>{String(query.error)}</p><button type="button" disabled={query.isFetching} onClick={()=>void query.refetch()}>{copy('重试', 'Retry')}</button></div>}
     {query.data && <>
       <div className="agent-delegation-fields">
         <label>{copy('最大递归深度', 'Maximum recursion depth')}<input aria-label={copy('最大递归深度', 'Maximum recursion depth')} type="number" min="0" step="1" value={depth} disabled={saving} aria-invalid={maxDepth === null} onChange={event => { setDepth(event.target.value); setNotice('') }}/>

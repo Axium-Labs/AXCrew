@@ -11,6 +11,7 @@ import { useLang } from './i18n'
 type Rule = [RegExp, string, string]
 
 const RULES: Rule[] = [
+  [/Choose an existing workspace directory|工作目录不可用|workspace (directory )?(is )?(unavailable|invalid)/i, '工作目录不存在或无法访问，请重新选择一个现有文件夹。', 'The workspace is missing or inaccessible. Choose an existing folder.'],
   [/failed to fetch|networkerror|load failed|network request failed|error sending request|connection (refused|reset)|os error (10061|10054|111|104)|econnrefused|econnreset/i, 'AX Crew 后台没有响应。请确认程序正在运行，稍后重试。', 'The AX Crew service is not responding. Make sure it is running and try again.'],
   [/admin token required|unauthori[sz]ed|\b401\b|forbidden|\b403\b/i, '连接凭据已失效。请重新打开 AX Crew 或重新配对设备。', 'The connection credential is no longer valid. Reopen AX Crew or pair this device again.'],
   [/timed out|timeout|deadline has elapsed|os error 10060/i, '操作超时了，请稍后重试。', 'The operation timed out. Please try again.'],

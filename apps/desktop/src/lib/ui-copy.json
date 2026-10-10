@@ -500,8 +500,8 @@
     "en": "Desktop behavior"
   },
   "copy.125": {
-    "zh": "关闭窗口会隐藏到系统托盘；本地服务继续运行。可从托盘重新打开或退出。",
-    "en": "Closing the window hides it to the system tray while the local service keeps running. Reopen or quit from the tray."
+    "zh": "开启后，关闭窗口会隐藏到系统托盘，本地服务继续运行；关闭后，关闭窗口会退出 AX Crew 并停止本地服务。",
+    "en": "When enabled, closing the window hides AX Crew to the system tray and keeps the local service running. When disabled, closing the window quits AX Crew and stops the local service."
   },
   "copy.126": {
     "zh": "在 AX 中发现更多模型",
@@ -2494,5 +2494,13 @@
   "models.environment": {
     "zh": "环境变量",
     "en": "environment"
+  },
+  "copy.desktop": {
+    "zh": "电脑操控",
+    "en": "Desktop Control"
+  },
+  "copy.browser": {
+    "zh": "浏览器",
+    "en": "Browser"
   }
 }

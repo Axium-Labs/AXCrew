@@ -10,6 +10,13 @@ keeps their credentials, tools, skills, memory, and session history.
 - **AX runtime** — use the AX installed on your machine or a workspace build.
 - **Local data** — Crew settings and its database live in the app data directory.
 - **Connected devices** — pair remote AX runtimes or connect the Android client.
+- **Session files** — a wider Files panel with saved change review, a lazy
+  workspace tree, closable file tabs and Markdown Preview/Source. Local desktop
+  browsing includes hidden files; remote conversations show saved diffs only.
+- **System metrics** — Settings → System shows real local Windows CPU, memory,
+  system-volume usage and uptime, plus supported NVIDIA GPUs' usage/VRAM,
+  refreshing every three seconds. Capacities
+  use GiB; unavailable readings stay explicit instead of showing placeholder values.
 
 ## Quick Start
 
@@ -82,7 +89,11 @@ To check the required binaries without opening the app:
 ```
 
 If a build is missing, follow [Build from source](#build-from-source) below.
-Closing the window hides it in the tray; choose **Quit AX Crew** to exit fully.
+By default, closing the window hides it in the tray; choose **Quit** in the system tray menu to
+exit fully. In Settings → System, turn off **Hide to the system tray when closing
+the window** to make the close button quit AX Crew and stop its local service.
+The native preference survives restart. The settings card contains only this
+switch; it has no Quit button.
 
 ## Installation
 
@@ -194,7 +205,17 @@ proxy. In Connections → Control this computer, use “显示 Android 连接信
 loopback upstream and token for 60 seconds. The gateway configuration persists across restarts. See [Android connection instructions](../android/README.md). Device pairing
 codes are for AX runtimes, not Android control-client login.
 
-Navigation, the conversation list, and the right panel have independent persisted visibility. Use the brand collapse button or `Ctrl+B` for navigation, `Ctrl+Shift+B` for the conversation list, and `Esc` to dismiss the active picker or right panel. `Ctrl+K` opens command search; `Alt+C` opens conversations. Narrow windows overlay the right panel without overwriting the other panel preferences.
+Navigation, the conversation list, main Chat and the right panel have independent persisted visibility. Use the brand collapse button or `Ctrl+B` for navigation, `Ctrl+Shift+B` for the conversation list, and `Esc` to dismiss the active picker or right panel. `Ctrl+K` opens command search; `Alt+C` opens conversations. A single workspace budget reserves a 560px chat target (520px minimum),
+automatically collapses navigation then Sessions, and uses a preview drawer when
+both panel minima cannot fit. Automatic changes preserve preferences, drafts and
+file tabs. Manually expanding a panel with insufficient space opens a drawer.
+Drag the chat/preview separator to resize (default 55:45; preview minimum 420px
+for Files, 320px for Chat/Details). Arrow keys, Home/End and Enter support keyboard
+resizing/reset; double-click restores the default split. Panel layout offers a
+sidebar-only view and a return to main chat. Restore default layout resets the
+split and visibility without deleting drafts or file tabs. The composer measures
+its own width, auto-grows with text, and moves secondary actions to More below
+600px while keeping model selection and Send visible.
 
 In Settings → 本地 AX, “AX 更新” checks the latest GitHub Release against the AX
 installed on this machine and downloads or updates it on request. Updates go
@@ -231,7 +252,9 @@ under Settings → Import / Export. Mod loading/execution/management runs in AX,
 requiring updated AX and Node.js 20.6+. If the installed AX lacks `_ax/mods`,
 the page shows a local AX update hint; see [the desktop guide](../../docs/desktop/README.md)
 and [AX Mods](../../../ax/docs/mods.md) for packaging and compatibility limits.
-Settings selectors use rounded app-themed menus and circular checkboxes.
+Settings selectors use rounded app-themed menus. Boolean settings and import
+selections use right-aligned pill switches with labels and descriptions on the
+left; memory deletion has a separate action row with confirmation.
 Settings location readouts use rounded directory/file labels showing complete
 absolute paths, with Windows verbatim prefixes removed and long paths wrapped.
 Native operations keep their

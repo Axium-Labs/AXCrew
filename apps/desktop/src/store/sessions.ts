@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { DEFAULT_SPLIT } from '../lib/workspaceLayout'
 
 export type SessionMetadata = {title?: string; marked?: boolean; project?: string; deleted?: boolean}
 
@@ -8,7 +9,13 @@ type SessionUi = {
   setMetadata: (id: string, value: Partial<SessionMetadata>) => void
   listOpen: boolean
   rightOpen: boolean
-  rightTab: 'files' | 'details' | 'changes' | 'chat'
+  rightTab: 'files' | 'details' | 'chat'
+  layoutReset: number
+  chatOpen: boolean
+  splitRatio: number
+  setChatOpen: (open: boolean) => void
+  setSplitRatio: (ratio: number) => void
+  resetLayout: () => void
   drafts: Record<string, string>
   draftUpdatedAt: Record<string, number>
   startingIds: string[]
@@ -20,7 +27,7 @@ type SessionUi = {
   thinkingEffort: string
   setListOpen: (open: boolean) => void
   setRightOpen: (open: boolean) => void
-  setRightTab: (tab: 'files' | 'details' | 'changes' | 'chat') => void
+  setRightTab: (tab: 'files' | 'details' | 'chat') => void
   setDraft: (key: string, text: string) => void
   addStarting: (id: string) => void
   setSelectedCwd: (cwd: string | null) => void
@@ -32,6 +39,10 @@ export const useSessionUi = create<SessionUi>()(persist(set => ({
   metadata: {},
   setMetadata: (id, value) => set(state => ({ metadata: { ...state.metadata, [id]: { ...state.metadata[id], ...value } } })),
   listOpen: true, rightOpen: false, rightTab: 'files', drafts: {}, draftUpdatedAt: {}, startingIds: [], selectedCwd: null, selectedEnvironment: null, permissionModes: {}, defaultPermission: 'ask', thinkingEffort: '',
+  layoutReset: 0, chatOpen: true, splitRatio: DEFAULT_SPLIT,
+  setChatOpen: chatOpen => set({ chatOpen }),
+  setSplitRatio: splitRatio => set({ splitRatio: Number.isFinite(splitRatio) ? Math.max(.1, Math.min(.9, splitRatio)) : DEFAULT_SPLIT }),
+  resetLayout: () => set(state => ({ layoutReset: state.layoutReset + 1, listOpen: true, rightOpen: false, rightTab: 'files', chatOpen: true, splitRatio: DEFAULT_SPLIT })),
   setListOpen: listOpen => set({ listOpen }),
   setRightOpen: rightOpen => set({ rightOpen }),
   setRightTab: rightTab => set({ rightTab }),
@@ -43,5 +54,5 @@ export const useSessionUi = create<SessionUi>()(persist(set => ({
   setThinkingEffort: thinkingEffort => set({ thinkingEffort }),
 }), {
   name: 'ax-crew-session-layout',
-  partialize: ({ metadata, listOpen, rightOpen, rightTab, selectedCwd, selectedEnvironment, permissionModes, defaultPermission, thinkingEffort, drafts, draftUpdatedAt }) => ({ metadata, listOpen, rightOpen, rightTab, selectedCwd, selectedEnvironment, permissionModes, defaultPermission, thinkingEffort, drafts, draftUpdatedAt }),
+  partialize: ({ metadata, listOpen, rightOpen, rightTab, chatOpen, splitRatio, selectedCwd, selectedEnvironment, permissionModes, defaultPermission, thinkingEffort, drafts, draftUpdatedAt }) => ({ metadata, listOpen, rightOpen, rightTab, chatOpen, splitRatio, selectedCwd, selectedEnvironment, permissionModes, defaultPermission, thinkingEffort, drafts, draftUpdatedAt }),
 }))

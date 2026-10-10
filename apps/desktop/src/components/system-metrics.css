@@ -1,0 +1,14 @@
+.system-metrics-card .system-metrics-caption { font-size: 13px; line-height: 1.6; }
+.system-metrics { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 20px; }
+.system-metric { padding: 12px 14px; border-radius: 8px; background: color-mix(in srgb, var(--shell-accent) 5%, var(--shell-panel)); }
+.system-metric-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; color: var(--shell-muted); }
+.system-metric-heading > span { font-weight: 600; }
+.system-metric-heading > span { overflow-wrap: anywhere; min-width: 0; }
+.system-metric > small { display: block; margin-top: 8px; color: var(--shell-muted); }
+.system-metric-reading { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 16px; text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.system-metric-reading strong { color: var(--shell-text); font-weight: 600; }
+.system-metric progress { display: block; width: 100%; height: 4px; margin-top: 10px; appearance: none; border: 0; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--shell-accent) 12%, var(--shell-panel)); }
+.system-metric progress::-webkit-progress-bar { background: color-mix(in srgb, var(--shell-accent) 12%, var(--shell-panel)); }
+.system-metric progress::-webkit-progress-value { background: var(--shell-accent); border-radius: 2px; }
+.system-metric progress::-moz-progress-bar { background: var(--shell-accent); border-radius: 2px; }
+@media (max-width: 560px) { .system-metric-heading { flex-wrap: wrap; } .system-metric-reading { margin-left: auto; } }

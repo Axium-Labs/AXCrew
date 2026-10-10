@@ -25,10 +25,21 @@ agent runtime and the control plane that coordinates it.
   details, and refresh inherited configuration after changes.
   The Agents tab controls global/project delegation depth (0 off, 1 direct
   children, 2+ nested children) and shared parallelism (1–64). Save applies
-  on the next turn; reset restores defaults or inheritance. Project-scoped
-  settings and reset/inheritance require an updated AX; older AX can still
-  read and write global limits.
+  on the next turn; reset restores defaults or inheritance. Both scopes use
+  the current AX `settings --scope` / `--reset` interface.
   Other settings show complete readable absolute paths in rounded icon labels.
+- **Local system metrics** — desktop System settings show real Windows CPU,
+  memory, system-volume usage and uptime, plus supported NVIDIA GPU usage/VRAM,
+  with explicit unavailable readings.
+- **Adaptive workspace** — one layout budget protects chat width, collapses
+  navigation and Sessions before moving Files to a drawer, and supports a saved
+  resizable chat/preview split with reset.
+- **Settings switches** — boolean options and import selections use right-aligned
+  pill switches with titles and descriptions on the left.
+- **Desktop close behavior** — closing hides to the tray by default; disabling
+  that setting makes closing quit Crew and stop the local service. The preference
+  survives restart, and the tray Quit action always exits. System settings
+  contain only the close-behavior switch.
 - **Compact conversation controls** — a model/effort card with Fast, a stepped
   reasoning slider; click the central card for the model
   menu. Session IDs live in the Details sidebar, leaving transcripts clean.
@@ -37,6 +48,9 @@ agent runtime and the control plane that coordinates it.
   with lightly damped effort dragging, gentle attraction near steps, and small
   a forward-dash particle wake behind the thumb when Fast is enabled;
   remote conversations stay accessible in Recent without a separate Remote projects section.
+- **Conversation files** — a wide Review/files pane with saved diffs, an
+  expandable local workspace tree, closable tabs and Markdown preview/source.
+  Files stay open when switching to side chat or details.
 - **Cross-machine delegation** — hand a task to another machine; Crew routes
   it to that machine's AX and streams the result back.
 - **Task orchestration** — deterministic task DAGs with dependencies, retries,

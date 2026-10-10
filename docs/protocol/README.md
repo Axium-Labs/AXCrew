@@ -15,9 +15,9 @@ them instead of restating them, so the contract cannot drift out of sync.
 The desktop-only Tauri command `ax_subagent_settings` accepts `cwd`,
 `scope` (`global` / `project`), optional `{max_depth, max_concurrent}` settings,
 and an optional reset flag. It returns AX's validated effective values by
-delegating to AX's settings command. Global settings work with older AX
-executables; project settings require `settings --scope` and return a visible
-compatibility error when unavailable. This does not add a Crew REST/ACP method.
+delegating to AX's current `settings --scope` command for both scopes. The
+current scoped-settings/reset interface is required; there is no legacy
+fallback or capability probe. This does not add a Crew REST/ACP method.
 See [desktop delegation settings](../desktop/README.md#subagents).
 
 These are treated as contracts, not implementation details:

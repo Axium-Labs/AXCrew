@@ -102,3 +102,59 @@ connections.rs modules. transport/ssh.rs performs remote directory probes and re
 workspaces. transport/ax.rs owns the local ACP update/approval/cancellation
 lifecycle; SSH tasks inject a host context into that local AX process. The source
 selector never validates a remote directory on the gateway disk.
+
+### Desktop file workspace
+
+`SessionsWorkspace.tsx` supplies the current conversation's workspace and saved
+turn changes, routes transcript review requests, and opens Files through the shared workspace layout. `UnifiedFilePanel.tsx` owns review selection, open document tabs,
+the lazy directory explorer and Markdown preview/source. Switching side-panel
+sections preserves these tabs; changing conversation/workspace resets them.
+The native commands in `src-tauri/src/lib.rs` list complete directories and read
+bounded UTF-8 text on the blocking pool, checking canonical workspace containment.
+Only local desktop sessions use those filesystem commands; remote/SSH sessions
+review saved changes without reading local lookalike paths. This does not change
+the control-plane REST/WebSocket contracts.
+
+### Desktop close preference
+
+`DesktopBehavior.tsx` provides the single System-settings close-preference card,
+reading native state and updating it after acknowledged saves. The shared
+`ui/settings-toggle.tsx` lays out labeled native checkbox inputs with switch
+semantics and descriptions; the settings card has no explicit Quit button. The native
+`desktop_behavior.rs` owns the close preference and atomic app-data persistence;
+`lib.rs` loads it at startup, dispatches main-window close events to Hide or Quit,
+and routes explicit tray quit through the same runtime shutdown path.
+The existing `set_minimize_on_close` command now returns the persisted boolean;
+`get_minimize_on_close` reads it. REST/WebSocket and Android are unchanged.
+
+### Desktop system telemetry
+
+`SystemMetrics.tsx` owns the System page's native-only three-second telemetry
+query, nullable reading validation, capacities in GiB and localized uptime.
+`system_info.rs` collects Windows CPU counter deltas, physical memory, the actual
+Windows system volume and system uptime. The async `get_system_info` bridge runs
+it on the blocking pool, including the initial CPU sampling interval; collectors
+return null on failure or unsupported platforms. The legacy `_mb` fields contain
+MiB; `disk_path` identifies the volume. The lazy NVML collector adds per-device
+NVIDIA name, usage and VRAM in `gpus`; individual failed fields remain null.
+The driver handle is reused, missing drivers are retried on later reads, and
+unsupported vendors remain unavailable. These local shell commands do not
+change server or remote-host telemetry or depend on AX's `/system` panel.
+
+### Unified desktop workspace layout
+
+`lib/workspaceLayout.ts` is the pure width-budget allocator for navigation,
+Sessions, main chat and preview. `workspaceLayoutContext.tsx`, owned by the shell,
+observes the outer workspace and terminal widths; children consume one result
+instead of separate viewport thresholds. The allocator reserves a 560px chat
+target / 520px minimum, collapses navigation then Sessions, and selects a drawer
+when preview and chat minima cannot fit. A 24px restoration margin prevents
+threshold oscillation; automatic decisions do not persist visibility.
+
+`store/sessions.ts` keeps main-chat visibility and split ratio alongside existing
+list/right visibility and drafts. `WorkspaceSplitter.tsx` supports pointer capture,
+keyboard resizing and ratio reset. `usePanelDrawer.ts` handles keyboard focus and
+return focus for drawers. `ComposerSecondaryActions.tsx` observes the actual form
+width and moves secondary controls to a shared popover below 600px. Existing
+`useAutoGrow` handles textarea wrapping after the panel resizes. No server API,
+AX behavior, Android state or stored conversation format changes.

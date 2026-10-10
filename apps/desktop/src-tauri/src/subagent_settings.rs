@@ -27,9 +27,7 @@ fn settings_command(
     if !["global", "project"].contains(&scope) {
         return Err("Invalid settings scope".into());
     }
-    if !Path::new(cwd).is_absolute() || !Path::new(cwd).is_dir() {
-        return Err("Choose an existing workspace directory".into());
-    }
+    crate::validate_workspace_sync(cwd)?;
     if let Some(value) = settings {
         if value
             .max_depth
@@ -48,13 +46,7 @@ fn settings_command(
     process
         .env("AX_HOME", home)
         .current_dir(cwd)
-        .arg("settings");
-    // `--scope` was added after the original settings command. Keep global
-    // reads/writes usable with older AX; project settings require the scoped
-    // form and are rejected before execution when it is unavailable.
-    if scope == "project" {
-        process.arg("--scope").arg(scope);
-    }
+        .args(["settings", "--scope", scope]);
     if let Some(value) = settings {
         if let Some(depth) = value.max_depth {
             process.arg("--max-depth").arg(depth.to_string());
@@ -69,21 +61,6 @@ fn settings_command(
     Ok(process)
 }
 
-fn supports_scoped_settings(active: &Path, home: &Path, cwd: &str) -> Result<bool, String> {
-    let output = command(active)
-        .env("AX_HOME", home)
-        .current_dir(cwd)
-        .args(["settings", "--help"])
-        .output()
-        .map_err(|error| error.to_string())?;
-    let help = format!(
-        "{}\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    Ok(output.status.success() && help.contains("--scope"))
-}
-
 #[tauri::command]
 pub async fn ax_subagent_settings(
     desktop: State<'_, DesktopState>,
@@ -94,22 +71,20 @@ pub async fn ax_subagent_settings(
 ) -> Result<SubagentSettings, String> {
     let active = desktop.ax.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        if scope == "project" && !supports_scoped_settings(&active, &ax::ax_home(), &cwd)? {
-            return Err("当前本机 AX 不支持按项目保存子智能体设置，请更新 AX 后重试。".into());
-        }
-        let output = settings_command(
+        // Validate before starting AX: spawning in a removed folder otherwise
+        // returns a misleading Windows process error instead of a workspace error.
+        let mut process = settings_command(
             &active,
             &ax::ax_home(),
             &cwd,
             &scope,
             settings.as_ref(),
             reset.unwrap_or(false),
-        )?
-        .output()
-        .map_err(|error| error.to_string())?;
+        )?;
+        let output = process.output().map_err(|error| error.to_string())?;
         if !output.status.success() {
             return Err(format!(
-                "无法读写子智能体设置，请确认本机 AX 支持递归深度设置并更新后重试。{}",
+                "无法读写子智能体设置。{}",
                 String::from_utf8_lossy(&output.stderr).trim()
             ));
         }
@@ -123,7 +98,3 @@ pub async fn ax_subagent_settings(
     .await
     .map_err(|error| error.to_string())?
 }
-
-#[cfg(test)]
-#[path = "../../../../tests/desktop/subagent_settings.rs"]
-mod tests;

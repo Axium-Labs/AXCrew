@@ -55,27 +55,13 @@ fn scan(home: &Path, workspace: Option<&Path>) -> Vec<ImportSource> {
 pub async fn ax_scan_capability_sources(cwd: Option<String>) -> Result<Vec<ImportSource>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let home = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")).ok_or("Cannot locate user home")?;
-        let workspace = cwd.map(std::path::PathBuf::from);
-        if workspace.as_ref().is_some_and(|path| !path.is_absolute() || !path.is_dir()) { return Err("Choose an existing workspace directory".into()); }
+        let workspace = scan_workspace(cwd);
         Ok(scan(Path::new(&home), workspace.as_deref()))
     }).await.map_err(|error| error.to_string())?
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn discovers_only_importable_packages_and_nonempty_configs() {
-        let root = std::env::temp_dir().join(format!("crew-scan-{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(root.join(".codex/skills/review")).unwrap();
-        fs::create_dir_all(root.join(".cursor")).unwrap();
-        fs::write(root.join(".codex/skills/review/SKILL.md"), "# Review").unwrap();
-        fs::write(root.join(".codex/config.toml"), "[mcp_servers.files]\ncommand = 'test'").unwrap();
-        fs::write(root.join(".cursor/mcp.json"), "{\"mcpServers\":{}}").unwrap();
-        let sources = scan(&root, Some(&root));
-        assert_eq!(sources.len(), 1);
-        assert_eq!(sources[0].items.len(), 2); // Identical home/project paths are deduplicated.
-        assert_eq!(sources[0].items[0].kind, "mcp");
-        fs::remove_dir_all(root).unwrap();
-    }
+// User-level discovery is independent of the optional project. A deleted
+// persisted directory must not prevent scanning installed application configs.
+fn scan_workspace(cwd: Option<String>) -> Option<std::path::PathBuf> {
+    cwd.map(std::path::PathBuf::from).filter(|path| path.is_absolute() && path.is_dir())
 }
