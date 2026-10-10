@@ -98,3 +98,7 @@ pub async fn ax_subagent_settings(
     .await
     .map_err(|error| error.to_string())?
 }
+
+#[cfg(test)]
+#[path = "../../../../tests/desktop/subagent_settings.rs"]
+mod tests;

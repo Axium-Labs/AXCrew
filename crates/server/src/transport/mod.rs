@@ -376,3 +376,7 @@ pub(crate) async fn permission(
     lease.choice = Some(choice.clone());
     choice
 }
+
+#[cfg(test)]
+#[path = "../../../../tests/steering.rs"]
+mod steering_tests;

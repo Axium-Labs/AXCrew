@@ -78,3 +78,7 @@ impl ClosePreference {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../../../tests/desktop/desktop_behavior.rs"]
+mod tests;

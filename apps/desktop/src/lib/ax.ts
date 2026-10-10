@@ -37,6 +37,13 @@ export type AxLocalState = {
   inference_mode?: 'standard' | 'fast'
 }
 export type CapabilityScope = 'global' | 'project'
+export type ComputerUseSettings = { enabled: boolean; include_screenshot: boolean; max_nodes: number; screenshot_width: number }
+export type ComputerUseState = { settings: ComputerUseSettings; supported: boolean; limits: { max_nodes: number; min_screenshot_width: number; max_screenshot_width: number } }
+export const axComputerUse = (settings?: Partial<ComputerUseSettings>) => invoke<ComputerUseState>('ax_computer_use', { settings: settings ?? null })
+export type HostDecision = 'allow' | 'ask' | 'deny'
+export type HostPermissions = { browser_enabled: boolean; apps: Record<string, HostDecision>; sites: Record<string, HostDecision> }
+export type HostPermissionChanges = { surface?: 'computer' | 'browser'; target?: string; decision?: HostDecision; remove?: boolean; browser_enabled?: boolean }
+export const axHostPermissions = (changes?: HostPermissionChanges) => invoke<HostPermissions>('ax_host_permissions', { changes: changes ?? null })
 export type AxSubagentSettings = { max_depth: number; max_concurrent: number }
 export const axSubagentSettings = (cwd: string, scope: CapabilityScope, settings?: Partial<AxSubagentSettings>, reset = false) => invoke<AxSubagentSettings>('ax_subagent_settings', { cwd, scope, settings: settings ?? null, reset })
 export type ScopedCapability = { scope?: CapabilityScope; enabled?: boolean; status?: string; source?: string }

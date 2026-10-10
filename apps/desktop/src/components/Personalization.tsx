@@ -145,9 +145,9 @@ export function Personalization() {
               <strong>{lang === 'zh' ? '删除所有记忆' : 'Delete all memories'}</strong>
               <div className="settings-toggle-description">{lang === 'zh' ? '删除 Local 的所有 AX 记忆' : 'Delete all local AX memories'}</div>
             </div>
-            <button
-              className="settings-danger"
-              disabled={busy || !data}
+            <button 
+              className="settings-danger" 
+              disabled={busy || !data} 
               onClick={() => setDialogState({ type: 'confirm_delete_memories' })}
             >
               <Trash2 size={16} /> {lang === 'zh' ? '删除' : 'Delete'}
@@ -159,7 +159,7 @@ export function Personalization() {
         <section className="settings-card">
           <h2>{lang === 'zh' ? '自定义指令' : 'Custom instructions'}</h2>
           <p>{lang === 'zh' ? '对所有 AX 会话生效的全局指令' : 'Global instructions applied to every AX session'}</p>
-
+          
           <button
             type="button"
             className="personalization-entry-button"
@@ -224,7 +224,7 @@ export function Personalization() {
             spellCheck={false}
             autoFocus
           />
-
+          
           {hasChanges && (
             <div className="unsaved-warning">
               {lang === 'zh' ? '⚠️ 有未保存的更改' : '⚠️ Unsaved changes'}
@@ -232,18 +232,18 @@ export function Personalization() {
           )}
 
           <div className="dialog-actions">
-            <button
+            <button 
               type="button"
-              className="settings-secondary"
+              className="settings-secondary" 
               onClick={() => setDialogState(null)}
               disabled={busy}
             >
               {lang === 'zh' ? '取消' : 'Cancel'}
             </button>
-            <button
+            <button 
               type="button"
-              className="settings-primary"
-              disabled={busy || !data || !hasChanges}
+              className="settings-primary" 
+              disabled={busy || !data || !hasChanges} 
               onClick={saveInstructions}
             >
               {lang === 'zh' ? '保存' : 'Save'}
@@ -264,24 +264,24 @@ export function Personalization() {
           </div>
           <div className="confirmation-content">
             <p className="confirmation-text">
-              {lang === 'zh'
+              {lang === 'zh' 
                 ? '此操作将删除 Local 的所有 AX 记忆。原始会话历史会保留，无法撤销。'
                 : 'This will delete all local AX memories. Raw session history will be kept. This action cannot be undone.'}
             </p>
           </div>
 
           <div className="dialog-actions">
-            <button
+            <button 
               type="button"
-              className="settings-secondary"
+              className="settings-secondary" 
               onClick={() => setDialogState(null)}
               disabled={deletingMemory}
             >
               {lang === 'zh' ? '取消' : 'Cancel'}
             </button>
-            <button
+            <button 
               type="button"
-              className="settings-danger"
+              className="settings-danger" 
               onClick={confirmDeleteMemories}
               disabled={deletingMemory}
             >

@@ -254,3 +254,24 @@ button.plugin-add-source:disabled{opacity:.6;cursor:progress}
 .ax-control-card small{font-size:11px;color:var(--shell-muted);line-height:1.4}
 .settings-notice.is-success{background:color-mix(in srgb,var(--color-success) 10%,var(--shell-panel));border:1px solid color-mix(in srgb,var(--color-success) 25%,var(--shell-border));color:var(--color-success)}
 @media(max-width:600px){.ax-control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.computer-use-settings { max-width: 1200px; gap: 16px; }
+.computer-use-heading { display: flex; align-items: center; gap: 12px; }
+.computer-use-heading h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.computer-use-heading span { border-radius: 20px; padding: 4px 10px; background: var(--shell-hover); color: var(--shell-muted); font-size: 13px; }
+.computer-use-switches, .computer-use-limits { padding: 24px 26px; }
+.computer-use-switches .settings-toggle-row { padding: 12px 0; }
+.computer-use-switches .settings-toggle-description { line-height: 1.65; }
+.computer-use-field { display: flex; flex-direction: column; gap: 8px; margin-top: 24px; }
+.computer-use-field label { font-weight: 600; font-size: 15px; }
+.computer-use-field p, .computer-use-limits > p { margin: 0; line-height: 1.7; }
+.computer-use-field input { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--shell-border); border-radius: 10px; background: var(--shell-input); color: var(--shell-text); padding: 12px 14px; font: inherit; }
+.computer-use-field input[aria-invalid="true"] { border-color: var(--shell-danger, #d65a66); }
+.computer-use-notice { margin: 0; color: var(--shell-muted); font-size: 13px; }
+@media (max-width: 650px) { .computer-use-switches, .computer-use-limits { padding: 18px; } }
+.host-permissions-panel > p{color:var(--shell-muted);font-size:13px;line-height:1.7;margin:12px 0}
+.host-permission-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;margin:10px 0}
+.host-permission-row > span{overflow-wrap:anywhere;font-size:12px;min-width:0}
+.host-permission-row input,.host-permission-row select{min-width:0;max-width:100%;border:1px solid var(--shell-border);background:var(--shell-input);color:var(--shell-text);border-radius:10px;padding:9px 12px;font:inherit;height:calc(1.4em + 22px);min-height:44px;line-height:1.4}
+.host-permission-row input:focus-visible,.host-permission-row select:focus-visible{outline:2px solid var(--shell-accent);outline-offset:2px}
+.host-permission-add{margin-top:20px}.host-permission-add > label{font-weight:600;font-size:13px}
+@media(max-width:650px){.host-permission-row{grid-template-columns:minmax(0,1fr) auto}.host-permission-row > span,.host-permission-row > input{grid-column:1/-1}}

@@ -18,6 +18,49 @@ WorkBuddy China and International are separate accounts. Account sign-in shows
 a URL to click or copy; closing the dialog cancels waiting. AX stores the
 credentials and refreshes models after authorization.
 
+### Computer Use and browser settings
+
+Settings → Computer Use (`/settings/desktop`) contains two shared pill switches
+and a Limits card with full-width numeric fields, following the existing dark
+and light theme. The local `ax_computer_use` command calls `ax computer-use` to
+read/write AX's global configuration, without a selected workspace or service
+request. It does not retain a separate Crew setting or display simulated success.
+The bridge and local chat runtime share Crew's existing `AX_HOME`: an explicit
+environment override, otherwise the user's `~/.ax` directory.
+
+Computer Use defaults off; screenshots default on; node/image defaults are
+1200/1280. AX returns supported status and built-in limits (1–10000 nodes,
+320–4096 image pixels on the longest edge). Switch changes save immediately;
+integer edits save on blur or Enter. Controls lock during writes; failures retain
+confirmed values, failed reads offer retry, and invalid numbers remain editable.
+Native Windows is currently supported; unavailable environments cannot enable it.
+Enabling applies when AX builds the next turn registry. Disabling also rejects
+subsequent helper calls from a registry that previously had access. AX enforces
+limits, approvals, bounded privacy scans and actual window/control operations.
+See AX's `docs/computer-use.md` for the runtime contract and renderer limitations.
+
+Computer Use also includes Application access; Browser settings includes a real
+Browser Use switch and Website access. The shared HostPermissionsPanel calls
+`ax_host_permissions`, which invokes AX's early `host-permissions` CLI with Crew's
+same global AX home. No workspace/gateway/model is required. Rules can be added,
+changed to ask/always allow/deny, or removed. Removing returns access to ask.
+Application paths and website origins wrap within the available width; controls
+lock during writes, failed writes retain confirmed values, and failed reads offer retry.
+
+The Browser page's Page Interactions tiles and simulated navigation controls have
+been removed. Its options explain AX's owned Playwright sessions. Actual browser
+operations come from AX's tool runtime, not simulated local notices. It needs Node,
+Playwright and a supported browser installed by the user; no personal browser
+profile is shared. The current driver blocks cross-origin resources, redirect hops,
+WebSockets, popups, uploads and downloads, so some websites cannot work fully.
+
+Application/site access, file/terminal sandbox mode and action approvals are
+independent. ACP access prompts offer once, this session, always and deny through
+the existing dynamic permission dialog. Generic action approval does not grant a
+new app/site. Native desktop control remains Windows-only; native Windows/macOS
+OS workspace isolation is not implemented and explicit confined modes still fail
+closed. See [AX host access](../../../ax/docs/host-permissions.md).
+
 ### Local system metrics
 
 The desktop System page refreshes local CPU usage, physical memory usage, the
