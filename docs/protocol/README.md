@@ -38,7 +38,7 @@ These are treated as contracts, not implementation details:
   so an existing database opens without a conversion step.
 
 Any change to one of these needs a matching update to the documents above and to
-the process-level tests in [`tests/`](../../tests/).
+the locally maintained process-level tests (not distributed in this repository).
 
 Distributed enrollment now allows omitted resource and capability fields. Worker
 heartbeats can add `host_inventory` and active `capabilities`; connected instance

@@ -106,9 +106,6 @@ pub(super) fn local_workspace(device: &str) -> Result<std::path::PathBuf> {
     std::fs::create_dir_all(&root)?;
     Ok(root.canonicalize()?)
 }
-#[cfg(test)]
-#[path = "../../../../tests/ssh_transport.rs"]
-mod tests;
 
 /// A file avoids Windows environment-block size limits for large host catalogues.
 pub(super) struct ContextFile {

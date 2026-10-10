@@ -138,8 +138,6 @@ plain `cargo build --release` does not embed the production frontend.
 ### Verification
 
 - `npm run build`: TypeScript and production build.
-- `npm run test:ui`: component interactions, conversation identity, stream reconciliation, and API failures.
-- `npm run test:e2e`: Edge browser checks at 960/1440 CSS pixels and 100%/150% pixel density. Uses isolated API fixtures and does not modify the desktop database.
 
 ## Usage
 
@@ -317,3 +315,6 @@ Android release signing reads AXCREW_ANDROID_KEYSTORE, AXCREW_ANDROID_STORE_PASS
 ## 分布式协作
 
 侧边栏「分布式协作」管理 Host、AX Instance、Workflow、Task、Artifact 与 Event。添加实例仅设置连接、逻辑项目与并发等基础信息，不填写 CPU/RAM/GPU、Skill/MCP/Tool 或模型。AX 连接后自动探测并展示 Host 配置、在线状态和任务预留；同 Host 多个实例共享机器容量。连接后的 AX 实例页可配置能力，下载字段合并到本地 worker 配置、安装/启用依赖并重启后由 AX 上报生效。可下载独立 worker 配置、提交带能力/资源/依赖要求的任务、查看错误与检查点、取消/重试和下载产物。新接口与原有会话/设备控制并存。见 [控制层与部署说明](../../docs/distributed-collaboration.md)。
+
+Standalone desktop tests and test-runner configuration are local-only and are
+not distributed in the source repository.

@@ -11,7 +11,7 @@ apps/android/     Kotlin/Compose Android control client
 crates/server/    the control plane — the only Cargo workspace member
 docs/             architecture/ protocol/ development/ releases/
 scripts/          repository-level build and release scripts
-tests/            process-level integration tests (Python)
+tests/            local-only integration tests (ignored, not distributed)
 ```
 
 Inside `crates/server/src/`, dependencies point one way only:
@@ -69,5 +69,7 @@ cargo clippy --workspace --all-targets
 cargo test --workspace
 ```
 
-Then the desktop (`apps/desktop`: `npm run build`, `npm run test:ui`), the
-Android build, and the process-level tests in `tests/`.
+Then the desktop (`apps/desktop`: `npm run build`) and Android build.
+When the local-only test harness is present, also run its desktop interaction
+tests (`npm run test:ui`) and process-level tests in `tests/`. Standalone tests,
+test-runner configuration and work logs are not distributed in this repository.

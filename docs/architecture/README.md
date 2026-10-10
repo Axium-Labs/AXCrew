@@ -29,7 +29,7 @@ The root only organises the product; it holds no code of its own.
 | `apps/android/` | The native Kotlin/Compose Android control client. |
 | `docs/` | `architecture/`, `protocol/`, `development/`, `desktop/`, `releases/`. |
 | `scripts/` | Repository-level build and release scripts. |
-| `tests/` | Process-level integration tests (Python) that drive the built binaries. |
+| Local validation | Standalone tests and work logs are maintained locally and excluded from the published repository. |
 
 ## The control plane
 

@@ -44,3 +44,19 @@ Desktop.ini
 .idea/
 *.swp
 *~
+
+# Tests, work logs and their local tooling are not published.
+**/test/
+**/tests/
+**/logs/
+**/e2e/
+**/*.test.*
+**/*.spec.*
+**/test-setup.*
+**/vitest.config.*
+**/playwright.config.*
+**/test-results/
+**/playwright-report/
+*.bak
+*.log
+**/androidTest/
