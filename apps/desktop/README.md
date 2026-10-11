@@ -8,6 +8,9 @@ keeps their credentials, tools, skills, memory, and session history.
 
 - **Native desktop** — a Windows app with a system tray and integrated terminal.
 - **AX runtime** — use the AX installed on your machine or a workspace build.
+- **Codex sign-in** — choose browser or device-code login in model settings.
+  Device codes are displayed in full with a Copy code button. AX saves the
+  credentials; this flow requires the matching AX build with `--method`/`--json`.
 - **Local data** — Crew settings and its database live in the app data directory.
 - **Connected devices** — pair remote AX runtimes or connect the Android client.
 - **Session files** — a wider Files panel with saved change review, a lazy

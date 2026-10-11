@@ -623,6 +623,10 @@ const statusCopy: Record<string,[string,string]> = {
 }
 for(const [key, values] of Object.entries(statusCopy)){zh['status.'+key]=values[0];en['status.'+key]=values[1]}
 const loginCopy:Record<string,[string,string]>={
+ 'chooseMethod':['选择 Codex 登录方式','Choose how to sign in to Codex'],
+ 'browserMethod':['浏览器登录','Sign in with browser'], 'deviceMethod':['验证码登录','Sign in with device code'],
+ 'deviceInstructions':['打开下面的授权页面，登录 ChatGPT 后输入此处显示的一次性验证码。验证码 15 分钟内有效。','Open the authorization page below, sign in to ChatGPT, then enter the one-time code shown here. The code expires in 15 minutes.'],
+ 'codeLabel':['一次性验证码','One-time code'],
  'title':['登录账号','Sign in'], 'instructions':['点击下面的链接，或复制 URL 到浏览器登录。AX 会等待授权并保存凭据。','Click the link below or copy its URL into your browser. AX waits for authorization and saves your credentials.'],
  'copyUrl':['复制登录 URL','Copy login URL'],'copyCode':['复制一次性代码','Copy one-time code'],'preparing':['正在生成登录请求…','Preparing sign-in…'],
  'waiting':['等待浏览器授权…','Waiting for browser authorization…'],'success':['登录成功，模型列表已刷新。','Signed in. The model list has refreshed.'],

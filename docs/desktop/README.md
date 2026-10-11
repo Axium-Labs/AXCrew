@@ -18,6 +18,23 @@ WorkBuddy China and International are separate accounts. Account sign-in shows
 a URL to click or copy; closing the dialog cancels waiting. AX stores the
 credentials and refreshes models after authorization.
 
+Codex account sign-in first offers **Browser login** and **Device-code login**.
+Browser mode opens the displayed authorization URL on an explicit click and AX
+receives a PKCE-protected local callback. Device mode displays the full one-time
+code in a separate selectable block, with a Copy code button and 15-minute
+expiry instructions. A retry returns to the method picker. WorkBuddy retains
+its browser flow and regional account separation.
+
+The native `ax_begin_login` command accepts `method: browser | device` for Codex
+and starts AX with `auth login openai-codex --method <method> --json`. Progress
+uses the AX-owned stderr JSON protocol (`type`, `message`, `url`, `code`), then
+the existing `ax-login` event. Codes have no assumed length or format; legacy
+human-readable prompts are recognized by their instruction context. Prompt
+output is drained before the completion event, and the frontend buffers events
+arriving before the login ID. URL opening retains its HTTPS host allowlist.
+This requires an AX build supporting `--method` and `--json`; update both AX
+and AXCrew together when installing this change. No REST/Android contract changes.
+
 ### Computer Use and browser settings
 
 Settings → Computer Use (`/settings/desktop`) contains two shared pill switches

@@ -18,6 +18,8 @@ agent runtime and the control plane that coordinates it.
 
 - **One control surface** — drive AX on your laptop, server, GPU server and
   cloud VMs from a single desktop app, or from your phone.
+- **Codex account sign-in** — choose browser authorization or device-code login
+  in desktop model settings; the full one-time code is visible and copyable.
 - **Settings → Plugins** — manage Mods, MCP and skills in settings. The page
   keeps workspace paths and scope explanations out of the plugin list, and
   explains when the installed AX needs updating to support Mods.
