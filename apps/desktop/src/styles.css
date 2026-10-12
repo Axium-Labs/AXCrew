@@ -1,4 +1,9 @@
 @import "tailwindcss";
+
+.completion-dot{display:inline-block;width:7px;height:7px;flex:none;border-radius:50%;background:var(--shell-accent-strong);box-shadow:0 0 0 2px var(--shell-panel)}
+.sidebar-primary .nav-item{position:relative}
+.sidebar-primary .completion-dot{margin-left:auto}
+.sidebar.is-compact .sidebar-primary .completion-dot{position:absolute;top:7px;right:7px}
 /* One palette for the whole app: graphite neutrals carry surface hierarchy,
    a single low-saturation iris purple carries brand/action, and red/amber/green
    are reserved for status. Dark is the default; light overrides below. */

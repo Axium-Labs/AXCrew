@@ -1,7 +1,12 @@
 import type { Session, Task } from './types'
 
-export const isActiveTask = (task?: Task) => !!task && ['pending', 'ready', 'running', 'waiting_permission'].includes(task.status)
+export const isActiveTask = (task?: Task) => !!task && ['pending', 'ready', 'running', 'waiting_permission', 'waiting_user'].includes(task.status)
 export type Conversation = { key: string; root: Task; latest: Task; binding?: Session; tasks: Task[] }
+
+export function sessionTitle(title: string | undefined, preview: string | undefined, fallback: string): string {
+  const saved = title?.trim()
+  return saved && saved.toLowerCase() !== 'acp session' ? saved : preview?.trim().replace(/\s+/g, ' ').slice(0, 80) || fallback
+}
 
 // Task IDs identify turns; device + AX session identifies the conversation.
 export function conversations(bindings: Session[], tasks: Task[], startingIds: string[] = []): Conversation[] {

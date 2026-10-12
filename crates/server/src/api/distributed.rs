@@ -32,7 +32,12 @@ pub async fn state(State(app): State<App>, headers: HeaderMap) -> Api<Cluster> {
     let mut state = app.db.cluster_read()?.public();
     state.server_time = crate::domain::unix_now();
     if actor != "admin" {
-        let projects = state.instances[&actor].projects.clone();
+        let projects = state
+            .instances
+            .get(&actor)
+            .ok_or_else(|| anyhow::anyhow!("instance credential revoked"))?
+            .projects
+            .clone();
         state
             .tasks
             .retain(|_, t| projects.contains(&t.spec.project_id));
@@ -200,6 +205,15 @@ pub async fn configure(
     service::configure(&app.db, &id, body)?;
     Ok(Json(json!({"accepted":true})))
 }
+pub async fn remove_instance(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Api<Value> {
+    app.authorize(&headers)?;
+    service::remove_instance(&app.db, &id)?;
+    Ok(Json(json!({"accepted":true})))
+}
 pub async fn heartbeat(
     State(app): State<App>,
     headers: HeaderMap,
@@ -311,9 +325,10 @@ pub async fn download(
         .ok_or_else(|| anyhow::anyhow!("artifact missing"))?;
     check(
         actor == "admin"
-            || state.instances[&actor]
-                .projects
-                .contains(&artifact.project_id),
+            || state
+                .instances
+                .get(&actor)
+                .is_some_and(|i| i.projects.contains(&artifact.project_id)),
         "artifact policy denied",
     )?;
     Ok(Json(

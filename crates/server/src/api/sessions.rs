@@ -12,7 +12,7 @@ use crate::{
     app::App,
     ax,
     domain::{
-        session::SessionView,
+        session::{SessionAnswer, SessionView},
         task::{NewTask, Task},
     },
     error::{Api, ApiError},
@@ -135,10 +135,16 @@ pub async fn attach_session(
         })
         .ok_or_else(|| ApiError(anyhow::anyhow!("workspace not configured")))?;
     let member = app.db.ensure_local_session_member(&cwd, None, None)?;
+    let original_title = project
+        .as_ref()
+        .and_then(|project| ax::title_of(project, &body.ax_session_id));
     let title = body
         .title
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "本地 AX 会话".into());
+        .filter(|value| {
+            !value.trim().is_empty() && !value.trim().eq_ignore_ascii_case("ACP session")
+        })
+        .or(original_title)
+        .unwrap_or_else(|| "未命名会话".into());
     let task = app.db.create_task(NewTask {
         crew_id: member.crew_id.clone(),
         title: title.chars().take(80).collect(),
@@ -345,6 +351,27 @@ pub async fn session_message(
         return Err(ApiError(anyhow::anyhow!("message required")));
     }
     let (parent, member, ax_id) = session_context(&app, &id).await?;
+    let group = app.db.conversation_tasks(&parent.assigned_device, &ax_id)?;
+    if let Some(waiting) = group.iter().find(|task| task.status == "waiting_user") {
+        if !body.images.is_empty() || !body.files.is_empty() || !body.context.is_empty() {
+            return Err(ApiError(anyhow::anyhow!(
+                "answer the question without attachments or context"
+            )));
+        }
+        let question_id = waiting
+            .output
+            .as_ref()
+            .and_then(|o| o["question"]["id"].as_str())
+            .ok_or_else(|| anyhow::anyhow!("pending question unavailable"))?;
+        return Ok(Json(app.scheduler.answer(
+            &waiting.id,
+            &SessionAnswer {
+                question_id: question_id.to_owned(),
+                option_id: None,
+                text: Some(body.text),
+            },
+        )?));
+    }
     if member.device_id != "local" && (!body.images.is_empty() || !body.files.is_empty()) {
         return Err(ApiError(anyhow::anyhow!(
             "attachments currently require the Gateway local device"
@@ -406,6 +433,17 @@ pub async fn session_message(
     Ok(Json(app.scheduler.start(&followup.id)?))
 }
 
+/// Answers exactly the current parked question; does not create a new task.
+pub async fn session_answer(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<SessionAnswer>,
+) -> Api<Task> {
+    app.authorize(&headers)?;
+    session_context(&app, &id).await?;
+    Ok(Json(app.scheduler.answer(&id, &body)?))
+}
 
 #[cfg(test)]
 mod tests {

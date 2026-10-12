@@ -57,6 +57,10 @@ pub fn router(state: App) -> Router {
         .route("/api/distributed/catalog", get(distributed::catalog))
         .route("/api/distributed/events", get(distributed::events))
         .route("/api/distributed/enroll", post(distributed::enroll))
+        .route(
+            "/api/distributed/instances/{id}",
+            axum::routing::delete(distributed::remove_instance),
+        )
         .route("/api/distributed/batch", post(distributed::batch))
         .route(
             "/api/distributed/instances/{id}/manage",
@@ -173,6 +177,7 @@ pub fn router(state: App) -> Router {
             get(sessions::session).delete(sessions::delete_session),
         )
         .route("/api/sessions/{id}/history", get(sessions::session_history))
+        .route("/api/sessions/{id}/answer", post(sessions::session_answer))
         .route(
             "/api/sessions/{id}/message",
             post(sessions::session_message),

@@ -45,7 +45,7 @@ export function AxDesktopControl() {
     <div className="computer-use-heading"><h2>Computer Use</h2><span>{zh ? '焦点 + 光标' : 'Focus + cursor'}</span></div>
     <section className="settings-card computer-use-switches">
       <SettingsToggle label={zh ? '启用 Computer Use' : 'Enable Computer Use'}
-        description={zh ? '让代理通过辅助功能读取桌面应用的窗口，并操作它们的控件。在这里打开之前一直是关闭的；更改将在下一轮对话生效。' : 'Let agents read desktop windows through accessibility and operate their controls. Disabled until enabled here; changes apply on the next turn.'}
+        description={zh ? '让代理通过辅助功能读取桌面应用的窗口，并操作它们的控件。默认开启，保留已保存的关闭设置；访问应用仍需授权，更改将在下一轮对话生效。' : 'Let agents read desktop windows through accessibility and operate their controls. Enabled by default, preserving saved disable settings. App access still requires authorization; changes apply on the next turn.'}
         checked={settings.enabled} disabled={busy || (!supported && !settings.enabled)} onChange={event => save.mutate({ enabled: event.target.checked })}/>
       <SettingsToggle label={zh ? '附带截图' : 'Include screenshots'}
         description={zh ? '同时截取目标窗口并传递它的文件路径。辅助功能树仍是主要通道；检测到密码字段或无法完成检查时，不会截取窗口。' : 'Capture the target window and return its file path. Accessibility remains the primary channel; windows with password fields or an incomplete privacy scan are not captured.'}

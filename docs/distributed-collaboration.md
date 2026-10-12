@@ -5,7 +5,9 @@ control. Open the desktop sidebar **Distributed** (`/distributed`) to manage the
 cluster. Existing routes, SQLite data and Android controls remain compatible;
 the dedicated cluster management page is currently desktop-only.
 The desktop provides three views: collaboration workspace, Host/AX nodes, and
-cross-Goal execution activity. Advanced policy, raw checkpoints and recovery
+cross-Goal execution activity. Expandable requirements, configuration previews, tool details and history share
+the app Disclosure control with keyboard interaction and retained form drafts.
+Advanced policy, raw checkpoints and recovery
 identities are disclosed progressively inside the relevant collaboration.
 
 ## Model and boundaries
@@ -105,6 +107,29 @@ collaboration policy suspends placement. Failed peers block completion even if
 the root succeeded; terminal workflows otherwise resolve completed/cancelled. This does
 not migrate full AX sessions or automatically serialize a model's hidden state.
 
+## Instance deregistration
+
+Nodes provides a per-instance Delete action and explicit confirmation. This removes
+Crew enrollment, not the AX installation or its local configuration, Memory,
+Sessions or workspace. The existing aggregate stores credential-free disabled
+metadata in serde-defaulted `removed_instances`, separate from active `instances`;
+old snapshots load with an empty archive. Removed IDs are excluded from catalog,
+scheduling, enrollment choices, online counts and worker authentication. A worker
+must enroll again to reconnect, with a new identity/token.
+
+Deletion runs atomically with backend checks: a nonterminal Task still owned by
+or explicitly pinned to the instance, selected participation in an unfinished
+Workflow, or an executing native command blocks it. Reassign/cancel those Tasks,
+remove that explicit Workflow member, or wait for the management outcome first.
+Pending native commands and undeliverable execution commands are failed visibly.
+Tasks, attempts, Session chains, artifacts, Events, checkpoints and Host records
+remain. Activity can filter removed AX as historical instances and preserves
+Host → AX names; Goal/member history marks them deleted. Historical fixed placement
+and participant policy are retained as history: before retrying such work, replace
+its removed member/AX assignment. Other AX on the same Host remain unaffected.
+Repeated deletion is idempotent; unknown IDs are rejected. Hosts without active AX
+retain their inventory and display a compact no-instance message.
+
 ## Placement and policy
 
 Eligibility combines **AX Capability + Host Resource**:
@@ -194,6 +219,7 @@ allow admin where appropriate.
 | POST `/worker/start` | `incarnation` → authenticated `instance_id`; replaces old epoch |
 | POST `/worker/heartbeat` | `incarnation, active:[{task_id,generation}]`, optional `host_inventory, capabilities` → new/unacknowledged `assignments`, all owned `leases`, `server_time` |
 | POST `/worker/report` | `incarnation, task_id, generation, message_id, kind, text, artifacts`; kind `completed`, `failed`, `observation`, `session` or `activity` |
+| DELETE `/instances/{id}` | Admin-only deregistration; rejects unfinished assigned/pinned Tasks, unfinished selected Workflow membership and executing native management; revokes worker credential, archives metadata and retains all history; repeated deletion is accepted |
 | POST `/{hosts|instances}/{id}/enabled` | `enabled` (admin) |
 | POST `/hosts/{id}/resources` | `cpu, ram_mb, gpu` (admin) |
 | POST `/artifacts` | Source lease identity, `kind, name, content_base64` → Artifact |
@@ -208,6 +234,32 @@ durable Event stream; reads/polls support delayed/disconnected clients.
 
 ## Desktop and operational limits
 
+The desktop uses a compact console layout with a shared status overview above
+Workspace / Nodes / Activity. Counts come from the current cluster snapshot:
+online AX (enabled and seen within 30 seconds), running Tasks and active
+collaborations, failed Tasks plus enabled offline AX, and pending Tasks awaiting
+placement. Disabled AX are excluded from the offline issue count. Missing state
+shows a reading indicator rather than zero counts; a failed refresh shows a sync
+error alongside the retained snapshot.
+
+Workspace navigation shows collaboration status and completion counts. The same
+objective, work-task, member and recent-activity regions remain visible when there
+are no collaborations, with compact contextual empty states. Objective text is a
+bounded preview of the root input/Goal target; the full input remains in task
+details. Nodes show configured execution slots (not guaranteed available capacity),
+Session IDs recorded in the latest attempts of running Tasks (including rotation
+history), related collaborations/Tasks and capability tags before expansion.
+Host inventory and measured metrics stay distinct from requested reservations.
+All dropdowns in the distributed views and dialogs use the shared settings-style
+Select, including project/AX placement, permissions, batch operation and native
+management scope. The popup uses the app theme, keyboard navigation and selected
+checks; Escape closes only the open popup before its containing dialog.
+Activity provides counted secondary tabs, localized status filters and a clear
+filters action; Execution/Session chains, recovery history and artifact downloads
+continue to use the existing endpoints. The dark and light themes share the same
+palette tokens; narrow windows stack the content regions.
+
+
 The workspace organizes existing Workflows as ordinary collaborative tasks or
 explicit AX Goals. Create tasks, add peer work to a Workflow, specify dependencies,
 choose automatic/manual placement, assign participant roles, inspect the common
@@ -221,7 +273,9 @@ Nodes group AX instances under their Host, showing measured CPU/RAM, available
 GPU/VRAM readings, disks and sampled network throughput. Inventory refresh is
 every 60 seconds; unknown fields remain unknown and stale offline readings are
 last known values. Capacity reservations are distinct from measured utilization.
-Expand an AX for current work/Goal/Session, active/pending capabilities and scoped
+Expand an AX using its name or the right-hand disclosure button; both stay
+synchronized and work for offline instances too. Inspect current work/Goal/Session,
+active/pending capabilities and scoped
 configuration. Activity filters Goal, AX, Host and task status, and shows each
 Execution's Session chain, events/errors, checkpoints and downloadable artifacts.
 Downloaded configs select an independent execution root and AX home per instance.

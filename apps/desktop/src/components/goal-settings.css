@@ -1,0 +1,16 @@
+.goal-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.goal-fields label { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.goal-fields input, .goal-fields textarea, .goal-fields .settings-select-menu { width: 100%; box-sizing: border-box; }
+.goal-fields textarea { min-height: 84px; resize: vertical; padding: 10px; border: 1px solid var(--shell-border); border-radius: var(--radius-control); background: var(--shell-input); color: var(--shell-text); font: inherit; line-height: 1.55; }
+.goal-fields textarea:focus-visible { outline: 2px solid var(--shell-accent); outline-offset: 2px; }
+.goal-settings .goal-policy-card { padding: 6px; }
+.goal-settings .goal-policy-card .ax-disclosure-trigger { min-height: 48px; padding: 10px 12px; justify-content: flex-start; border: 0; background: transparent; font-size: 15px; font-weight: 600; }
+.goal-settings .goal-policy-card .ax-disclosure-trigger:hover { background: var(--shell-hover); border: 0; }
+.goal-settings .goal-policy-card .ax-disclosure-content { padding: 8px 12px 12px; border-top: 1px solid var(--shell-border); }
+.goal-settings .goal-policy-card .ax-disclosure-trigger > svg { width: 16px; height: 16px; }
+.goal-validator { margin: 16px 0; border: 1px solid var(--shell-border); border-radius: 12px; padding: 16px; min-width: 0; }
+.goal-validator legend { padding: 0 8px; }
+.goal-settings p { overflow-wrap: anywhere; }
+@media (max-width: 700px) { .goal-fields { grid-template-columns: 1fr; } }
+.goal-settings { container: goal-settings / inline-size; }
+@container goal-settings (max-width: 600px) { .goal-fields { grid-template-columns: 1fr; } }

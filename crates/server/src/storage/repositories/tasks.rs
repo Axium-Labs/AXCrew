@@ -14,6 +14,28 @@ use serde_json::Value;
 use uuid::Uuid;
 
 impl Db {
+    /// The status and question identity are checked under one lock so duplicate
+    /// submissions cannot dispatch a second answer or replace a newer question.
+    pub fn queue_question_answer(
+        &self,
+        id: &str,
+        answer: &crate::domain::session::SessionAnswer,
+    ) -> Result<Task> {
+        let db = self.0.lock().unwrap();
+        let current = task(&db, id)?.ok_or_else(|| anyhow!("task not found"))?;
+        if current.status != "waiting_user" {
+            return Err(anyhow!("task is not waiting for an answer"));
+        }
+        let mut output = current
+            .output
+            .ok_or_else(|| anyhow!("pending question unavailable"))?;
+        output["answer"] = answer.payload(&output["question"])?;
+        db.execute(
+            "UPDATE tasks SET status='ready',output_json=?2,finished_at=NULL WHERE id=?1",
+            params![id, output.to_string()],
+        )?;
+        task(&db, id)?.ok_or_else(|| anyhow!("task missing"))
+    }
     pub fn create_task(&self, body: NewTask) -> Result<Task> {
         let mut db = self.0.lock().unwrap();
         let tx = db.transaction()?;

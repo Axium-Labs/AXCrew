@@ -46,6 +46,18 @@ export type HostPermissionChanges = { surface?: 'computer' | 'browser'; target?:
 export const axHostPermissions = (changes?: HostPermissionChanges) => invoke<HostPermissions>('ax_host_permissions', { changes: changes ?? null })
 export type AxSubagentSettings = { max_depth: number; max_concurrent: number }
 export const axSubagentSettings = (cwd: string, scope: CapabilityScope, settings?: Partial<AxSubagentSettings>, reset = false) => invoke<AxSubagentSettings>('ax_subagent_settings', { cwd, scope, settings: settings ?? null, reset })
+export type GoalValidator = { id: string; version: string; timeout_seconds: number; replay_safe: boolean } & (
+  { kind: 'command'; command: string; reference: string } | { kind: 'http'; url: string } | { kind: 'host'; tool: string; input: Record<string, unknown> }
+)
+export type AxGoalSettings = {
+  enabled: boolean
+  mode: 'off' | 'deterministic' | 'model'; acceptance: string[]; deliverables: string[]; required_successful_calls: string[]
+  validators: GoalValidator[]; validation_combination: 'all' | 'any'
+  max_rounds: number; max_seconds: number; max_tokens: number; max_cost_microusd: number
+  input_microusd_per_million: number | null; output_microusd_per_million: number | null
+  max_stagnant_checks: number; stagnant_seconds: number; max_unobserved_checks: number; stagnation_action: 'pause' | 'request_human'
+}
+export const axGoalSettings = (cwd: string | undefined, scope: CapabilityScope, settings?: AxGoalSettings, reset = false) => invoke<AxGoalSettings>('ax_goal_settings', { cwd: cwd ?? null, scope, settings: settings ?? null, reset })
 export type ScopedCapability = { scope?: CapabilityScope; enabled?: boolean; status?: string; source?: string }
 export type AxMod = ScopedCapability & { name:string;description:string;version?:string }
 export type AxAgent = ScopedCapability & { name: string; description: string }

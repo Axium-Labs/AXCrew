@@ -6,6 +6,21 @@ interfaces: the control plane (`crates/server`), the desktop client
 control plane over the REST/WebSocket API and nothing else; neither client links
 against server internals.
 
+Local AX Goal settings reuse the existing native AX configuration bridge; AX
+owns policy validation/persistence and Runtime usage/permissions. Distributed
+Goal snapshots use the existing Crew Workflow checkpoint CAS and worker fencing,
+as documented in [distributed-collaboration.md](../distributed-collaboration.md).
+They add no Crew scheduler, independent quota system or Session database.
+
+Ordinary chat questions reuse AX's request/answer lifecycle. Transports expose
+`agent_question` and retain waiting metadata; Scheduler parks the existing task
+as `waiting_user`. The session domain validates answers, and the task repository
+atomically claims a question for one queued resume. The API exposes `/answer` and
+treats `/message` text as an answer while parked. Main/side chat share one question
+card; AX remains the authoritative transcript and task identity source. Crew task
+output holds the transient question/queued answer, without a separate question
+store or scheduling loop. Event history redacts question/answer content.
+
 ## Documents
 
 | Document | Contents |
@@ -109,8 +124,14 @@ selector never validates a remote directory on the gateway disk.
 turn changes, routes transcript review requests, and opens Files through the shared workspace layout. `UnifiedFilePanel.tsx` owns review selection, open document tabs,
 the lazy directory explorer and Markdown preview/source. Switching side-panel
 sections preserves these tabs; changing conversation/workspace resets them.
+`store/fileEdits.ts` holds original text and editable drafts by workspace/path for
+the current app run, preserving drafts across component unmounts and navigation.
 The native commands in `src-tauri/src/lib.rs` list complete directories and read
 bounded UTF-8 text on the blocking pool, checking canonical workspace containment.
+`src-tauri/src/workspace_edit.rs` saves existing text files on that pool with a
+256 KiB bound, original-content comparison and staged replacement. It serializes
+Crew saves, preserves read-only/mode flags and cleans its staging file on failure;
+external programs remain outside the save lock. Historical diffs are not rewritten.
 Only local desktop sessions use those filesystem commands; remote/SSH sessions
 review saved changes without reading local lookalike paths. This does not change
 the control-plane REST/WebSocket contracts.
@@ -126,6 +147,19 @@ semantics and descriptions; the settings card has no explicit Quit button. The n
 and routes explicit tray quit through the same runtime shutdown path.
 The existing `set_minimize_on_close` command now returns the persisted boolean;
 `get_minimize_on_close` reads it. REST/WebSocket and Android are unchanged.
+
+### Desktop completion attention
+
+`store/attention.ts` persists unread completion IDs and bounded event deduplication,
+tracking focus and visible chat identities only in memory. `lib/live.ts` forwards
+completed/failed task events to `lib/completionNotifications.ts`, which applies
+the foreground/background policy, resolves conversation titles and serializes
+native icon updates. `CompletionDot.tsx` renders the shared unread state in
+navigation, Recent, project sessions and the side-chat tab. Main and side chat
+register only their visible conversations and acknowledge results while focused.
+`src-tauri/src/completion_attention.rs` handles taskbar overlays, tray badges,
+focus-safe attention requests and embedded asynchronous Windows chime playback.
+No server, AX or Android contracts change.
 
 ### Desktop system telemetry
 
@@ -168,3 +202,29 @@ orchestration module handles CAS scope policy, whole-Workflow control,
 reassignment and partial batch results; the API only authenticates and delegates.
 AX retains ACP execution, settings validation, approvals and native Long Project
 history. See [workbench scope and command contracts](../distributed-collaboration.md).
+
+
+### Shared desktop selection control
+
+`apps/desktop/src/components/ui/select.tsx` owns single-selection dropdowns for
+settings and distributed collaboration. It wraps Radix Select for grouped options,
+keyboard/focus handling, empty filter values, disabled choices and portal positioning;
+`select.css` owns their theme styling and loads with the component. The previous
+`settings-select.tsx` only re-exports this implementation. Page CSS supplies layout
+constraints; no page owns a separate selection popup or depends on loading Settings
+for styling. This is frontend presentation and does not alter API or stored values.
+
+
+Distributed instance deletion uses the existing orchestration/storage transaction.
+Serde-defaulted `Cluster.removed_instances` holds disabled, credential-free metadata
+for historical Host/AX names while active registration, credentials and scheduling
+remain in `instances`. No SQL table or AX runtime store is deleted. The API authorizes
+admin deletion; the orchestration layer checks task ownership/pinning, selected active
+Workflow policy and native-command execution before moving registration to history.
+
+
+`ui/disclosure.tsx` owns app-styled advanced/expandable sections. It uses the shared
+Button, Lucide chevron and its automatically imported stylesheet, with local open
+state and stable ARIA IDs. Collapsing hides mounted children so form drafts survive.
+The distributed views/dialogs use this component for requirements, previews, tool
+information and history; browser-native summary styling is no longer involved.

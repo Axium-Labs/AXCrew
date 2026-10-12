@@ -61,6 +61,13 @@
 .unified-document .session-markdown pre{padding:16px;border:1px solid var(--session-border);border-radius:9px;background:var(--session-bg);overflow:auto}
 .unified-document .session-markdown table{display:block;max-width:100%;overflow:auto}
 .unified-code-view{margin:0;min-height:100%;padding:12px 22px 32px;font:12px/1.8 var(--font-mono,monospace);tab-size:4;white-space:pre;width:max-content;min-width:100%}
+.unified-edit-action{height:30px;padding:0 10px;border:1px solid var(--session-border);border-radius:7px;background:transparent;font-size:12px!important;white-space:nowrap}
+.unified-edit-controls{display:flex;align-items:center;gap:6px;flex:none}
+.unified-edit-status{font-size:11px;color:var(--session-muted);white-space:nowrap}
+.unified-save-notice,.unified-edit-error{padding:0 20px 10px;flex:none}
+.unified-edit-error{font-size:12px;color:var(--color-danger);overflow-wrap:anywhere}
+.unified-file-editor{flex:1;min-height:180px;width:100%;resize:none;border:0;border-radius:0;background:var(--session-bg);color:var(--session-text);padding:12px 22px 32px;font:12px/1.8 var(--font-mono,monospace);tab-size:4;white-space:pre;overflow:auto;outline-offset:-2px}
+.unified-file-editor:focus-visible{outline:2px solid var(--color-accent)}
 .unified-review-heading{display:flex;align-items:center;gap:15px;padding:18px 20px 8px;flex:none;font-size:12px}
 .unified-review-heading>span:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .unified-review-switch{display:flex;gap:4px;flex:none;margin:4px 20px 12px}

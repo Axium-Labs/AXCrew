@@ -947,6 +947,57 @@ pub fn checkpoint(
         Ok(result)
     })
 }
+pub fn remove_instance(db: &Db, id: &str) -> Result<()> {
+    db.cluster_update(|state| {
+        if state.removed_instances.contains_key(id) {
+            return Ok(());
+        }
+        ensure!(state.instances.contains_key(id), "instance missing");
+        ensure!(
+            !state.tasks.values().any(|t| !t.terminal()
+                && (t.owner.as_deref() == Some(id)
+                    || t.spec.requirements.instance_id.as_deref() == Some(id))),
+            "AX has unfinished assigned tasks; reassign or cancel them before deletion"
+        );
+        ensure!(
+            !state.workflows.values().any(|w|
+                !matches!(w.status.as_str(), "completed" | "cancelled")
+                    && w.collaboration.participants.contains_key(id)),
+            "AX is a selected member of an unfinished collaboration; remove it from participants first"
+        );
+        ensure!(
+            !state.instance_commands.values().any(|c|
+                c.instance_id == id && c.status == "executing"),
+            "AX native management is executing; wait for its outcome before deletion"
+        );
+        let mut instance = state.instances.remove(id).expect("checked instance");
+        instance.enabled = false;
+        instance.remote_management = false;
+        instance.credential_hash.clear();
+        instance.incarnation.clear();
+        for command in state.commands.values_mut().filter(|c| {
+            matches!(c.status.as_str(), "pending" | "executing")
+                && state.tasks.get(&c.task_id).is_some_and(|t| {
+                    t.owner.as_deref() == Some(id)
+                        || t.attempts.last().is_some_and(|a| a.instance_id == id)
+                })
+        }) {
+            command.status = "failed".into();
+            command.result = Some("AX instance deleted; execution command cannot be delivered".into());
+        }
+        for command in state.instance_commands.values_mut().filter(|c|
+            c.instance_id == id && c.status == "pending")
+        {
+            command.status = "failed".into();
+            command.result = Some(serde_json::json!({"error":"AX instance deleted before command execution"}));
+        }
+        let name = instance.name.clone();
+        state.removed_instances.insert(id.to_owned(), instance);
+        state.event(unix_now(), "instance.removed", None, Some(id), &name);
+        Ok(())
+    })
+}
+
 pub fn enable(db: &Db, kind: &str, id: &str, enabled: bool) -> Result<()> {
     db.cluster_update(|state| {
         match kind {

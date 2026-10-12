@@ -9,6 +9,7 @@ import type { Member } from '../lib/types'
 import { DiffLines } from './SessionTranscript'
 import { MessageMarkdown } from './MessageMarkdown'
 import { Menu } from './ui/menu'
+import { editableText, fileEditKey, savedText, useFileEdits } from '../store/fileEdits'
 import './unified-file-panel.css'
 
 type FileEntry = { name: string; is_dir: boolean; size: number }
@@ -65,22 +66,60 @@ function TextDocument({ root, file, available, unavailable, onReference }: {
   root?: string; file: FileTab; available: boolean; unavailable: string; onReference?: (path: string) => void
 }) {
   const lang = useLang(s => s.lang)
-  const [mode, setMode] = useState<'source' | 'preview'>(markdown(file.path) ? 'preview' : 'source')
+  const queryClient = useQueryClient()
+  const editKey = fileEditKey(root, file.path)
+  const edit = useFileEdits(s => s.edits[editKey])
+  const [mode, setMode] = useState<'source' | 'preview'>(edit ? 'source' : markdown(file.path) ? 'preview' : 'source')
+  const [notice, setNotice] = useState('')
+  const saving = edit?.saving ?? false
   const content = useQuery({
     queryKey: ['file-panel-content', root, file.path],
     queryFn: () => invoke<string>('read_workspace_file', { root, relative: file.path }), enabled: available, retry: false,
   })
+  const save = async () => {
+    const edit = useFileEdits.getState().edits[editKey]
+    if (!edit || edit.saving || !available || !root || edit.text === editableText(edit.original)) return
+    const text = savedText(edit)
+    useFileEdits.getState().put(editKey, { ...edit, saving: true, error: undefined })
+    setNotice('')
+    try {
+      await invoke('write_workspace_file', { root, relative: file.path, content: text, expected: edit.original })
+      // An in-flight read must not replace the newly saved query data.
+      await queryClient.cancelQueries({ queryKey: ['file-panel-content', root, file.path] })
+      queryClient.setQueryData(['file-panel-content', root, file.path], text)
+      void queryClient.invalidateQueries({ queryKey: ['file-panel-directory', root] })
+      useFileEdits.getState().remove(editKey)
+      setMode(markdown(file.path) ? 'preview' : 'source')
+      setNotice(lang === 'zh' ? '已保存到文件' : 'Saved to file')
+    } catch (error) {
+      useFileEdits.getState().put(editKey, { ...edit, saving: false, error: String(error) })
+    }
+  }
+  const text = edit?.text ?? content.data
   return <>
     <div className="unified-content-toolbar">
       <div className="unified-mode-switch" aria-label={lang === 'zh' ? '文件查看方式' : 'File view'}>
         {markdown(file.path) && <button aria-pressed={mode === 'preview'} onClick={() => setMode('preview')}>{lang === 'zh' ? '预览' : 'Preview'}</button>}
         <button aria-pressed={mode === 'source'} onClick={() => setMode('source')}>{lang === 'zh' ? '源码' : 'Source'}</button>
       </div>
-      <span className="unified-content-size">{content.data !== undefined ? sizeLabel(new TextEncoder().encode(content.data).length) : file.size !== undefined ? sizeLabel(file.size) : ''}</span>
+      <span className="unified-content-size">{text !== undefined ? sizeLabel(new TextEncoder().encode(text).length) : file.size !== undefined ? sizeLabel(file.size) : ''}</span>
+      {available && (edit ? <div className="unified-edit-controls">
+        <span className="unified-edit-status">{edit.text !== editableText(edit.original) ? (lang === 'zh' ? '未保存' : 'Unsaved') : ''}</span>
+        <button className="unified-edit-action" title={lang === 'zh' ? '保存（Ctrl/Cmd+S）' : 'Save (Ctrl/Cmd+S)'} disabled={saving || edit.text === editableText(edit.original)} onClick={() => void save()}>{saving ? (lang === 'zh' ? '保存中…' : 'Saving…') : (lang === 'zh' ? '保存' : 'Save')}</button>
+        <button className="unified-edit-action" disabled={saving} onClick={() => { useFileEdits.getState().remove(editKey); setNotice(''); void content.refetch() }}>{lang === 'zh' ? '取消' : 'Cancel'}</button>
+      </div> : <button className="unified-edit-action" disabled={content.data === undefined || !!content.error || content.isFetching} onClick={() => {
+        if (content.data === undefined) return
+        useFileEdits.getState().put(editKey, { original: content.data, text: editableText(content.data), saving: false })
+        setMode('source'); setNotice('')
+      }}>{lang === 'zh' ? '编辑' : 'Edit'}</button>)}
       {available && onReference && root && <button className="unified-reference" onClick={() => onReference(join(root, file.path))}>{lang === 'zh' ? '引用到消息' : 'Reference'}</button>}
     </div>
+    {edit?.error && <div className="unified-edit-error" role="alert">{edit.error}</div>}
+    {notice && <div className="unified-edit-status unified-save-notice" role="status">{notice}</div>}
     <div className={`unified-document ${mode === 'preview' ? 'is-markdown' : 'is-source'}`}>
-      {!available ? <Empty title={unavailable} /> : content.isPending ? <Empty title={lang === 'zh' ? '读取中…' : 'Loading…'} /> : content.error ? <div className="unified-read-error" role="alert"><p>{String(content.error)}</p><button onClick={() => void content.refetch()}>{lang === 'zh' ? '重试' : 'Retry'}</button></div>
+      {!available ? <Empty title={unavailable} /> : edit ? mode === 'preview' ? <MessageMarkdown text={edit.text} /> : <textarea className="unified-file-editor" aria-label={lang === 'zh' ? '编辑文件内容' : 'Edit file content'} value={edit.text} disabled={saving} spellCheck={false} autoFocus onChange={event => useFileEdits.getState().put(editKey, { ...edit, text: event.target.value, error: undefined })} onKeyDown={event => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); event.stopPropagation(); if (!event.nativeEvent.isComposing) void save() }
+      }} /> : content.isPending ? <Empty title={lang === 'zh' ? '读取中…' : 'Loading…'} /> : content.error ? <div className="unified-read-error" role="alert"><p>{String(content.error)}</p><button onClick={() => void content.refetch()}>{lang === 'zh' ? '重试' : 'Retry'}</button></div>
         : mode === 'preview' ? <MessageMarkdown text={content.data} /> : <pre className="unified-code-view"><code>{content.data}</code></pre>}
     </div>
   </>

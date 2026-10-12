@@ -181,6 +181,7 @@ pub fn sessions(project: &LocalProject) -> Result<Vec<Value>> {
     for row in rows {
         let (id, title, created_at, updated_at) = row?;
         let (messages, preview) = preview(project, &id);
+        let title = session_title(&title, &preview);
         sessions.push(json!({
             "id": id,
             "title": title,
@@ -191,6 +192,36 @@ pub fn sessions(project: &LocalProject) -> Result<Vec<Value>> {
         }));
     }
     Ok(sessions)
+}
+
+/// ACP's initial title is a placeholder; keep explicit titles, otherwise show
+/// the user's first request without changing AX's store.
+pub fn session_title(title: &str, preview: &str) -> String {
+    let title = title.trim();
+    if !title.is_empty() && !title.eq_ignore_ascii_case("ACP session") {
+        return title.to_owned();
+    }
+    let preview = preview.split_whitespace().collect::<Vec<_>>().join(" ");
+    if preview.is_empty() {
+        "未命名会话".into()
+    } else {
+        preview.chars().take(80).collect()
+    }
+}
+
+pub fn title_of(project: &LocalProject, session: &str) -> Option<String> {
+    let connection =
+        Connection::open_with_flags(database(project), OpenFlags::SQLITE_OPEN_READ_ONLY).ok()?;
+    connection
+        .busy_timeout(std::time::Duration::from_secs(2))
+        .ok()?;
+    let title: String = connection
+        .query_row("SELECT title FROM sessions WHERE id=?1", [session], |row| {
+            row.get(0)
+        })
+        .ok()?;
+    let (_, preview) = preview(project, session);
+    Some(session_title(&title, &preview))
 }
 
 fn to_update(session: &str, message: &Value) -> Option<Value> {

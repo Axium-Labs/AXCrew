@@ -39,6 +39,14 @@ Pairing: `issued(code hash, expiry)` → `redeemed(public key, challenge)` → `
 
 Task: `pending` → `ready` when every dependency completes → `running` → `completed` / `failed` / `cancelled` or `waiting_permission` / `waiting_user`. A failed/cancelled dependency blocks descendants until retry policy or explicit user action. Retry increments attempt and returns task to `ready`; validate acyclicity before insertion. Concurrent ready tasks obey global and member limits. Device loss marks active run interrupted; after reconnect resume its AX session, with existing AX tool recovery semantics.
 
+Planning-question suspension: `running` → `waiting_user` only after AX's prompt
+response confirms it is parked. No completion event, finished timestamp or
+successful dependency release is produced. An answer atomically verifies the
+status and question ID, stores the structured answer in the existing task output,
+and moves the same task to `ready`; normal dispatch resumes the same AX session.
+The original task input stays unchanged. Restart leaves `waiting_user` parked;
+queued/in-flight answer identities survive the existing ready/run recovery.
+
 Remote connection: `offline` → `connecting` → `authenticating` → `online` ↔ `busy`; heartbeat timeout/socket close → `offline`; reconnect verifies a fresh challenge, refreshes capabilities, and resumes eligible interrupted work. `error` records auth/protocol failures. Remote AX initiates WSS; no inbound AX port is required. WSS certificate verification is mandatory outside explicit local development settings.
 
 ## Delivery and verification
@@ -84,3 +92,11 @@ orchestration module handles CAS scope policy, whole-Workflow control,
 reassignment and partial batch results; the API only authenticates and delegates.
 AX retains ACP execution, settings validation, approvals and native Long Project
 history. See [workbench scope and command contracts](../distributed-collaboration.md).
+
+
+Instance deregistration moves an idle active instance without unfinished assignment or membership references into the existing
+Cluster aggregate's serde-defaulted `removed_instances` map, clears credential/incarnation
+and disables management. It never removes Task/Attempt/Workflow/Session/Event/artifact
+history or Host inventory. The same transaction rejects unfinished ownership/pinning,
+unfinished explicit participation and executing native management; pending native and
+undeliverable execution commands fail. Repeated deletion retains the original event.

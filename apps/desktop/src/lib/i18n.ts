@@ -645,6 +645,7 @@ const newCopy:Record<string,[string,string]>={
  'usage.warning.unreadable_projects':['有 {count} 个项目的会话列表无法读取，这部分用量没有计入。','{count} project session list(s) could not be read; their usage is not included.'],
  'usage.warning.unreadable_sessions':['有 {count} 个会话的历史记录无法打开，这部分用量没有计入。','{count} conversation history file(s) could not be opened; their usage is not included.'],
  'usage.warning.damaged_lines':['跳过了 {count} 条损坏的历史记录。','Skipped {count} damaged history record(s).'],
+ 'settings.goal':['目标','Goal'],
  'settings.personalization':['个性化','Personalization'],
 };
 for(const [key,values] of Object.entries(newCopy)){zh[key]=values[0];en[key]=values[1]}

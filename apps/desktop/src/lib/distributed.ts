@@ -12,11 +12,22 @@ export type Collaboration = {kind:string;paused:boolean;participants:Record<stri
 export type ExecutionCommand = {id:string;task_id:string;generation:number;session_id:string;kind:string;request_id?:string|null;text:string;status:string;result:string|null;created_at:number}
 export type Workflow = {id:string;title:string;project_id:string;root_task_id:string;status:string;revision:number;state:Record<string,unknown>;updated_at:number;collaboration?:Collaboration}
 export type InstanceCommand = {id:string;instance_id:string;incarnation:string;action:string;scope:string;project_id:string|null;input:unknown;status:string;result:unknown}
-export type Cluster = {revision:number;server_time:number;hosts:Record<string,ClusterHost>;instances:Record<string,AxInstance>;tasks:Record<string,DistributedTask>;artifacts:Record<string,ClusterArtifact>;events:ClusterEvent[];workflows:Record<string,Workflow>;commands?:Record<string,ExecutionCommand>;instance_commands?:Record<string,InstanceCommand>}
+export type Cluster = {revision:number;server_time:number;hosts:Record<string,ClusterHost>;instances:Record<string,AxInstance>;removed_instances?:Record<string,AxInstance>;tasks:Record<string,DistributedTask>;artifacts:Record<string,ClusterArtifact>;events:ClusterEvent[];workflows:Record<string,Workflow>;commands?:Record<string,ExecutionCommand>;instance_commands?:Record<string,InstanceCommand>}
 export const workflowTasks=(state:Cluster,w:Workflow)=>Object.values(state.tasks).filter(t=>t.spec.workflow_id===w.id||t.id===w.root_task_id)
+export const historyInstance=(state:Cluster,id:string)=>state.instances[id]??state.removed_instances?.[id]
+export function instanceRemovalBlockers(state:Cluster,id:string,label:(cn:string,en:string)=>string):string[]{
+  const reasons:string[]=[]
+  const tasks=Object.values(state.tasks).filter(t=>!['completed','failed','cancelled'].includes(t.status)&&(t.owner===id||t.spec.requirements.instance_id===id))
+  const goals=Object.values(state.workflows).filter(w=>!['completed','cancelled'].includes(w.status)&&id in (w.collaboration?.participants??{}))
+  if(tasks.length)reasons.push(label('请先重新分配或取消关联任务：','Reassign or cancel assigned tasks first: ')+tasks.map(t=>t.spec.title).join('、'))
+  if(goals.length)reasons.push(label('请先从未完成协作中移除此成员：','Remove this member from unfinished collaborations first: ')+goals.map(w=>w.title).join('、'))
+  if(Object.values(state.instance_commands??{}).some(c=>c.instance_id===id&&c.status==='executing'))reasons.push(label('原生配置操作正在执行，请等待结果后删除。','Native management is executing; wait for its outcome before deleting.'))
+  return reasons
+}
 export const distributed = {
   state:()=>api<Cluster>('/api/distributed'),
   enroll:(body:unknown)=>api<{instance:AxInstance;token:string}>('/api/distributed/enroll','POST',body),
+  removeInstance:(id:string)=>api(`/api/distributed/instances/${encodeURIComponent(id)}`,'DELETE'),
   configure:(id:string,body:Capabilities)=>api(`/api/distributed/instances/${encodeURIComponent(id)}/capabilities`,'POST',body),
   submit:(body:unknown)=>api<DistributedTask>('/api/distributed/tasks','POST',body),
   control:(id:string,action:'cancel'|'retry'|'pause'|'resume')=>api(`/api/distributed/tasks/${encodeURIComponent(id)}/${action}`,'POST',{}),

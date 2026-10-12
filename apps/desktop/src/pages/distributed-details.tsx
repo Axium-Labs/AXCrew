@@ -1,3 +1,5 @@
+import { Disclosure } from '../components/ui/disclosure'
+import { Select } from '../components/ui/select'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { distributed, type AxInstance, type Capabilities, type ClusterHost } from '../lib/distributed'
@@ -49,10 +51,10 @@ export function ConfigureInstance({instance,close,run,busy,label,error}:{instanc
           <span>{label('点选本机 AX 内置工具（以目标机器 AX 为准）','Pick from this machine’s AX built-in tools (the target AX decides)')}</span>
           <div>{builtins.map(tool=><button key={tool.name} type="button" title={tool.description||undefined} aria-pressed={chosenTools.includes(tool.name)} onClick={()=>toggleTool(tool.name)}>{tool.name}</button>)}</div>
         </div>}
-        <Field label={label('执行权限','Execution permissions')}><select value={form.permissions||'ask'} onChange={e=>setForm({...form,permissions:e.target.value})}><option value="ask">Ask</option><option value="allow">Allow</option><option value="deny">Deny</option></select></Field>
+        <Field label={label('执行权限','Execution permissions')}><Select label={label('执行权限','Execution permissions')} value={form.permissions||'ask'} onChange={permissions=>setForm({...form,permissions})} options={['ask','allow','deny'].map(value=>({value,label:value[0].toUpperCase()+value.slice(1)}))}/></Field>
       </div>
-      <details><summary>{label('配置差异预览','Configuration difference preview')}</summary><pre>{JSON.stringify({from:caps,to:Object.fromEntries(['roles','skills','mcp','tools','models','permissions','environments'].map(key=>[key,list(form[key]??'')]))},null,2)}</pre></details>
-      <label className="cluster-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>{label('确认实例配置影响使用此 AX 的全部 Goal','Confirm instance settings affect all Goals using this AX')}</label>
+      <Disclosure title={<>{label('配置差异预览','Configuration difference preview')}</>}> <pre>{JSON.stringify({from:caps,to:Object.fromEntries(['roles','skills','mcp','tools','models','permissions','environments'].map(key=>[key,list(form[key]??'')]))},null,2)}</pre></Disclosure>
+      <label className="cluster-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>{label('确认实例配置影响使用此 AX 的全部目标','Confirm instance settings affect all Goals using this AX')}</label>
       <Button disabled={busy||!confirmed||list(form.models??'').length>1} onClick={()=>void run(async()=>{
         const next=Object.fromEntries(['roles','skills','mcp','tools','models','permissions','environments'].map(key=>[key,list(key==='permissions'?(form[key]||'ask'):(form[key]??''))])) as Capabilities
         await distributed.configure(instance.id,next)

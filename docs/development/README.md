@@ -1,5 +1,10 @@
 # Development
 
+Production Rust modules/Cargo targets do not depend on private, untracked test
+files. Keep local regression wiring in a disposable source overlay and separately
+verify the intended formal file set with build, test compilation and static checks.
+Private test sources and generated artifacts remain local.
+
 ## Prerequisites
 
 - Rust 1.92+ (edition 2024) with the MSVC toolchain on Windows.
@@ -83,6 +88,24 @@ The desktop UI has one palette system, defined in `apps/desktop/src/styles.css`:
   hand-rolled session dialogs match its radius, surface, overlay and
   animation.
 
+### Shared single-selection control
+
+Import `Select` and `SelectOption` from `components/ui/select`. Its component owns
+popup behavior and automatically loads its stylesheet; consumers need no settings
+page CSS. Supply `label`, `value`, `onChange` and `options` (`value`, `label`, optional
+`group` / `disabled`). Optional `className`, `id`, `name`, `placeholder` and
+`disabled` support different layouts. Empty string is a valid option/filter value;
+real IDs cannot collide with the internal encoding. Group headings, selected
+checks, keyboard selection, scrolling, popup collision handling and Escape are
+shared. Escape closes the popup before its parent dialog. `SettingsSelect` is a
+compatibility export of the same implementation, without separate behavior.
+
+The distributed views and dialogs use this control for collaboration, AX, Host,
+status, project, operation, permissions, placement and Long Project selectors.
+Settings appearance, model/provider, capability, Goal and host permission callers
+share the same implementation. Keep page-specific CSS limited to width/layout;
+change common selection styling in `components/ui/select.css`.
+
 ## Android
 
 ```powershell
@@ -120,3 +143,23 @@ Standalone test suites, their tooling and work logs are maintained locally and
 excluded from the published repository. Published build commands do not depend
 on these local files. Source-embedded Rust unit tests remain runnable with
 `cargo test --workspace`.
+
+
+Workbench validation covers shared-AX/multi-Goal placement, shared Host capacity,
+whole-Workflow pause/recovery, CAS and incarnation/generation fencing, scoped
+native settings, partial batch results, actual ACP guidance and one-request
+approvals, and native Long Project checkpoint continuity. Locally maintained
+process scenarios use real AX workers and Crew with a controlled model endpoint;
+UI/browser interaction scenarios cover both themes and narrow/wide layouts.
+Those local test sources/results are not public build dependencies. Native
+management paths must be tested against target AX commands, not only HTTP mocks.
+
+
+### Shared disclosure control
+
+Use `components/ui/disclosure` for expandable information and advanced form sections.
+`Disclosure` accepts `title`, `children`, optional `defaultOpen` and `className`; it
+loads its own stylesheet. Its shared Button provides Enter/Space, `aria-expanded`,
+`aria-controls`, a rotating Lucide chevron and keyboard focus styling. Collapsing
+hides rather than unmounts children, preserving form drafts. Distributed views and
+all related dialogs use it instead of browser-native details/summary controls.

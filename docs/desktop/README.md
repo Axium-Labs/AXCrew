@@ -7,6 +7,51 @@ the settings surfaces and their behaviour.
 
 ## Settings pages
 
+### Goal policies
+
+Settings → Goal (`/settings/goal`) edits AX's global defaults or the selected
+project's Goal template. **Enable Goal** opts ordinary new tasks into this scoped
+policy, saved through AX's `enabled` field (default false). Switch edits apply
+with Save policy; failed saves retain the draft. Disabling preserves all rules
+and explicit Goal commands. Existing Goals, parked answers and resume actions
+keep their saved policy. The matching AX build supports automatic Goal admission
+in the shared CLI/TUI/ACP prompt path; distributed workers retain controller
+policies. It exposes deterministic/model validation, All/Any
+conditions, Command/HTTP/registered-host/MCP validators with ID/version/reference,
+timeouts and explicit safe replay, cumulative execution caps and conservative
+progress thresholds/action. Advanced host input is a JSON object; reserved Goal
+context is supplied by Runtime. Save validates configuration without executing it.
+
+The native `ax_goal_settings` bridge calls `ax goal-settings --scope global|project`,
+with complete GoalConfig JSON on stdin for writes and `--reset` for reset/inherit.
+AX owns persistence (`$AX_HOME/config.json.goal` or `.ax/goal.json`); Crew keeps no
+duplicate policy store. Global settings work without a workspace; project writes
+validate the selected workspace. Failed reads offer retry; failed writes retain
+the draft and show AX's error. The matching AX build is required.
+
+Defaults affect explicitly created Goals and, when enabled, ordinary new tasks.
+Already saved Goals keep their own policies. Zero budgets add no cap; round/time
+execution remains in Runtime. Token
+and cost enforcement require complete measured data; estimates and unavailable
+billing never claim precise hard caps. The page distinguishes retained local state,
+background execution and Crew-owned Durable Task takeover. It does not enable
+automatic resume or expand host permissions. This local AX settings surface does
+not change remote-device/Android settings contracts.
+
+Acceptance rules, Custom validators, Execution budget and Progress and recovery
+start collapsed. Click their full-width headings (or press Enter/Space) to reveal
+fields independently. Collapsing retains edits, and Save includes hidden fields.
+The forms use themed inputs and visible textarea borders, with keyboard focus
+and one-column fields on narrow windows.
+
+The cost limit is entered in USD, and input/output estimated rates in USD per
+million tokens. Decimal amounts support up to six places and convert exactly to
+the existing integer micro-USD fields; saved values display in USD without
+changing their amount. A zero limit adds no cap. A blank rate is unconfigured,
+while a zero rate means free usage. Negative, excessive-precision and unsafe
+integer amounts block saving rather than being rounded. AX persistence and the
+native bridge protocol retain their existing units and fields.
+
 Connections lives in the outer **Connections** (`/connect`) page, with Control
 this computer, Control other devices and SSH tabs, including phone authorization,
 paired AX devices and persisted OpenSSH hosts. Settings has no duplicate
@@ -19,6 +64,8 @@ a URL to click or copy; closing the dialog cancels waiting. AX stores the
 credentials and refreshes models after authorization.
 
 Codex account sign-in first offers **Browser login** and **Device-code login**.
+Both choices have equal width and the same neutral styling; neither is presented
+as the default or primary action. Narrow dialogs stack the two equal choices.
 Browser mode opens the displayed authorization URL on an explicit click and AX
 receives a PKCE-protected local callback. Device mode displays the full one-time
 code in a separate selectable block, with a Copy code button and 15-minute
@@ -45,8 +92,9 @@ request. It does not retain a separate Crew setting or display simulated success
 The bridge and local chat runtime share Crew's existing `AX_HOME`: an explicit
 environment override, otherwise the user's `~/.ax` directory.
 
-Computer Use defaults off; screenshots default on; node/image defaults are
-1200/1280. AX returns supported status and built-in limits (1–10000 nodes,
+Computer Use and screenshots default on; explicit saved disable settings are
+preserved by AX, including when upgrading. Missing settings use AX's defaults;
+node/image defaults are 1200/1280. AX returns supported status and built-in limits (1–10000 nodes,
 320–4096 image pixels on the longest edge). Switch changes save immediately;
 integer edits save on blur or Enter. Controls lock during writes; failures retain
 confirmed values, failed reads offer retry, and invalid numbers remain editable.
@@ -63,6 +111,9 @@ same global AX home. No workspace/gateway/model is required. Rules can be added,
 changed to ask/always allow/deny, or removed. Removing returns access to ask.
 Application paths and website origins wrap within the available width; controls
 lock during writes, failed writes retain confirmed values, and failed reads offer retry.
+Application and website rule selectors, including new-rule selectors, use the
+same themed `SettingsSelect` as model and execution settings. Inputs and action
+buttons share the standard control height, radius and keyboard focus treatment.
 
 The Browser page's Page Interactions tiles and simulated navigation controls have
 been removed. Its options explain AX's owned Playwright sessions. Actual browser
@@ -132,6 +183,88 @@ the application as already quitting.
 
 ## Chat execution view
 
+### Completion reminders and unread results
+
+The desktop listens globally for live `task.completed` and `task.failed` events,
+including when another page or conversation is open. Its default completion
+policy follows Codex's unfocused mode: switching to another application,
+minimizing Crew or hiding it to the tray triggers a short Windows chime and a
+system toast. Windows taskbar attention flashes without taking focus; the
+taskbar overlay and tray icon retain a small iris dot while unread results exist.
+The chime is embedded in the desktop executable and uses asynchronous native
+playback, so it does not depend on WebView autoplay. OS notification permission
+affects toasts only. Non-Windows shells use the native badge-count API; the
+embedded chime and taskbar overlay are Windows-specific.
+
+While Crew is focused, another conversation's completion only adds unread dots
+to Recent, its project row and the Sessions navigation. The currently visible
+conversation stays quiet and is considered read. Hidden main/side chats are not
+acknowledged; the side-chat tab also shows unread results. Returning to the app
+clears results only for the conversation actually being viewed, retaining other
+unread dots and icon badges. Opening a result or deleting its conversation clears
+its dot. Failure results follow the same policy; cancellation is not a completion
+reminder. Notifications use the conversation title rather than final-answer text.
+
+`store/attention.ts` persists unread turn IDs/conversation identities and bounded
+event deduplication in localStorage. Focus and visible chat registrations are
+transient. Follow-up task IDs belong to the same device/AX-session identity, so
+unread state is shared by Recent and project rows and clears across all turns
+when read. Restart restores badges without replaying sounds or marking historical
+completed tasks unread. This is a live desktop reminder, not background push when
+the app is fully quit; events missed while disconnected are not replayed.
+
+`lib/completionNotifications.ts` owns focus subscriptions, toast permission and
+serialized native badge updates; `src-tauri/src/completion_attention.rs` owns
+the native `completion_attention {unreadCount, alert}` command. The existing
+REST/WebSocket contracts and AX runtime are unchanged.
+
+### Questions during ordinary chat
+
+Main chat and side chat show a compact floating question panel above the composer
+when AX calls `request_user_input`. It shares the composer’s left/right edges and width, with an 8 px gap and
+a 300 px height cap, and overlays the transcript without expanding its layout. Numbered option rows
+show labels, with descriptions on hover; an optional single-line text entry
+submits custom answers. The close control collapses the panel to a reopen chip
+without answering or discarding its draft. Clicking an option or submitting free text continues the
+same Crew task and AX session. Ordinary composer text can also answer the parked
+question; option IDs, labels and 1-based numbers select an offered option.
+Questions work independently of the automatic Goal switch and permission dialogs.
+
+While AX finishes parking, the choices remain disabled. A parked task uses the
+existing `waiting_user` status, releases its execution slot and is not marked
+completed or announced as a completion. Saved task state restores the current
+question after reopening the conversation or restarting Crew. Custom answer drafts
+use the existing per-conversation local draft store, keyed by task/question, so
+navigation and failed submissions retain them without mixing main/side chats.
+Answered tool receipts show the question and human-readable choice in history.
+
+`POST /api/sessions/{task_id}/answer` submits the question identity and one option
+or text answer. A transactional status/identity check rejects duplicate, stale,
+empty and invalid submissions. The existing `/message` route answers a parked
+question without creating a follow-up task; attachments/context are rejected for
+this answer path and retained by the composer. Gateway forwards structured
+`_meta.axGoal` Answer metadata with AX's saved goal/question identities through
+local, SSH and paired-device transports. AX must support these structured answers;
+its shared prompt path preserves the supplied identity rather than reinterpreting
+answer text against a different question. Question/task state is separate from
+permissions and never authorizes a tool.
+
+### Conversation history and execution
+
+Opening a local AX conversation shows its original transcript and composer
+together. The first Send records its Crew binding through `/api/sessions/attach`
+and sends `/api/sessions/{task_id}/message`, resuming the original AX session and
+workspace. There is no separate read-only or continue button. Existing adoption
+is reused; failed sends retain drafts and attachments. The local replay is kept
+visible as the view switches to the continued turn. Searching the list does not
+unload the selected conversation.
+
+Local indexes preserve explicit titles. Empty titles and `ACP session` use the
+first user message with whitespace collapsed (up to 80 characters); empty
+conversations show an untitled label. This changes the view, leaving AX's index
+and transcript intact. Already adopted placeholder titles also use this local
+index in the desktop. User-renamed titles keep priority.
+
 The chat area groups work by user turn. During work, thinking and progress prose
 appear inside one expandable process block with a static status label and elapsed
 time. Related calls remain in one group even when progress prose separates them;
@@ -142,7 +275,9 @@ Late replayed tools do not move that answer into the folded block.
 
 The main and side-chat composers can send during active work. Send (or Enter)
 adds guidance to the same task and AX goal without interrupting streaming or
-restarting tools. Stop remains a separate button. Guidance stays visible when
+restarting tools. The composer has one action button: during execution or a question wait, empty
+input shows Stop; adding guidance/answer text or attachments switches it to Send.
+Stop and Send are never displayed together in either main or side chat. Guidance stays visible when
 work details fold and survives history replay with a stable message ID. The
 Gateway forwards `_ax/steer` over the existing local/SSH/device connection and
 returns the current task only after AX acknowledges acceptance. Waiting for
@@ -191,6 +326,21 @@ The file tree can be hidden for more reading space. Markdown (`.md`, `.markdown`
 `.mdown`, case-insensitive) opens in rendered Preview with a Source switch; other
 UTF-8 text opens as source, including empty files. Refresh reloads directory
 listings and current text. Path copying and file references remain available.
+**Edit** opens a source textarea for a successfully loaded local file. **Save**
+or Ctrl/Cmd+S in the editor writes the file; **Cancel** discards the draft and
+reloads disk content. Markdown Preview renders the draft without saving it.
+Drafts retain the originally read text and survive refresh, tab closure, panel
+closure and conversation navigation for the current app run; they are not
+persisted across app exit. Editing locks while a save is in progress, and failures
+keep the draft visible. The native write command supports existing UTF-8 files
+up to 256 KiB, validates canonical workspace containment and compares disk
+bytes with the original read before replacing the file through a staged sibling.
+Deleted/unreadable files, oversized content and detected external edits fail
+without overwriting disk content. On a conflict, copy the draft before Cancel
+and reload, then apply it to the current text. This is an optimistic check;
+external programs are not locked across the final check and replacement.
+Homogeneous CRLF files keep their line endings on save. Successful writes update
+the current-file cache and explorer sizes; saved historical diffs remain unchanged.
 Arrow keys/Home/End navigate document tabs; Ctrl/Cmd+P within the file panel opens
 the workspace tree. At very narrow widths the tree overlays the reader and
 automatically hides after opening a file.
@@ -198,8 +348,8 @@ automatically hides after opening a file.
 Local file browsing requires the desktop app and works without a Crew member.
 Remote/SSH conversations can review saved diffs but cannot read remote paths
 through this computer's filesystem. Absolute tool paths can be previewed only
-when canonically inside the workspace. The reader is read-only and does not
-initialize Git repositories or revert files.
+when canonically inside the workspace. Editing uses the same local-only boundary
+and does not initialize Git repositories or revert historical changes.
 
 The composer auto-grows with the text and panel width, then scrolls once it
 reaches its cap. Enter sends, Shift+Enter adds a newline and IME confirmation
@@ -508,3 +658,6 @@ the native folder picker; browser previews use the workspace API. SSH browses
 directories as the login account. Paired AX lists only registered workspace
 roots, preserving the bridge allowlist; register a folder with AX on that host
 first. Removing a project retains members and existing conversation history.
+
+
+Goal 系统界面文案按当前语言显示：中文“目标”、英文“Goal”。设置导航使用共享 i18n 键 settings.goal，目标策略与分布式相关说明保持同一语言；API 字段、原生命令和用户内容保留原值。

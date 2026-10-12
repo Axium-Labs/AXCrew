@@ -72,6 +72,30 @@ pub enum TransportEvent {
     Update(Value),
 }
 
+/// Correlate a resumed planning answer with AX's saved goal and question.
+pub(super) fn prompt_params(session: &str, task: &Task) -> Result<Value> {
+    let prompt = task
+        .input
+        .as_str()
+        .map(str::to_owned)
+        .unwrap_or_else(|| task.input.to_string());
+    let mut params = json!({"sessionId":session,"prompt":[{"type":"text","text":prompt}]});
+    if let Some(output) = &task.output
+        && !output["answer"].is_null()
+    {
+        let goal = output["goal_id"]
+            .as_str()
+            .ok_or_else(|| anyhow!("AX omitted the saved question goal identity; update AX"))?;
+        let mut answer = output["answer"].clone();
+        answer
+            .as_object_mut()
+            .ok_or_else(|| anyhow!("invalid pending answer"))?
+            .remove("prompt");
+        params["_meta"] = json!({"axGoal":{"action":"answer","goal_id":goal,"answer":answer}});
+    }
+    Ok(params)
+}
+
 #[async_trait]
 pub trait Transport: Send + Sync {
     async fn execute(

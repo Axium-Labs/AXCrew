@@ -69,6 +69,24 @@ does not generate or revise the DAG with a model.
   the existing attachment payloads. Paired/SSH attachment restrictions remain.
   Guidance updates use `user_message_chunk`, `_ax.steering:true` and a stable
   `messageId` in live events and durable history.
+- Planning questions arrive as `payload.sessionUpdate: agent_question`, with
+  `{id,text,allowFreeText,options:[{id,label,description?}]}`. A prompt response
+  with `_meta.axGoal.waiting_for_user:true` parks the Crew task as `waiting_user`;
+  its `output` retains the question and AX `goal_id`. `finished_at` stays null.
+  `task.waiting_user` is emitted in place of `task.completed`. The durable event
+  index keeps question IDs, while the live event retains the complete question.
+- `POST /api/sessions/{task_id}/answer` accepts `{question_id,option_id}` or
+  `{question_id,text}` and returns the same Task, queued as `ready`. It validates
+  the pending question and answer atomically. Invalid, stale and duplicate answers
+  return the existing 400 error shape. The original task input and AX binding stay
+  intact; transient queued answer data stays in task output until execution settles.
+  The resumed ACP prompt carries `_meta.axGoal:{action:"answer",goal_id,answer}`.
+  This metadata is authoritative and does not grant tool permissions.
+- `/message` text sent to a conversation in `waiting_user` answers that question
+  instead of creating a new task. Option IDs, labels and 1-based numbers are
+  accepted; other text requires `allowFreeText`. Attachments/context are rejected
+  on this path. A queued answer cannot be accepted again. Restart keeps unanswered
+  tasks parked, and queued answers retain their identities during run recovery.
 - Model capability catalogues expose each model's `reasoning_efforts` and
   `default_reasoning_effort`. Desktop clients must use that subset rather than
   synthesizing universal effort levels; empty or missing values offer no slider.
@@ -177,3 +195,10 @@ reassignment, live Session inbox, confirmed partial batch and opt-in target
 native-management operations. Worker inbox/outcomes require the existing lease
 and native management requires incarnation identity. All are additive under
 `/api/distributed`; see the [canonical workbench contract](../distributed-collaboration.md#workbench-policy-session-control-and-native-settings).
+
+
+`DELETE /api/distributed/instances/{id}` requires admin authorization and returns
+`{"accepted":true}` on removal or repeated removal. Orchestration rejects unfinished
+owned/pinned Tasks, explicit membership in unfinished Workflows and executing native
+management. Credential-free metadata moves to snapshot `removed_instances`; Host,
+Task, Attempt, Session, Event, checkpoint and artifact histories remain intact.

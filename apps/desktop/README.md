@@ -6,16 +6,33 @@ AX Crew brings conversations, tasks, devices, and model settings into one
 desktop app. It starts the Crew backend automatically; AX runs the agents and
 keeps their credentials, tools, skills, memory, and session history.
 
+- **Interactive questions** — main and side chats show compact floating questions
+  above the composer, with numbered choices, an optional text reply and collapse. Pending questions survive reopening;
+  answering continues the same task/session, and failures retain drafts.
 - **Native desktop** — a Windows app with a system tray and integrated terminal.
 - **AX runtime** — use the AX installed on your machine or a workspace build.
+- **Goal settings** — global/project defaults and an opt-in switch that lets
+  ordinary new tasks automatically use AX Goal policies, with configurable
+  Command/HTTP/host/MCP acceptance, progress policies and Runtime execution caps.
+  Settings read/write AX's existing templates; automatic use defaults off.
+  Acceptance, validators, budget and recovery sections start collapsed; clicking
+  a heading reveals the form and folding retains its draft.
 - **Codex sign-in** — choose browser or device-code login in model settings.
   Device codes are displayed in full with a Copy code button. AX saves the
   credentials; this flow requires the matching AX build with `--method`/`--json`.
 - **Local data** — Crew settings and its database live in the app data directory.
+- **Completion reminders** — completed/failed work sounds a short chime on
+  Windows and requests taskbar/tray attention when Crew is unfocused, minimized
+  or hidden. Foreground conversations receive unread result dots without sound;
+  opening a result clears only that conversation. System toasts require OS
+  notification permission; the chime and unread icons do not.
 - **Connected devices** — pair remote AX runtimes or connect the Android client.
 - **Session files** — a wider Files panel with saved change review, a lazy
   workspace tree, closable file tabs and Markdown Preview/Source. Local desktop
-  browsing includes hidden files; remote conversations show saved diffs only.
+  browsing includes hidden files; local UTF-8 files up to 256 KiB support Edit,
+  Save and Cancel with draft preview and disk-change checks. Drafts survive
+  tab/conversation navigation for the current app run. Remote conversations
+  show saved diffs only.
 - **System metrics** — Settings → System shows real local Windows CPU, memory,
   system-volume usage and uptime, plus supported NVIDIA GPUs' usage/VRAM,
   refreshing every three seconds. Capacities
@@ -177,10 +194,12 @@ In Capabilities → Import from other AI apps, each app starts collapsed. Click
 its header to show/hide skills and MCP configurations; collapsing preserves
 selections. Rescanning or changing workspace closes all source groups.
 Settings success notices clear after four seconds and on section changes.
+Application and website permissions use the shared themed settings dropdown,
+with standard control dimensions and keyboard navigation.
 Remove provider also works for environment credentials through AX's
 `auth remove` command, preserving system environment variables. Re-entering
 credentials or signing in again re-enables the provider; this requires a
-compatible AX build. Distributed cards and empty states have 24px separation.
+compatible AX build. Distributed collaboration uses a compact console with a shared live overview, collaboration navigation, objective/task/member/feed regions, Host-grouped nodes and filtered execution activity with progressive advanced details.
 The popup is 260px wide with a 26px slider. Its central model button is transparent
 until hovered, focused from the keyboard or its menu is open; the accent follows
 the app theme. The conversation list contains Project and Recent sections, with
@@ -266,8 +285,15 @@ The sidebar keeps conversations, schedule, and artifacts at the top, with termin
 
 An AX session is one conversation, even when follow-up messages create multiple Crew tasks. Its first task supplies the title and route; sends and cancellation target its latest turn. Drafts stay separate while navigating within the app. Enter sends, Shift+Enter adds a newline, and IME confirmation does not send. Failed sends retain their draft. Unsent text drafts persist locally across reopening; image attachments remain in memory only.
 
+Local AX history opens with its original messages and a working composer. Send
+adopts the existing binding and continues that same AX session in its original
+workspace, without a separate read-only/continue step. Explicit titles remain;
+`ACP session` or empty titles display the first user request, or an untitled
+label for conversations without text. Failed sends keep the draft and history.
+
 During active work, Send/Enter forwards guidance to the same task and AX goal
-through `_ax/steer`; the separate Stop button still cancels. This also works in
+through `_ax/steer`. The single composer action shows Stop while input is empty,
+or Send when guidance is entered. This also works in
 side chat and while waiting for tool permission. Guidance does not change the
 running model, effort or permissions, survives replay and stays outside folded
 work details. AX acknowledgement is required before clearing the draft; an old
@@ -325,3 +351,25 @@ Long Project 默认关闭，仅作为 Goal 内可选区块，支持原生文档�
 
 Standalone desktop tests and test-runner configuration are local-only and are
 not distributed in the source repository.
+
+
+### 分布式控制台布局
+
+三个入口共用在线 AX、运行任务、异常与待调度概览，以及自动同步状态。异常统计为失败任务与已启用但离线的 AX；未读取到状态时显示读取提示。协作列表提供状态和完成数，目标、任务、成员、最近动态在空状态与已有协作之间保持相同布局。节点折叠行显示执行槽位、关联协作/任务、运行任务最近执行的 Session 链数量与能力标签；配置槽位不代表当前可调度容量。执行活动采用紧凑筛选和带计数的二级导航，可清除筛选，保留 Execution → Session、恢复记录和产物下载。深浅主题共用桌面配色变量，窄窗口自动分栏收起。
+
+
+分布式页面及弹窗的全部下拉选择使用与设置页一致的共享 `Select`：主题色弹层、分组、选中勾选、禁用项和键盘操作统一实现，弹窗内首次 Escape 只关闭下拉。后续页面从 `src/components/ui/select.tsx` 导入即可，组件自动加载样式；旧 `SettingsSelect` 是同一实现的兼容导出。
+
+
+节点管理的 AX 行提供删除实例及确认弹窗；删除仅撤销 Crew 连接注册，旧 Worker 凭据失效，本机和远程 AX 配置、Memory、Session、工作目录不删除。未完成关联任务、未完成协作手动成员或执行中的原生配置操作会阻止删除，并提示处理方式。已删除实例仍可在执行活动中作为历史筛选，Host/AX 与 Session/产物记录保留；同 Host 的其他 AX 不受影响。
+
+
+AX 行右侧箭头和实例名称都可展开 / 收起详情，状态同步；离线或禁用实例也能查看已有信息。箭头是可聚焦按钮，支持 Enter / Space，并提供展开状态和详情区域关联。
+
+
+分布式页面和弹窗中的依赖要求、配置预览、工具详情、恢复历史等折叠入口统一使用共享 `Disclosure`，提供与应用一致的展开图标、hover 和键盘焦点样式；收起仅隐藏内容，保留表单输入。复用入口为 `src/components/ui/disclosure.tsx`，无需另行导入页面样式。
+
+
+目标功能的系统界面文案随语言切换：中文使用“目标”，英文使用“Goal”，不并列重复显示；设置导航、默认策略、协作类型及相关提示统一处理。协议字段、命令名与用户自行输入的标题不做翻译。
+
+目标执行预算的费用上限按美元输入，输入 / 输出估算单价按“美元 / 百万 Token”输入，最多支持 6 位小数。界面精确转换为原有后台整数计量单位，读取旧配置时金额不变。上限 0 表示不追加限制，单价留空表示未配置、0 表示免费；负数、超精度或超安全整数范围会阻止保存。

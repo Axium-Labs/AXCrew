@@ -16,8 +16,16 @@ between them, streams what their agents are doing, and gives you one surface
 to control the whole fleet. The two are developed and released together — the
 agent runtime and the control plane that coordinates it.
 
+- **Interactive chat questions** — ordinary main and side chats show compact
+  floating AX questions above the composer, with choices and optional text replies. Answering resumes the
+  same task/session; pending questions survive reopening and failed answers
+  retain their drafts.
 - **One control surface** — drive AX on your laptop, server, GPU server and
   cloud VMs from a single desktop app, or from your phone.
+- **Settings → Goals** — configure AX-owned global/project acceptance validators,
+  conservative progress observations and cumulative Runtime caps. An opt-in
+  switch applies them automatically to ordinary new tasks; advanced forms start
+  collapsed and retain drafts when folded. Durable execution and takeover retain Crew's existing leases/checkpoints.
 - **Codex account sign-in** — choose browser authorization or device-code login
   in desktop model settings; the full one-time code is visible and copyable.
 - **Settings → Plugins** — manage Mods, MCP and skills in settings. The page
@@ -38,10 +46,17 @@ agent runtime and the control plane that coordinates it.
   resizable chat/preview split with reset.
 - **Settings switches** — boolean options and import selections use right-aligned
   pill switches with titles and descriptions on the left.
+  Application and website permission choices use the same themed dropdowns as
+  the other settings pages.
 - **Desktop close behavior** — closing hides to the tray by default; disabling
   that setting makes closing quit Crew and stop the local service. The preference
   survives restart, and the tray Quit action always exits. System settings
   contain only the close-behavior switch.
+- **Completion reminders** — when the desktop is unfocused, completed/failed
+  tasks trigger a short Windows chime, a system notification and taskbar/tray
+  icon attention. Unread result dots appear in Recent, project sessions and the
+  Sessions navigation; reading that conversation clears its dot. Other unread
+  conversations remain marked, including after restarting Crew.
 - **Compact conversation controls** — a model/effort card with Fast, a stepped
   reasoning slider; click the central card for the model
   menu. Session IDs live in the Details sidebar, leaving transcripts clean.
@@ -52,7 +67,12 @@ agent runtime and the control plane that coordinates it.
   remote conversations stay accessible in Recent without a separate Remote projects section.
 - **Conversation files** — a wide Review/files pane with saved diffs, an
   expandable local workspace tree, closable tabs and Markdown preview/source.
+  Local UTF-8 files can be edited and saved with a disk-change check. Drafts
+  stay available across tabs and conversation navigation during this app run.
   Files stay open when switching to side chat or details.
+- **Continue local AX conversations** — opening local history shows the original
+  messages and composer together. Sending resumes the same AX session in its
+  original workspace. Placeholder titles use the first user request.
 - **Cross-machine delegation** — hand a task to another machine; Crew routes
   it to that machine's AX and streams the result back.
 - **Task orchestration** — deterministic task DAGs with dependencies, retries,
@@ -260,4 +280,4 @@ MIT. See [crates/server/Cargo.toml](crates/server/Cargo.toml).
 
 ## Optional Distributed Collaboration
 
-The **Distributed** sidebar opens a unified collaboration workspace with three views: Workspace, Nodes and Activity. Organize existing Tasks/Workflows as ordinary collaborations or explicit AX Goals; add AX participants and roles, choose placement, inspect dependencies and live ACP Sessions, and pause/resume/cancel/reassign work. Nodes follow Host → AX Instance; shared capacity and approved execution slots govern concurrency across Goals. Goal-scoped policies stay separate from AX-wide configuration. Batch operations preview differences and retain partial failures; optional native remote settings/plugins require host opt-in and confirmed write scope. Long Project is off by default and stays inline within a Goal, retaining AX-owned document/history, Session rotation and cumulative budget checkpoints. See [architecture, API and setup](docs/distributed-collaboration.md).
+The **Distributed** sidebar opens a unified collaboration workspace with three views: Workspace, Nodes and Activity. Expandable distributed sections use the shared app-style Disclosure, preserving drafts when collapsed. All distributed dropdowns reuse the shared settings-style Select with themed popups and keyboard navigation. A compact status overview shows online AX, running work, failed Tasks/offline AX and queued Tasks. Stable objective/task/member/feed regions keep the workspace usable even before the first collaboration; node rows expose capacity, work/Session associations and capabilities, while Activity provides counted secondary navigation and resettable filters. Organize existing Tasks/Workflows as ordinary collaborations or explicit AX Goals; add AX participants and roles, choose placement, inspect dependencies and live ACP Sessions, and pause/resume/cancel/reassign work. Instance names and their disclosure buttons both expand details, including offline nodes. Nodes support confirmed instance deletion with busy/reference checks, credential revocation and retained execution history. Nodes follow Host → AX Instance; shared capacity and approved execution slots govern concurrency across Goals. Goal-scoped policies stay separate from AX-wide configuration. Batch operations preview differences and retain partial failures; optional native remote settings/plugins require host opt-in and confirmed write scope. Long Project is off by default and stays inline within a Goal, retaining AX-owned document/history, Session rotation and cumulative budget checkpoints. See [architecture, API and setup](docs/distributed-collaboration.md).

@@ -1,3 +1,5 @@
+import { SessionQuestionCard } from '../components/SessionQuestionCard'
+import { pendingSessionQuestion } from '../lib/sessionQuestions'
 import { usePanelDrawer } from '../lib/usePanelDrawer'
 import { useWorkspaceLayout } from '../lib/workspaceLayoutContext'
 import { WorkspaceSplitter } from '../components/WorkspaceSplitter'
@@ -6,7 +8,7 @@ import { useUi } from '../store/ui'
 import * as Dropdown from '@radix-ui/react-dropdown-menu'
 import { useAutoGrow } from '../lib/useAutoGrow'
 import { resolveSendWorkspace } from '../lib/workspace'
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowUp, Check, Cloud, ChevronDown, ChevronRight, ExternalLink, Folder, FolderPlus, Laptop, MessageSquare, MoreHorizontal, PanelRight, Plus, Search, Square, SquarePen, ShieldCheck, SlidersHorizontal, Target, X } from 'lucide-react'
@@ -14,7 +16,9 @@ import { api, endpoints } from '../lib/api'
 import { useAllMembers, useDevices, useLocalAx, usePermissions, useSessions, useTasks } from '../lib/query'
 import { useLive } from '../lib/live'
 import { useSessionUi } from '../store/sessions'
-import { conversations, isActiveTask } from '../lib/conversations'
+import { conversationIdentity, taskIdentity, useAttention } from '../store/attention'
+import { CompletionDot } from '../components/CompletionDot'
+import { conversations, isActiveTask, sessionTitle } from '../lib/conversations'
 import { Action } from '../components/shared'
 import { Menu } from '../components/ui/menu'
 import { conversationTranscript, latestTurnChangedFiles } from '../lib/sessionTranscript'
@@ -149,6 +153,15 @@ export function SessionsWorkspace(){
   const task=current?.latest??tasks.data?.find(item=>item.id===id)
   const selectedBinding=current?.binding
   const localId=params.get('local'),localMode=!!localId&&!id
+  const viewingKeys=useMemo(()=>[
+    ...(current?.tasks.map(item=>taskIdentity(item.id))??(id?[taskIdentity(id)]:[])),
+    ...(selectedBinding?[conversationIdentity(selectedBinding.device_id,selectedBinding.ax_session_id)]:localId?[conversationIdentity('local',localId)]:[]),
+  ],[current,selectedBinding,id,localId])
+  const readingMain=ui.chatOpen&&layout.rightMode!=='drawer'&&!listDrawerOpen
+  useLayoutEffect(()=>{
+    useAttention.getState().setView('main',readingMain?viewingKeys:[])
+    return()=>useAttention.getState().setView('main',[])
+  },[viewingKeys,readingMain])
   const draftKey=current?.root.id??id??(localId?`local:${localId}`:branchDraft?.key??'new')
   // While tasks/bindings load, a route may still use its turn ID. Keep the newest
   // draft across those aliases so adopting a canonical conversation never drops text.
@@ -174,24 +187,28 @@ export function SessionsWorkspace(){
   const member=id?selectedMember:cloud?chosenEnvironment:undefined
   const remoteMode=id?(member?.device_id??task?.assigned_device??selectedBinding?.device_id??'local')!=="local":!params.get("local")&&cloud
   const device=devices.data?.find(item=>item.id===member?.device_id)
-  const busy=isActiveTask(task)
+  const busy=isActiveTask(task)&&task?.status!=='waiting_user'
   const history=useQuery({queryKey:['history',task?.id],queryFn:()=>endpoints.history(task!.id),enabled:!!selectedBinding,staleTime:Infinity,refetchOnWindowFocus:false,retry:1,placeholderData:(previous,previousQuery)=>current?.tasks.some(item=>item.id===previousQuery?.queryKey[1])?previous:undefined})
   const streams=useLive(state=>state.streams)
   const freshEvents=useMemo(()=>(streams[task?.id??'']??[]).filter(event=>event.kind.startsWith('agent.')||event.kind.startsWith('tool.')),[streams,task?.id])
   const historySettled=!!task?.finished_at&&history.dataUpdatedAt>task.finished_at*1000&&!history.isFetching&&!history.isError
   const lines=useMemo(()=>conversationTranscript(history.data,freshEvents,task,!historySettled),[history.data,freshEvents,task,historySettled])
-  const rows=groups.filter(group=>!group.tasks.some(task=>sideTaskIds.includes(task.id))).map(group=>({binding:{...group.binding,task_id:group.root.id,ax_session_id:group.key,member_id:group.root.assigned_member,device_id:group.root.assigned_device},task:group.root,latest:group.latest,latestAt:group.latest.created_at,key:group.key}))
+  const pendingQuestion=pendingSessionQuestion(task,freshEvents)
+  const localSessions=(localAx.data?.projects??[]).flatMap(project=>project.sessions.map(session=>({...session,title:sessionTitle(session.title,session.preview,t('session.untitled'))})))
+  const rows=groups.filter(group=>!group.tasks.some(task=>sideTaskIds.includes(task.id))).map(group=>{
+    const localTitle=group.binding?.device_id==='local'?localSessions.find(session=>session.id===group.binding?.ax_session_id)?.title:undefined
+    return {
+      binding:{...group.binding,task_id:group.root.id,ax_session_id:group.binding?.ax_session_id??group.key,member_id:group.root.assigned_member,device_id:group.root.assigned_device},
+      task:{...group.root,title:sessionTitle(group.root.title,localTitle,t('session.untitled'))},
+      latest:group.latest,latestAt:group.latest.created_at,key:group.key,attentionKeys:[group.key,...group.tasks.map(item=>taskIdentity(item.id))],
+    }
+  })
   const visibleRows=rows.filter(row=>{
     const label=`${meta(row.key).title??row.task?.title??''} ${row.binding.ax_session_id}`.toLowerCase()
     return label.includes(search.toLowerCase())&&(!onlyActive||!!row.task&&isActiveTask(row.latest))
   }).sort((a,b)=>Number(!!meta(b.key).marked)-Number(!!meta(a.key).marked)||b.latestAt-a.latestAt)
-  // Conversations that already exist in the local AX store are listed next to the
-  // Crew ones; they are read in place and only adopted when the user continues them.
-  const localGroups=useMemo(()=>{
-    const needle=search.trim().toLowerCase()
-    return (localAx.data?.projects??[]).map(project=>({project,sessions:project.sessions.filter(session=>!needle||`${session.title} ${session.preview}`.toLowerCase().includes(needle))})).filter(group=>!!group.sessions.length||(!!group.project.error&&!needle))
-  },[localAx.data,search])
-  const localMatch=localGroups.flatMap(group=>group.sessions.map(session=>({session,project:group.project}))).find(item=>item.session.id===localId)
+  // Local history stays in AX; sending adopts its binding and continues it.
+  const localMatch=(localAx.data?.projects??[]).flatMap(project=>project.sessions.map(session=>({session:{...session,title:sessionTitle(session.title,session.preview,t('session.untitled'))},project}))).find(item=>item.session.id===localId)
   // Paired machines other than this one: their own AX projects and sessions.
   // Projects are directories: local AX stores plus any directory the user picked.
   const projects=useMemo(()=>{
@@ -201,7 +218,7 @@ export function SessionsWorkspace(){
       const key=normalizePath(group.root)
       if(seen.has(key))continue
       seen.add(key)
-      items.push({key,name:baseName(group.root),root:group.root,sessions:group.sessions,error:group.error,picked:false})
+      items.push({key,name:baseName(group.root),root:group.root,sessions:group.sessions.map(session=>({...session,title:sessionTitle(session.title,session.preview,t('session.untitled'))})),error:group.error,picked:false})
     }
     for(const directory of projectDirs){
       const key=normalizePath(directory)
@@ -229,7 +246,7 @@ export function SessionsWorkspace(){
     })
     return [
       ...project.sessions.filter(session=>!meta(session.id).project||normalizePath(meta(session.id).project!)===normalizePath(project.root)).map(session=>({key:`local:${session.id}`,title:session.title||t('session.untitled'),at:session.updated_at,active:false,attached:!!session.task_id,open:()=>openLocal(session)})),
-      ...(localAx.data?.projects??[]).filter(group=>normalizePath(group.root)!==normalizePath(project.root)).flatMap(group=>group.sessions.filter(session=>meta(session.id).project&&normalizePath(meta(session.id).project!)===normalizePath(project.root)).map(session=>({key:`local:${session.id}`,title:session.title,at:session.updated_at,active:false,attached:!!session.task_id,open:()=>openLocal(session)}))),
+      ...(localAx.data?.projects??[]).filter(group=>normalizePath(group.root)!==normalizePath(project.root)).flatMap(group=>group.sessions.filter(session=>meta(session.id).project&&normalizePath(meta(session.id).project!)===normalizePath(project.root)).map(session=>({key:`local:${session.id}`,title:sessionTitle(session.title,session.preview,t('session.untitled')),at:session.updated_at,active:false,attached:!!session.task_id,open:()=>openLocal(session)}))),
       ...crew.map(row=>({key:`${row.binding.device_id}:${row.binding.ax_session_id}`,title:row.task?.title??t('session.recentSession'),at:row.latestAt,active:isActiveTask(row.latest),attached:true,open:()=>navigate(`/sessions/${row.binding.task_id}`)})),
     ].sort((a,b)=>Number(!!meta(b.key).marked)-Number(!!meta(a.key).marked)||b.at-a.at)
   }
@@ -238,12 +255,16 @@ export function SessionsWorkspace(){
   const addProject=()=>setProjectDialog(true)
   const openLocal=(session:LocalAxSession)=>navigate(session.task_id?`/sessions/${session.task_id}`:`/sessions?local=${encodeURIComponent(session.id)}`)
   const adoptLocal=async()=>{
-    if(!localMatch)return
+    if(!localMatch)throw new Error(t('session.readingLocal'))
     const task=await api<Task>('/api/sessions/attach','POST',{ax_session_id:localMatch.session.id,cwd:localMatch.project.root,title:localMatch.session.title})
     queryClient.setQueryData<Task[]>(['tasks'],old=>[...(old??[]).filter(entry=>entry.id!==task.id),task])
-    navigate(`/sessions/${task.id}`)
+    const binding:Session={task_id:task.id,ax_session_id:localMatch.session.id,device_id:task.assigned_device,member_id:task.assigned_member}
+    queryClient.setQueryData<Session[]>(['sessions'],old=>[...(old??[]).filter(entry=>entry.task_id!==task.id),binding])
+    const replay=queryClient.getQueryData(['local-session',localMatch.session.id])
+    if(replay)queryClient.setQueryData(['history',task.id],replay)
+    return {task,binding}
   }
-  const canSend=(!!draft.trim()||images.length>0)&&!sending&&(!id||!!selectedBinding)&&(!remoteMode||!!member&&!!device&&["online","busy"].includes(device.status))
+  const canSend=(!!draft.trim()||images.length>0)&&!sending&&(!localMode||!!localMatch)&&(!id||!!selectedBinding)&&(!remoteMode||!!member&&!!device&&["online","busy"].includes(device.status))
   const addImages=async(files:File[])=>{try{if(images.length+files.length>4)throw new Error(t('error.tooManyImages'));const added=await Promise.all(files.map(file=>imageFromFile(file,t)));setImagesByDraft(state=>({...state,[draftKey]:[...(state[draftKey]??[]),...added]}));setSendError('')}catch(error){setSendError(String(error))}}
 
   useEffect(()=>{setSendError('');followScroll.current=true;requestAnimationFrame(()=>inputRef.current?.focus())},[draftKey])
@@ -256,20 +277,29 @@ export function SessionsWorkspace(){
     const text=draft.trim()
     if(!canSend||sendLock.current)return
     sendLock.current=true;setSending(true);setSendError('')
-    const origin=locationRef.current,sourceKey=draftKey,binding=selectedBinding,attached=imagesByDraft[draftKey]??[]
+    const origin=locationRef.current,sourceKey=draftKey,attached=imagesByDraft[draftKey]??[]
+    let binding=selectedBinding
     try{
       if(remoteMode&&attached.length)throw new Error(connectionText("远程会话暂不支持图片附件，请移除附件后发送","Remote sessions do not support image attachments yet. Remove images to send."))
       let cwd=ui.selectedCwd??settings.data?.default_cwd
-      if(!id&&!remoteMode&&axAvailable){
+      if(!id&&!localMode&&!remoteMode&&axAvailable){
         const resolved=await resolveSendWorkspace(cwd)
         if(!resolved){setSendError(t('error.workspaceSelectionCancelled'));return}
         cwd=resolved
         useSessionUi.getState().setSelectedCwd(resolved)
       }
-      const created=id
-        ?await api<Task>(`/api/sessions/${encodeURIComponent(task!.id)}/message`,'POST',{text,images:attached,permission_profile:permissionMode,...(effectiveEffort?{reasoning_effort:effectiveEffort}:{})})
+      const adopted=localMode?await adoptLocal():undefined
+      if(adopted)binding=adopted.binding
+      const turnTask=adopted?.task??task
+      const created=id||adopted
+        ?await api<Task>(`/api/sessions/${encodeURIComponent(turnTask!.id)}/message`,'POST',{text,images:attached,permission_profile:permissionMode,...(effectiveEffort?{reasoning_effort:effectiveEffort}:{})})
         :await api<Task>('/api/sessions','POST',{title:branchDraft?.title??(text.slice(0,60)||t('session.imageTitle')),text,images:attached,...((branchDraft?.memberId??(remoteMode?member?.id:undefined))?{member_id:branchDraft?.memberId??member?.id}:{cwd,provider:ax.data?.selected_model?.provider,model:ax.data?.selected_model?.id}),...(branchDraft?{context:branchDraft.context}:{}),permission_profile:permissionMode,...(effectiveEffort?{reasoning_effort:effectiveEffort}:{})})
       queryClient.setQueryData<Task[]>(['tasks'],old=>[...(old??[]).filter(item=>item.id!==created.id),created])
+      if(adopted){
+        useSessionUi.getState().setPermissionMode(adopted.task.id,permissionMode)
+        const replay=queryClient.getQueryData(['local-session',localMatch!.session.id])
+        if(replay)queryClient.setQueryData(['history',created.id],replay)
+      }
       if(attached.length){queryClient.setQueryData(['sent-images',created.id],attached.map(image=>({name:image.name,src:`data:${image.mime};base64,${image.data}`})))}
       if(binding)queryClient.setQueryData<Session[]>(['sessions'],old=>[...(old??[]).filter(item=>item.task_id!==created.id),{...binding,task_id:created.id}])
       else {useSessionUi.getState().addStarting(created.id);useSessionUi.getState().setPermissionMode(created.id,permissionMode)}
@@ -282,6 +312,7 @@ export function SessionsWorkspace(){
       }
       void queryClient.invalidateQueries({queryKey:['tasks']})
       void queryClient.invalidateQueries({queryKey:['sessions']})
+      if(localMode)void queryClient.invalidateQueries({queryKey:['localAx']})
     }catch(error){if(mounted.current&&locationRef.current===origin)setSendError(String(error))}
     finally{sendLock.current=false;setSending(false)}
   }
@@ -297,10 +328,10 @@ export function SessionsWorkspace(){
     }
     if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing){event.preventDefault();void send()}
   }
-  const originalTitle=localMode?(localMatch?.session.title||t('session.localAxSession')):id?(current?.root.title??task?.title??t('session.loading')):t('session.new')
+  const originalTitle=localMode?(localMatch?.session.title||t('session.localAxSession')):id?sessionTitle(current?.root.title??task?.title,selectedBinding?.device_id==='local'?localSessions.find(session=>session.id===selectedBinding.ax_session_id)?.title:undefined,t('session.loading')):t('session.new')
   const title=meta(localId??current?.key??'').title??originalTitle
   const permissionLabel=t(`session.permission.${permissionMode}`)
-  const workspace=member?.cwd??ui.selectedCwd??settings.data?.default_cwd
+  const workspace=localMode?localMatch?.project.root:member?.cwd??ui.selectedCwd??settings.data?.default_cwd
   const imageRoot=remoteMode?undefined:localMode?localMatch?.project.root:workspace
   const currentChanges=useMemo(()=>latestTurnChangedFiles(localMode?localLines:lines),[localMode,localLines,lines])
   const reviewFiles=changedView.request&&changedView.liveKey!==draftKey?changedView.files:currentChanges
@@ -422,6 +453,7 @@ export function SessionsWorkspace(){
                 {opened&&<div className="session-project-sessions">
                   {sessions.map(item=><button key={item.key} onContextMenu={event=>contextSession(event,item.key,item.title,item.active)} className={`session-project-session ${item.active?'is-active':''}`} onClick={item.open}>
                     <span className="session-project-title">{label(item.key,item.title)}</span>
+                    <CompletionDot keys={[item.key]}/>
                     {!item.active&&<small>{timeLabel(item.at)}</small>}
                   </button>)}
                   {!sessions.length&&<div className="session-local-note">{t('session.emptyProject')}</div>}
@@ -441,6 +473,7 @@ export function SessionsWorkspace(){
             {visibleRows.map(row=><button key={row.binding.ax_session_id} onContextMenu={event=>contextSession(event,row.key,row.task?.title??t('session.untitled'),isActiveTask(row.latest))} className={`session-recent-row ${current?.key===row.key?'is-selected':''}`} onClick={()=>navigate(`/sessions/${row.binding.task_id}`)}>
               {isActiveTask(row.latest)&&<span className="session-recent-dot"/>}
               <span className="session-project-title">{label(row.key,row.task?.title||t('session.untitled'))}</span>
+              <CompletionDot keys={row.attentionKeys}/>
               <small>{timeLabel(row.latestAt)}</small>
             </button>)}
             {!visibleRows.length&&<div className="session-list-empty">{sessions.isLoading?t('session.loadingSessions'):search||onlyActive?t('session.noMatch'):t('session.noSessionsYet')}</div>}
@@ -457,13 +490,14 @@ export function SessionsWorkspace(){
       <div className="session-chat-scroll" ref={attachScroll} onScroll={event=>{const node=event.currentTarget;followScroll.current=node.scrollHeight-node.scrollTop-node.clientHeight<80}}>
         {localMode?<LocalThread session={localMatch?.session} onLines={setLocalLines}/>:id&&!task&&!tasks.isPending?<div className="session-thread-waiting">{tasks.error?t('session.loadFailedRetry'):t('session.gone')}<button onClick={()=>void tasks.refetch()}>{t('session.reload')}</button></div>:!id&&branchDraft?<div className="session-transcript"><div className="session-branch-banner">{branchDraft.title}<button type="button" onClick={newSession}>{useLang.getState().lang==='zh'?'取消分支':'Cancel branch'}</button></div><TranscriptLines lines={branchDraft.lines}/></div>:!id?null:<div className="session-transcript">{history.error&&<div className="session-inline-error">{t('session.loadHistoryFailed')}{String(history.error)} <button onClick={()=>void history.refetch()}>{t('session.retry')}</button></div>}{lines.length?<TranscriptLines lines={displayLines} hideActiveChanges active={busy} finishedAt={task?.finished_at?task.finished_at*1000:undefined}/>:<div className="session-thread-waiting">{task?.status==='failed'?`${t('session.startFailedDetail')}${task.output?.error??t('session.seeLinkedTask')}`:task?.status==='cancelled'?t('session.stopped'):selectedBinding?t('session.loadingMessages'):t('session.starting')}</div>}</div>}
       </div>
-      {localMode?<div className="session-local-bar" role="status"><span>{t('session.readOnlyNote')}</span><div className="session-local-bar-actions">{localMatch?.session.task_id?<Link className="session-local-link" to={`/sessions/${localMatch.session.task_id}`}>{t('session.alreadyInCrew')} <ExternalLink size={13}/></Link>:<Action variant="default" run={adoptLocal} disabled={!localMatch}>{t('session.continueInCrew')}</Action>}</div></div>:<div className="session-composer-wrap">
-        {!id&&members.isSuccess&&!members.data.length&&<div className="session-inline-error" role="status">{t('session.runtimeNotReady')}<Link to="/settings">{t('session.openSettings')}</Link></div>}        {!id&&members.isError&&<div className="session-inline-error" role="alert">{t('session.readRuntimeFailed')}{String(members.error)} <button onClick={()=>void members.refetch()}>{t('session.retry')}</button></div>}
+      <div className="session-composer-wrap">
+
+        {!id&&!localMode&&members.isSuccess&&!members.data.length&&<div className="session-inline-error" role="status">{t('session.runtimeNotReady')}<Link to="/settings">{t('session.openSettings')}</Link></div>}        {!id&&!localMode&&members.isError&&<div className="session-inline-error" role="alert">{t('session.readRuntimeFailed')}{String(members.error)} <button onClick={()=>void members.refetch()}>{t('session.retry')}</button></div>}
         {permissions.data?.filter(permission=>permission.request.sessionId===selectedBinding?.ax_session_id).map(permission=><div className="session-permission-request" key={permission.request_id}><strong>{permission.request.toolCall.title}</strong><span>{t('session.askConfirm')}</span><div>{permission.request.options.map(option=><Action key={option.optionId} run={()=>api(`/api/permissions/${permission.request_id}/resolve`,'POST',{option_id:option.optionId})}>{option.name}</Action>)}</div></div>)}
-        {task&&<div className="session-run-status" role="status">{task.status==='waiting_permission'?t('session.waitingPermission'):busy?'':task.status==='failed'?`${t('session.execFailed')}${task.output?.error??t('session.viewLinkedTask')}`:task.status==='cancelled'?t('session.stopped'):task.status==='waiting_user'?t('session.waitingUser'):''}</div>}
+        {task&&!pendingQuestion&&<div className="session-run-status" role="status">{task.status==='waiting_permission'?t('session.waitingPermission'):busy?'':task.status==='failed'?`${t('session.execFailed')}${task.output?.error??t('session.viewLinkedTask')}`:task.status==='cancelled'?t('session.stopped'):task.status==='waiting_user'?t('session.waitingUser'):''}</div>}
         {busy&&!!currentChanges.length&&<div className="session-live-changes"><button type="button" onClick={openCurrentChanges} aria-label={useLang.getState().lang==='zh'?'查看当前文件变更':'View current file changes'} aria-expanded={rightOpen&&rightTab==='files'&&changedView.liveKey===draftKey}><span>{useLang.getState().lang==='zh'?`${currentChanges.length} 个文件已更改`:`${currentChanges.length} files changed`}</span><b>+{currentChanges.reduce((sum,file)=>sum+file.additions,0)}</b><em>-{currentChanges.reduce((sum,file)=>sum+file.deletions,0)}</em></button></div>}
         {loopRun&&<div className={`session-loop-status is-${loopRun.status}`} role="status"><span className="session-loop-dot"/><strong>{loopRun.kind==='goal'?t('session.goalLoop'):t('session.prWatch')}</strong><span>{loopRun.status==='running'?t('session.roundProgress',{rounds:loopRun.rounds,seconds:loopRun.intervalSeconds}):(loopRun.detail||t('session.loopStopped'))}</span>{loopRun.status==='running'?<button type="button" onClick={stopLoop}>{t('session.stopLoop')}</button>:<button type="button" aria-label={t('session.clearLoop')} title={t('session.clearLoop')} onClick={clearLoop}><X size={13}/></button>}</div>}
-        {completions.length>0&&!completionClosed&&<div className="session-completions" role="listbox" aria-label={referenceToken!==undefined?t('session.fileSuggestions'):t('session.slashSuggestions')}>{completions.map((item,index)=><button type="button" role="option" aria-selected={index===completionIndex} className={index===completionIndex?"is-active":""} key={item.value} onMouseDown={event=>event.preventDefault()} onClick={()=>selectCompletion(item)}><strong>{item.label}</strong><small>{item.description}</small></button>)}</div>}{!id&&!sending&&<div className="session-composer-tabs" aria-label={t('session.chooseWorkspace')}>
+        {completions.length>0&&!completionClosed&&<div className="session-completions" role="listbox" aria-label={referenceToken!==undefined?t('session.fileSuggestions'):t('session.slashSuggestions')}>{completions.map((item,index)=><button type="button" role="option" aria-selected={index===completionIndex} className={index===completionIndex?"is-active":""} key={item.value} onMouseDown={event=>event.preventDefault()} onClick={()=>selectCompletion(item)}><strong>{item.label}</strong><small>{item.description}</small></button>)}</div>}{!id&&!localMode&&!sending&&<div className="session-composer-tabs" aria-label={t('session.chooseWorkspace')}>
           <button type="button" className="session-composer-tab session-composer-project" disabled={!!id} title={id?t('session.workspaceFixed'):workspace??t('session.chooseWorkspace')} onClick={()=>void chooseWorkspace()}><Folder size={18}/><span>{workspace?baseName(workspace):t('session.chooseWorkspace')}</span></button>
           <Dropdown.Root>
             <Dropdown.Trigger asChild><button type="button" className="session-composer-tab session-composer-location" disabled={!!id} aria-label={t('session.workLocation')} title={id?t('session.workspaceFixed'):t('session.workLocation')}>{remoteMode?<Cloud size={18}/>:<Laptop size={18}/>}<span>{remoteMode?t('session.cloud'):t('session.thisComputer')}</span></button></Dropdown.Trigger>
@@ -480,19 +514,19 @@ export function SessionsWorkspace(){
             {label:connectionText('添加远程项目','Add remote project'),action:()=>setProjectDialog(true)},
             {label:connectionText('管理连接','Manage connections'),action:()=>navigate('/connect')},
           ]}/>}
-        </div>}<form className="session-composer" onSubmit={onSubmit} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void addImages([...event.dataTransfer.files])}}><input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={event=>{void addImages([...event.target.files??[]]);event.target.value=""}}/>{images.length>0&&<div className="session-image-previews">{images.map((image,index)=><div key={`${image.name}-${index}`} className="session-image-preview"><button type="button" className="session-image-open" aria-label={`${useLang.getState().lang==='zh'?'查看图片':'View image'} ${image.name}`} onClick={()=>setImagePreview(image)}><img src={`data:${image.mime};base64,${image.data}`} alt={image.name}/></button><button type="button" aria-label={t('session.removeImage',{index:index+1})} onClick={()=>setImagesByDraft(state=>({...state,[draftKey]:(state[draftKey]??[]).filter((_,position)=>position!==index)}))}><X size={13}/></button></div>)}</div>}<textarea ref={inputRef} aria-label={t('session.sendMessage')} value={draft} disabled={sending} onChange={event=>{setDraft(event.target.value);setCursor(event.target.selectionStart);setCompletionClosed(false);setCompletionIndex(0)}} onClick={event=>setCursor(event.currentTarget.selectionStart)} onKeyUp={event=>setCursor(event.currentTarget.selectionStart)} onPaste={event=>{const pasted=[...event.clipboardData.files].filter(file=>file.type.startsWith("image/"));if(pasted.length)void addImages(pasted)}} onKeyDown={onComposerKeyDown} placeholder={t('session.placeholder')} rows={2}/><div className="session-composer-actions"><Menu trigger={<button type="button" className="session-composer-icon" title={t('session.addContext')} aria-label={t('session.addContext')}><Plus size={20}/></button>} items={[{label:t('session.addImage'),action:()=>imageInputRef.current?.click()},{label:t('session.referenceFile'),action:()=>{setRightTab('files');setRightOpen(true)}},{label:t('session.details'),action:showDetails}]}/><ComposerSecondaryActions><button type="button" className="session-composer-icon" aria-label={t('session.setGoal')} title={t('session.setGoal')} disabled={remoteMode} onClick={()=>setGoalOpen(true)}><Target size={19}/></button><Menu trigger={<button type="button" className={`session-composer-permission ${permissionMode==='yolo'?'is-full':''}`} aria-label={t('session.accessMode')} title={t('session.chooseAccess')}><ShieldCheck size={16}/>{permissionLabel}<ChevronDown size={13}/></button>} items={[{label:<><strong>{t('session.permission.ask')}</strong><small>{t('session.permission.askHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"ask")},{label:<><strong>{t('session.permission.read')}</strong><small>{t('session.permission.readHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"read")},{label:<><strong>{t('session.permission.trust')}</strong><small>{t('session.permission.trustHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"trust")},{label:<><strong>YOLO</strong><small>{t('session.permission.yoloHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"yolo")}]}/><VoiceInput onText={text=>setDraft((draft?draft+' ':'')+text)} onError={setSendError} disabled={sending}/></ComposerSecondaryActions><div className="session-composer-spacer"/><ModelControls models={models} model={selectedModel} effort={effectiveEffort} onEffort={setThinkingEffort} onModel={chooseModel} modelDisabled={remoteMode&&!!id} fast={fastInference} fastDisabled={(remoteMode&&!sshMode)||!axAvailable||!ax.data||switchingInference} onFast={()=>void toggleInference()} emptyHint={remoteMode?connectionText('暂无可用模型，请在对应 AX 中配置','No models available. Configure the corresponding AX.'):t('session.connectModel')} onConfigure={()=>navigate('/settings')}/>{busy?<button type="button" className="session-send-button session-stop-button" aria-label={t('session.stop')} title={t('session.stop')} disabled={sending} onClick={async()=>{if(sendLock.current)return;sendLock.current=true;setSending(true);try{await api(`/api/tasks/${task!.id}/cancel`,'POST',{});void queryClient.invalidateQueries({queryKey:['tasks']});void queryClient.invalidateQueries({queryKey:['history',task!.id]})}catch(error){setSendError(String(error))}finally{sendLock.current=false;setSending(false)}}}><Square size={14}/></button>:null}{<button className="session-send-button" type="submit" aria-label={t('session.sendMessage')} title={busy?connectionText('发送补充指导，继续当前任务','Send guidance and continue the current task'):t('session.sendMessage')} disabled={!canSend}><ArrowUp size={20}/></button>}</div></form>{sendError&&<div className="session-inline-error" role="alert">{t('session.failedKeptDraft')}{sendError}</div>}</div>}
+        </div>}<form className="session-composer" onSubmit={onSubmit} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void addImages([...event.dataTransfer.files])}}>{task&&pendingQuestion&&<SessionQuestionCard key={`${task.id}:${pendingQuestion.id}`} task={task} question={pendingQuestion} disabled={sending} onBusy={setSending}/>}<input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={event=>{void addImages([...event.target.files??[]]);event.target.value=""}}/>{images.length>0&&<div className="session-image-previews">{images.map((image,index)=><div key={`${image.name}-${index}`} className="session-image-preview"><button type="button" className="session-image-open" aria-label={`${useLang.getState().lang==='zh'?'查看图片':'View image'} ${image.name}`} onClick={()=>setImagePreview(image)}><img src={`data:${image.mime};base64,${image.data}`} alt={image.name}/></button><button type="button" aria-label={t('session.removeImage',{index:index+1})} onClick={()=>setImagesByDraft(state=>({...state,[draftKey]:(state[draftKey]??[]).filter((_,position)=>position!==index)}))}><X size={13}/></button></div>)}</div>}<textarea ref={inputRef} aria-label={t('session.sendMessage')} value={draft} disabled={sending} onChange={event=>{setDraft(event.target.value);setCursor(event.target.selectionStart);setCompletionClosed(false);setCompletionIndex(0)}} onClick={event=>setCursor(event.currentTarget.selectionStart)} onKeyUp={event=>setCursor(event.currentTarget.selectionStart)} onPaste={event=>{const pasted=[...event.clipboardData.files].filter(file=>file.type.startsWith("image/"));if(pasted.length)void addImages(pasted)}} onKeyDown={onComposerKeyDown} placeholder={t('session.placeholder')} rows={2}/><div className="session-composer-actions"><Menu trigger={<button type="button" className="session-composer-icon" title={t('session.addContext')} aria-label={t('session.addContext')}><Plus size={20}/></button>} items={[{label:t('session.addImage'),action:()=>imageInputRef.current?.click()},{label:t('session.referenceFile'),action:()=>{setRightTab('files');setRightOpen(true)}},{label:t('session.details'),action:showDetails}]}/><ComposerSecondaryActions><button type="button" className="session-composer-icon" aria-label={t('session.setGoal')} title={t('session.setGoal')} disabled={remoteMode||localMode} onClick={()=>setGoalOpen(true)}><Target size={19}/></button><Menu trigger={<button type="button" className={`session-composer-permission ${permissionMode==='yolo'?'is-full':''}`} aria-label={t('session.accessMode')} title={t('session.chooseAccess')}><ShieldCheck size={16}/>{permissionLabel}<ChevronDown size={13}/></button>} items={[{label:<><strong>{t('session.permission.ask')}</strong><small>{t('session.permission.askHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"ask")},{label:<><strong>{t('session.permission.read')}</strong><small>{t('session.permission.readHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"read")},{label:<><strong>{t('session.permission.trust')}</strong><small>{t('session.permission.trustHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"trust")},{label:<><strong>YOLO</strong><small>{t('session.permission.yoloHint')}</small></>,action:()=>ui.setPermissionMode(draftKey,"yolo")}]}/><VoiceInput onText={text=>setDraft((draft?draft+' ':'')+text)} onError={setSendError} disabled={sending}/></ComposerSecondaryActions><div className="session-composer-spacer"/><ModelControls models={models} model={selectedModel} effort={effectiveEffort} onEffort={setThinkingEffort} onModel={chooseModel} modelDisabled={remoteMode&&!!id} fast={fastInference} fastDisabled={(remoteMode&&!sshMode)||!axAvailable||!ax.data||switchingInference} onFast={()=>void toggleInference()} emptyHint={remoteMode?connectionText('暂无可用模型，请在对应 AX 中配置','No models available. Configure the corresponding AX.'):t('session.connectModel')} onConfigure={()=>navigate('/settings')}/>{((busy||task?.status==='waiting_user')&&!draft.trim()&&!images.length)?<button type="button" className="session-send-button session-stop-button" aria-label={t('session.stop')} title={t('session.stop')} disabled={sending} onClick={async()=>{if(sendLock.current)return;sendLock.current=true;setSending(true);try{await api(`/api/tasks/${task!.id}/cancel`,'POST',{});void queryClient.invalidateQueries({queryKey:['tasks']});void queryClient.invalidateQueries({queryKey:['history',task!.id]})}catch(error){setSendError(String(error))}finally{sendLock.current=false;setSending(false)}}}><Square size={14}/></button>:<button className="session-send-button" type="submit" aria-label={t('session.sendMessage')} title={busy?connectionText('发送补充指导，继续当前任务','Send guidance and continue the current task'):t('session.sendMessage')} disabled={!canSend}><ArrowUp size={20}/></button>}</div></form>{sendError&&<div className="session-inline-error" role="alert">{t('session.failedKeptDraft')}{sendError}</div>}</div>
     </section>
 
     {layout.rightMode==='docked'&&(rightTab==='files'?<WorkspaceSplitter layout={layout} onRatio={ui.setSplitRatio}/>:<div className="session-preview-gap"/>)}
     {layout.rightMode==='drawer'&&<button className="session-right-backdrop" aria-label={t('session.rightBackdrop')} onClick={()=>setRightOpen(false)}/>}
     <aside ref={previewRef} role={layout.rightMode==='drawer'?'dialog':undefined} aria-modal={layout.rightMode==='drawer'||undefined} hidden={listDrawerOpen&&layout.rightMode==='drawer'} className={`session-right-panel ${rightOpen?'':'is-closed'} ${rightOpen&&rightTab==='files'?'is-files':''}`} aria-hidden={!rightOpen} aria-label={rightOpen?t('session.rightPanelOpen'):t('session.rightPanelClosed')}>
       <div className="session-right-tabs">
-        {rightOpen&&<><button className={rightTab==='files'?'active':''} onClick={()=>setRightTab('files')}><Folder size={17}/> {t('session.tabFiles')}</button><button className={rightTab==='chat'?'active':''} onClick={()=>setRightTab('chat')}>{useLang.getState().lang==='zh'?'聊天':'Chat'}</button><button className={rightTab==='details'?'active':''} onClick={()=>setRightTab('details')}><SlidersHorizontal size={17}/> {t('session.tabDetails')}</button></>}
+        {rightOpen&&<><button className={rightTab==='files'?'active':''} onClick={()=>setRightTab('files')}><Folder size={17}/> {t('session.tabFiles')}</button><button className={rightTab==='chat'?'active':''} onClick={()=>setRightTab('chat')}>{useLang.getState().lang==='zh'?'聊天':'Chat'}<CompletionDot keys={sideTaskIds.map(taskIdentity)}/></button><button className={rightTab==='details'?'active':''} onClick={()=>setRightTab('details')}><SlidersHorizontal size={17}/> {t('session.tabDetails')}</button></>}
         {rightOpen&&<Menu trigger={<button type="button" className="session-layout-menu" aria-label={connectionText('面板布局','Panel layout')}><MoreHorizontal size={17}/></button>} items={[{label:connectionText(layout.rightMode==='full'?'显示主聊天':'仅侧栏视图',layout.rightMode==='full'?'Show main chat':'Sidebar only'),action:()=>ui.setChatOpen(layout.rightMode==='full')},{label:connectionText('恢复默认布局','Restore default layout'),action:resetLayout}]}/>}
         <button className="session-right-toggle" aria-label={rightOpen?t('session.closeRight'):t('session.openRight')} title={rightOpen?t('session.collapseRight'):t('session.expandRight')} aria-expanded={rightOpen} onClick={()=>setRightOpen(!rightOpen)}><PanelRight size={18}/></button>
       </div>
       <div className="session-file-panel-slot" hidden={!rightOpen||rightTab!=='files'}><UnifiedFilePanel key={`${draftKey}:${imageRoot??member?.cwd??''}:${remoteMode}`} changedFiles={reviewFiles} reviewRequest={changedView.request} member={member} workspaceRoot={changedView.root??imageRoot} remote={remoteMode} onReference={path=>{setDraft(`${draft}${draft?'\n':''}@file ${path}`);inputRef.current?.focus()}}/></div>
-      <SessionInteractions value={{root:imageRoot,onChanges:openChanges}}><div className="session-side-chat-slot" hidden={!rightOpen||rightTab!=='chat'}><SideChat quotes={sideQuotes} onQuotesChange={setSideQuotes} cwd={imageRoot} memberId={remoteMode?member?.id:undefined} models={models} initialModel={selectedModel} fast={fastInference} onFast={()=>void toggleInference()} fastDisabled={(remoteMode&&!sshMode)||!axAvailable||!ax.data||switchingInference} remote={remoteMode} onRemoteModel={chooseModel} onTask={id=>setSideTaskIds(ids=>[...ids,id])}/></div></SessionInteractions>
+      <SessionInteractions value={{root:imageRoot,onChanges:openChanges}}><div className="session-side-chat-slot" hidden={!rightOpen||rightTab!=='chat'}><SideChat visible={rightOpen&&rightTab==='chat'} quotes={sideQuotes} onQuotesChange={setSideQuotes} cwd={imageRoot} memberId={remoteMode?member?.id:undefined} models={models} initialModel={selectedModel} fast={fastInference} onFast={()=>void toggleInference()} fastDisabled={(remoteMode&&!sshMode)||!axAvailable||!ax.data||switchingInference} remote={remoteMode} onRemoteModel={chooseModel} onTask={id=>setSideTaskIds(ids=>[...ids,id])}/></div></SessionInteractions>
       {rightOpen&&rightTab==='details'&&<div className="session-right-details"><div><span>{t('session.deviceLabel')}</span><strong>{device?.name??member?.device_id??'—'}</strong></div><div><span>{t('session.taskStatus')}</span><strong>{task?.status?t('status.'+task.status):t('session.statusNew')}</strong></div><div><span>{t('session.axSessionId')}</span><strong className="session-detail-id">{selectedBinding?.ax_session_id??'—'}</strong></div>{id&&<Link to={`/tasks/${task?.id??id}`}>{t('session.viewTask')} <ExternalLink size={14}/></Link>}</div>}
     </aside>
     <ProjectDialog open={projectDialog} onClose={()=>setProjectDialog(false)} onCreated={project=>{if(project.device_id==="local"){ui.setSelectedCwd(project.cwd);ui.setSelectedEnvironment(null);setCloud(false)}else{ui.setSelectedEnvironment(project.member_id);setCloud(true)}newSession()}}/>
@@ -516,6 +550,7 @@ export function SessionsWorkspace(){
           if(group?.binding)await api(`/api/sessions/${encodeURIComponent(group.root.id)}`,'DELETE')
           else if(deleteTarget.id.startsWith('local:'))await api(`/api/ax/local/${encodeURIComponent(deleteTarget.id.slice(6))}`,'DELETE')
           else throw new Error(t('session.retry'))
+          useAttention.getState().forget([deleteTarget.id,...(group?.tasks.map(item=>taskIdentity(item.id))??[])])
           await Promise.all(['tasks','sessions','local-ax','localAx'].map(key=>queryClient.invalidateQueries({queryKey:[key]})))
           setDeleteTarget(null);newSession()
         }catch(error){setDeleteError(String(error))}finally{setDeleting(false)}

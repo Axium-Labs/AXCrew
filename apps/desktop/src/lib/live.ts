@@ -3,7 +3,7 @@ import { getConnection } from './api'
 import { queryClient } from './runtime'
 import type { CrewEvent } from './types'
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { notifyCompletion } from './completionNotifications'
 
 export type ConnectionStatus='Disconnected'|'Connecting'|'Connected'|'Reconnecting'
 type Live={status:ConnectionStatus;events:CrewEvent[];streams:Record<string,CrewEvent[]>;setStatus:(status:ConnectionStatus)=>void;add:(items:CrewEvent[])=>void}
@@ -33,7 +33,8 @@ let batch:CrewEvent[]=[]
 let flushTimer:ReturnType<typeof setTimeout>|undefined
 function flush(){if(batch.length){useLive.getState().add(batch.reverse());batch=[]}flushTimer=undefined}
 async function notify(event:CrewEvent){
-  if(!['device.disconnected','permission.requested','task.completed','task.failed'].includes(event.kind))return
+  if(['task.completed','task.failed'].includes(event.kind)){await notifyCompletion(event);return}
+  if(!['device.disconnected','permission.requested'].includes(event.kind))return
   try{
     let granted=await isPermissionGranted();if(!granted)granted=(await requestPermission())==='granted'
     if(!granted)return
@@ -42,15 +43,6 @@ async function notify(event:CrewEvent){
       sendNotification({title:'AX 设备已断开',body:String(event.payload?.reason??event.device_id??'AX Crew')})
     }else if(event.kind==='permission.requested'){
       sendNotification({title:'AX Crew 需要授权',body:String(request?.toolCall?.title??'AX Crew')})
-    }else if(event.kind==='task.completed'||event.kind==='task.failed'){
-      const window=getCurrentWindow()
-      const visible=await window.isVisible().catch(()=>true)
-      const minimized=await window.isMinimized().catch(()=>false)
-      if(!visible||minimized){
-        const task=event.payload as {title?:string}|undefined
-        const title=task?.title??'任务'
-        sendNotification({title:event.kind==='task.completed'?'任务已完成':'任务失败',body:title})
-      }
     }
   }catch{/* permission declined or unavailable */}
 }
@@ -60,7 +52,7 @@ function consume(event:CrewEvent){
   ;(event as CrewEvent&{received_at:number}).received_at=Date.now()
   batch.push(event);if(!flushTimer)flushTimer=setTimeout(flush,90)
   if(event.kind.startsWith('device.'))queryClient.invalidateQueries({queryKey:['devices']})
-  if(event.kind.startsWith('task.')){queryClient.invalidateQueries({queryKey:['tasks']});if(event.task_id&&['task.completed','task.failed','task.cancelled'].includes(event.kind))queryClient.invalidateQueries({queryKey:['history',event.task_id]})}
+  if(event.kind.startsWith('task.')){queryClient.invalidateQueries({queryKey:['tasks']});if(event.task_id&&['task.completed','task.failed','task.cancelled','task.waiting_user'].includes(event.kind))queryClient.invalidateQueries({queryKey:['history',event.task_id]})}
   if(event.kind.startsWith('permission.'))queryClient.invalidateQueries({queryKey:['permissions']})
   if(event.kind.startsWith('crew.')||event.kind.startsWith('member.')){queryClient.invalidateQueries({queryKey:['crews']});queryClient.invalidateQueries({queryKey:['members']});queryClient.invalidateQueries({queryKey:['allMembers']})}
   if(event.kind==='session.bound')queryClient.invalidateQueries({queryKey:['sessions']})

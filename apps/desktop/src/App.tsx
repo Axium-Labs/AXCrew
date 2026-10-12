@@ -11,6 +11,8 @@ import { TerminalDock, terminalDockClass } from './components/TerminalDock'
 import { queryClient } from './lib/runtime'
 import { endpoints } from './lib/api'
 import { startLive } from './lib/live'
+import { startCompletionNotifications } from './lib/completionNotifications'
+import { CompletionDot } from './components/CompletionDot'
 import { startWindowScale } from './lib/scale'
 import { useCrews, useDevices, useSessions, useTasks } from './lib/query'
 import { useUi } from './store/ui'
@@ -65,6 +67,7 @@ function Shell(){
   else maxHistory.current=Math.max(maxHistory.current,historyIndex)
   const sessionRows=useMemo(()=>conversations(sessions.data??[],tasks.data??[]),[sessions.data,tasks.data])
   useEffect(()=>startLive(),[])
+  useEffect(()=>startCompletionNotifications(),[])
   useEffect(()=>startWindowScale(),[])
   useEffect(()=>{const handler=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setPalette(true)}if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='b'){e.preventDefault();setSidebar(!sidebar)}if((e.ctrlKey||e.metaKey)&&e.code==='Backquote'){e.preventDefault();useTerminalDock.getState().setOpen(!useTerminalDock.getState().open,terminalCwd??backend.data?.default_cwd)}if(e.altKey&&e.key.toLowerCase()==='c'){e.preventDefault();navigate('/sessions')}};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler)},[setPalette,navigate,backend.data?.default_cwd,terminalCwd,sidebar,layout.navigation])
   useEffect(()=>{const media=window.matchMedia('(prefers-color-scheme: dark)');const apply=()=>{document.documentElement.dataset.theme=(theme==='system'?media.matches:theme==='dark')?'dark':'light'};apply();media.addEventListener('change',apply);return()=>media.removeEventListener('change',apply)},[theme])
@@ -94,7 +97,7 @@ function Shell(){
     {compactNavOpen&&<button className="workspace-nav-backdrop" aria-label={lang==='zh'?'关闭导航抽屉':'Close navigation drawer'} onClick={()=>setCompactNavOpen(false)}/>}
     <aside ref={navigationRef} role={compactNavOpen?'dialog':undefined} aria-modal={compactNavOpen||undefined} aria-label={lang==='zh'?'主导航':'Main navigation'} className={`sidebar ${sidebar?'':'is-compact'} ${compactNavOpen?'is-drawer':''} ${layout.navigation==='hidden'&&!compactNavOpen?'is-hidden':''}`}>
       <button className="brand" type="button" aria-label={sidebar?t('titlebar.collapseNav'):t('titlebar.expandNav')} aria-expanded={sidebar} title={sidebar?t('titlebar.collapseNav'):t('titlebar.expandNav')} onClick={()=>setSidebar(!sidebar)}><span className="brand-mark" aria-hidden="true">AX</span><span className="brand-name" aria-hidden="true">AX <b>CREW</b></span><span className="sidebar-collapse" aria-hidden="true">{sidebar?<PanelLeftClose size={18}/>:<PanelLeftOpen size={18}/>}</span></button>
-      <nav className="sidebar-nav sidebar-primary" aria-label={t('nav.primary')}>{primaryNav.map(([path,key,Icon])=>{const label=t(key);return <NavLink key={path} to={path} title={label} className={({isActive})=>`nav-item ${isActive?'active':''}`}><Icon size={18}/><span className="nav-label">{label}</span></NavLink>})}</nav>
+      <nav className="sidebar-nav sidebar-primary" aria-label={t('nav.primary')}>{primaryNav.map(([path,key,Icon])=>{const label=t(key);return <NavLink key={path} to={path} title={label} className={({isActive})=>`nav-item ${isActive?'active':''}`}><Icon size={18}/><span className="nav-label">{label}</span>{path==='/sessions'&&<CompletionDot/>}</NavLink>})}</nav>
       <nav className="sidebar-nav sidebar-utilities" aria-label={t('nav.utilities')}>
         <button className={`nav-item ${terminal.open?'active':''}`} type="button" aria-label={t('nav.terminal')} aria-pressed={terminal.open} title={t('nav.terminal')} onClick={()=>terminal.setOpen(!terminal.open,terminalCwd??backend.data?.default_cwd)}><SquareTerminal size={18}/><span className="nav-label">{t('nav.terminal')}</span></button>
         {utilityNav.map(([path,key,Icon])=>{const label=t(key);return <Link key={path} to={path} title={label} aria-current={utilityActive(path)?'page':undefined} className={`nav-item ${utilityActive(path)?'active':''}`}><Icon size={18}/><span className="nav-label">{label}</span></Link>})}

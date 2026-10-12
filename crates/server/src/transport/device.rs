@@ -54,9 +54,8 @@ impl Transport for RemoteTransport {
                 value["sessionId"].as_str().ok_or_else(||anyhow!("AX omitted sessionId"))?.to_owned()
             };
             events.send(TransportEvent::Bound(session.clone())).ok();
-            let prompt=task.input.as_str().map(str::to_owned).unwrap_or_else(||task.input.to_string());
-            remote_send(&link,&run,json!({"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{"sessionId":session,"prompt":[{"type":"text","text":prompt}]}})).await?;
-            let mut output=String::new();let mut cancellation_sent=false;
+            remote_send(&link,&run,json!({"jsonrpc":"2.0","id":3,"method":"session/prompt","params":super::prompt_params(&session,task)?})).await?;
+            let mut output=String::new();let mut question=Value::Null;let mut cancellation_sent=false;
             let mut steer_replies=SteerReplies::default();let mut steering_open=true;
             let mut permissions=tokio::task::JoinSet::new();
             loop {
@@ -78,11 +77,16 @@ impl Transport for RemoteTransport {
                     permissions.spawn(async move {let choice=permission(&approvals,&msg,&events,&mut cancel).await;(msg["id"].clone(),choice)});
                 }else if msg["method"]=="session/update" {
                     let update=&msg["params"]["update"];
+                    if update["sessionUpdate"]=="agent_question" {question=update["question"].clone();}
                     if update["sessionUpdate"]=="agent_message_chunk"&&let Some(text)=update["content"]["text"].as_str(){output.push_str(text);}
                     events.send(TransportEvent::Update(update.clone())).ok();
                 }else if msg["id"]==3 {
                     if !msg["error"].is_null(){return Err(anyhow!("remote prompt failed: {}",msg["error"]));}
                     if msg["result"]["stopReason"]=="cancelled" {return Err(anyhow!("task cancelled"));}
+                    if msg["result"]["_meta"]["axGoal"]["waiting_for_user"]==true {
+                        if question["id"].as_str().is_none(){return Err(anyhow!("AX omitted the pending question"));}
+                        return Ok(json!({"text":output,"session_id":session,"waiting_for_user":true,"goal_id":msg["result"]["_meta"]["axGoal"]["goal_id"],"question":question}));
+                    }
                     return Ok(json!({"text":output,"session_id":session}));
                 }
             }

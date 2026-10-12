@@ -138,6 +138,15 @@ impl Scheduler {
         self.db.retry(id)?;
         self.db.task(id)?.ok_or_else(|| anyhow!("task missing"))
     }
+    pub fn answer(&self, id: &str, answer: &crate::domain::session::SessionAnswer) -> Result<Task> {
+        let task = self.db.queue_question_answer(id, answer)?;
+        self.emit(
+            "task.answer.queued",
+            Some(&task),
+            json!({"question_id":answer.question_id}),
+        );
+        Ok(task)
+    }
     pub async fn steer(&self, id: &str, text: String) -> Result<()> {
         let sender = self
             .running
@@ -164,7 +173,7 @@ impl Scheduler {
             task.assigned_device == id
                 && matches!(
                     task.status.as_str(),
-                    "pending" | "ready" | "running" | "waiting_permission"
+                    "pending" | "ready" | "running" | "waiting_permission" | "waiting_user"
                 )
         }) {
             if let Some(run) = self.running.lock().unwrap().get(&task.id) {
@@ -366,7 +375,11 @@ impl Scheduler {
             );
             drop(running);
             self.db.start_run(&task)?;
-            self.db.set_status(&task.id, "running", None)?;
+            self.db.set_status(
+                &task.id,
+                "running",
+                task.output.clone().filter(|o| !o["answer"].is_null()),
+            )?;
             self.db.set_device_status(&task.assigned_device, "busy")?;
             self.emit(
                 "task.started",
@@ -445,6 +458,13 @@ impl Scheduler {
             return;
         }
         match result {
+            Ok(output) if output["waiting_for_user"] == true => {
+                let _ = self
+                    .db
+                    .set_status(&task.id, "waiting_user", Some(output.clone()));
+                let _ = self.db.finish_run(&task.id, "waiting_user", None);
+                self.emit("task.waiting_user", Some(&task), output);
+            }
             Ok(output) => {
                 let _ = self
                     .db
@@ -483,6 +503,13 @@ impl Scheduler {
         self.restore_device_status(&task);
     }
     fn materialize_input(&self, task: &Task) -> Value {
+        if let Some(answer) = task
+            .output
+            .as_ref()
+            .and_then(|o| o["answer"]["prompt"].as_str())
+        {
+            return Value::String(answer.to_owned());
+        }
         let Some(options) = task.input.as_object() else {
             return task.input.clone();
         };
@@ -539,6 +566,7 @@ impl Scheduler {
         } else {
             match value["sessionUpdate"].as_str().unwrap_or("") {
                 "agent_message_chunk" => "agent.message.delta",
+                "agent_question" => "agent.question",
                 "tool_call" => "tool.started",
                 "tool_call_update" if value["rawOutput"]["status"] == "error" => "tool.failed",
                 "tool_call_update" => match value["status"].as_str() {

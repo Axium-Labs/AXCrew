@@ -198,6 +198,9 @@ pub struct Cluster {
     pub revision: u64,
     pub hosts: BTreeMap<String, Host>,
     pub instances: BTreeMap<String, Instance>,
+    /// Deregistered metadata for execution history; never eligible for authentication.
+    #[serde(default)]
+    pub removed_instances: BTreeMap<String, Instance>,
     pub tasks: BTreeMap<String, DistributedTask>,
     pub artifacts: BTreeMap<String, Artifact>,
     pub events: Vec<ClusterEvent>,
@@ -231,7 +234,11 @@ impl Cluster {
     }
     pub fn public(&self) -> Self {
         let mut copy = self.clone();
-        for instance in copy.instances.values_mut() {
+        for instance in copy
+            .instances
+            .values_mut()
+            .chain(copy.removed_instances.values_mut())
+        {
             instance.credential_hash.clear();
         }
         copy.receipts.clear();

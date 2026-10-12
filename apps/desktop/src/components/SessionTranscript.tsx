@@ -1,3 +1,4 @@
+import { answeredSessionQuestions } from '../lib/sessionQuestions'
 import { transcriptTurns, turnChangedFiles } from '../lib/sessionTranscript'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Terminal, Pencil, Search, FileText, Globe } from 'lucide-react'
@@ -120,6 +121,7 @@ function TranscriptTurn({turn,active,finishedAt,hideActiveChanges}:{turn:Session
   const answerIndex=!active?lastAnswer:-1
   const answer=answerIndex>=0?body[answerIndex]:undefined
   const guidance=body.filter(line=>line.steering)
+  const answers=answeredSessionQuestions(body)
   const process=body.filter((line,index)=>index!==answerIndex&&!line.steering)
   const open=expanded??active
   const [mountedAt]=useState(Date.now())
@@ -135,6 +137,7 @@ function TranscriptTurn({turn,active,finishedAt,hideActiveChanges}:{turn:Session
       <div className="session-process-content" hidden={!open}><Steps lines={process}/></div>
     </section>}
     {guidance.map(line=><div className="session-guidance" key={line.key}><small>{lang==='zh'?'补充指导':'Guidance'}</small><TranscriptLine line={line}/></div>)}
+    {answers.map(item=><div className="session-guidance session-question-receipt" key={item.id}><small>{lang==='zh'?'已回答 AX 的问题':'Answered AX question'}</small><p>{item.text}</p><p>{item.answer}</p></div>)}
     {answer&&<TranscriptLine line={answer} showActions={false}/>}
     {!(active&&hideActiveChanges)&&<Changes files={files}/>}
     {answer&&<div className="session-turn-actions"><MessageActions line={answer}/></div>}

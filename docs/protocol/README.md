@@ -3,6 +3,12 @@
 The protocol is defined in the canonical documents below. This page exists to point at
 them instead of restating them, so the contract cannot drift out of sync.
 
+Optional Goal durability uses the existing fenced Workflow checkpoint contract
+with a reserved `ax_goal_runtime` state key; see the distributed document below.
+Desktop `ax_goal_settings` invokes AX's own `goal-settings` CLI and does not add
+a REST/Android settings API. Host-bound ACP imports are an AX worker adapter seam,
+not a user-supplied remote Session ownership override.
+
 | Contract | Canonical description | Implementation |
 |---|---|---|
 | Distributed Tasks, Workflow State, Events, Artifacts and worker leases | [distributed-collaboration.md](../distributed-collaboration.md) | `api/distributed.rs`, `orchestration/distributed.rs` |
@@ -26,7 +32,7 @@ These are treated as contracts, not implementation details:
   removed or retyped. Additive optional fields are allowed.
 - **WebSocket events**: the `event_id`, `kind`, `task_id` and `payload` envelope
   is stable. The `payload.sessionUpdate` values (`agent_message_chunk`,
-  `agent_thought_chunk`, `tool_call`, `tool_call_update`, `turn_changes`) are
+  `agent_thought_chunk`, `agent_question`, `tool_call`, `tool_call_update`, `turn_changes`) are
   shared with the ACP adapter.
 - **ACP**: line-delimited JSON-RPC 2.0 with `initialize`, `session/new`,
   `session/load`, `session/resume`, `session/prompt`, `session/cancel`, the
@@ -49,6 +55,10 @@ Existing callers remain compatible; details and unknown hardware semantics are i
 
 Connections/projects are additive authenticated REST resources documented in
 [api.md](api.md). Local and paired AX directory inspection use its read-only workspace extension.
+
+Local AX history can be continued through the existing attach/message API.
+The local index resolves placeholder titles from the first user request while
+preserving AX's stored data; see the session endpoints in [api.md](api.md).
 SSH directory inspection uses remote shell commands; inference/history run in
 local AX with an SSH context. Heartbeats optionally advertise registered roots;
 existing gateway envelopes and session bindings are unchanged.
@@ -62,3 +72,11 @@ orchestration module handles CAS scope policy, whole-Workflow control,
 reassignment and partial batch results; the API only authenticates and delegates.
 AX retains ACP execution, settings validation, approvals and native Long Project
 history. See [workbench scope and command contracts](../distributed-collaboration.md).
+
+
+Distributed instance deregistration is admin-only `DELETE /api/distributed/instances/{id}`.
+The existing aggregate retains credential-free `removed_instances` metadata for history;
+active-task/pinned-task, unfinished explicit Workflow membership and executing native
+management checks run in the orchestration transaction. The response is `{accepted:true}`,
+including a repeated deletion of an archived ID. Workers lose authentication; Tasks,
+Sessions, Events and artifact histories are retained. See the distributed contract.
