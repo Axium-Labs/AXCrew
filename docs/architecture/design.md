@@ -74,3 +74,13 @@ execution tools are excluded in this context to prevent confusing remote paths
 with local files. Local model/credential/session stores remain authoritative.
 The scheduler exempts SSH task counts from global/member limits without changing
 other task classes. Same-host tool effects still serialize inside a turn.
+
+
+The collaboration workbench extends the existing distributed aggregate with
+serde-defaulted Workflow policy, reported Attempt Session chains, execution
+inbox commands and opt-in instance native-management commands. No new Session
+store, Goal ledger, scheduler or SQL table is introduced. The collaboration
+orchestration module handles CAS scope policy, whole-Workflow control,
+reassignment and partial batch results; the API only authenticates and delegates.
+AX retains ACP execution, settings validation, approvals and native Long Project
+history. See [workbench scope and command contracts](../distributed-collaboration.md).

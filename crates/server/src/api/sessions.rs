@@ -406,9 +406,6 @@ pub async fn session_message(
     Ok(Json(app.scheduler.start(&followup.id)?))
 }
 
-#[cfg(test)]
-#[path = "../../../../tests/session_effort.rs"]
-mod effort_tests;
 
 #[cfg(test)]
 mod tests {

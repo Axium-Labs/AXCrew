@@ -317,7 +317,11 @@ Android release signing reads AXCREW_ANDROID_KEYSTORE, AXCREW_ANDROID_STORE_PASS
 
 ## 分布式协作
 
-侧边栏「分布式协作」管理 Host、AX Instance、Workflow、Task、Artifact 与 Event。添加实例仅设置连接、逻辑项目与并发等基础信息，不填写 CPU/RAM/GPU、Skill/MCP/Tool 或模型。AX 连接后自动探测并展示 Host 配置、在线状态和任务预留；同 Host 多个实例共享机器容量。连接后的 AX 实例页可配置能力，下载字段合并到本地 worker 配置、安装/启用依赖并重启后由 AX 上报生效。可下载独立 worker 配置、提交带能力/资源/依赖要求的任务、查看错误与检查点、取消/重试和下载产物。新接口与原有会话/设备控制并存。见 [控制层与部署说明](../../docs/distributed-collaboration.md)。
+侧边栏「分布式协作」现在包含协作工作台、节点管理、执行活动三个视图。以已有 Workflow/Task 组织普通任务或 AX Goal，按能力与资源自动分配或手动选择 AX，添加成员角色、依赖及工作任务，查看整体进度和实时 ACP 消息/工具调用，进入真实 Session 补充要求、回答问题及进行单请求权限审批。支持整个协作或单任务暂停、恢复、取消、重试、重新分配与检查点接管。
+
+节点按 Host → AX Instance 展示，分别显示机器实测 CPU/RAM/GPU/磁盘/网络、跨 Goal 任务预留与执行槽位。展开 AX 可查看项目、能力、当前 Goal/任务/Session，并复用配置组件管理目标 AX 原生设置、个性化、Memory 开关、自定义指令和插件。远程原生管理需要机器明确启用；配置写入必须确认实例/项目影响范围，活动执行期间拒绝写入。Goal 成员/能力策略只影响该 Goal。多选批量能力配置、原生子 Agent 设置与启停提供逐节点差异预览、确认及部分失败结果；共享配置导出不含凭证，一次性连接 worker.json 明确标为私有。
+
+Long Project 默认关闭，仅作为 Goal 内可选区块，支持原生文档导入编辑/导出、模板、归档检索和 Session Rotation；Session 链沿用原 Goal、任务和累计预算。执行活动可按 Goal、AX、Host 和任务状态追溯各代 Execution、Session、错误、恢复事件及产物。工作台仍使用同一个分布式状态源与已有实时轮询/事件 API。见 [控制层与部署说明](../../docs/distributed-collaboration.md)。
 
 Standalone desktop tests and test-runner configuration are local-only and are
 not distributed in the source repository.

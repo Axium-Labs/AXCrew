@@ -158,3 +158,13 @@ return focus for drawers. `ComposerSecondaryActions.tsx` observes the actual for
 width and moves secondary controls to a shared popover below 600px. Existing
 `useAutoGrow` handles textarea wrapping after the panel resizes. No server API,
 AX behavior, Android state or stored conversation format changes.
+
+
+The collaboration workbench extends the existing distributed aggregate with
+serde-defaulted Workflow policy, reported Attempt Session chains, execution
+inbox commands and opt-in instance native-management commands. No new Session
+store, Goal ledger, scheduler or SQL table is introduced. The collaboration
+orchestration module handles CAS scope policy, whole-Workflow control,
+reassignment and partial batch results; the API only authenticates and delegates.
+AX retains ACP execution, settings validation, approvals and native Long Project
+history. See [workbench scope and command contracts](../distributed-collaboration.md).

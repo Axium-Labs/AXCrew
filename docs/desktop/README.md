@@ -463,7 +463,7 @@ closes an open composer menu first, leaving the side panel open.
 
 ## Distributed management
 
-The **分布式协作 / Distributed** sidebar entry opens `/distributed`. Host, AX Instance, Workflow, Task, Artifact and Event tabs support shared resource administration, enrollment/config download, constrained task creation, attempt/error/checkpoint inspection, central cancellation/retry and artifact download. This optional surface is independent of legacy Sessions, devices and local AX settings. See [Distributed Collaboration](../distributed-collaboration.md) for policy and worker setup.
+The **分布式协作 / Distributed** sidebar entry opens `/distributed`. Workspace, Nodes and Activity views organize existing Goal/Task collaborations, Host → AX Instance management and Execution/Session history. They support participant roles, scoped policies, live ACP guidance/approvals, shared capacity, whole-Workflow pause/resume/cancel/retry, reassignment, confirmed batch operations and opt-in target native settings/plugins. Long Project stays optional and inline inside a Goal. This optional surface is backed by the existing durable cluster and AX-owned Sessions/settings; legacy device controls remain available. See [Distributed Collaboration](../distributed-collaboration.md) for policy and worker setup.
 
 
 ## Connections and named projects

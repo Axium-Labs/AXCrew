@@ -66,6 +66,7 @@ pub fn enroll(db: &Db, body: Enrollment) -> Result<(Instance, String)> {
             enabled: true,
             last_seen: 0,
             incarnation: String::new(),
+            remote_management: false,
             credential_hash: hash(token.as_bytes()),
         };
         state
@@ -121,6 +122,30 @@ pub fn submit(db: &Db, creator: &str, mut spec: Submit) -> Result<DistributedTas
                     && instance.projects.contains(&spec.project_id),
                 "delegation policy denied"
             );
+            ensure!(
+                spec.collaboration.is_none(),
+                "only admin can set Goal policy"
+            );
+        }
+        if let Some(policy) = &spec.collaboration {
+            ensure!(
+                spec.workflow_id.is_none()
+                    && spec.parent_id.is_none()
+                    && !policy.paused
+                    && ["goal", "task"].contains(&policy.kind.as_str()),
+                "invalid root Goal policy"
+            );
+            validate_capabilities(&policy.requirements)?;
+            for (id, role) in &policy.participants {
+                ensure!(
+                    role.len() <= 128
+                        && state
+                            .instances
+                            .get(id)
+                            .is_some_and(|i| i.projects.contains(&spec.project_id)),
+                    "invalid Goal participant or project policy"
+                );
+            }
         }
         if let Some(parent) = &spec.parent_id {
             let parent = state
@@ -163,7 +188,11 @@ pub fn submit(db: &Db, creator: &str, mut spec: Submit) -> Result<DistributedTas
                 incoming.workflow_id = original.workflow_id.clone();
             }
             ensure!(
-                serde_json::to_value(&original)? == serde_json::to_value(&incoming)?,
+                if old.submission_digest.is_empty() {
+                    serde_json::to_value(&original)? == serde_json::to_value(&incoming)?
+                } else {
+                    hash(&serde_json::to_vec(&incoming)?) == old.submission_digest
+                },
                 "request_id reused with different task"
             );
             return Ok(old.clone());
@@ -206,10 +235,13 @@ pub fn submit(db: &Db, creator: &str, mut spec: Submit) -> Result<DistributedTas
                     revision: 0,
                     state: serde_json::json!({}),
                     updated_at: unix_now(),
+                    collaboration: spec.collaboration.clone().unwrap_or_default(),
                 },
             );
             spec.workflow_id = Some(workflow_id);
         }
+        let mut identity = spec.clone();
+        identity.parent_generation = None;
         let task = DistributedTask {
             id: task_id,
             creator: creator.into(),
@@ -225,6 +257,7 @@ pub fn submit(db: &Db, creator: &str, mut spec: Submit) -> Result<DistributedTas
             attempts: vec![],
             retry_allowance: 0,
             created_at: unix_now(),
+            submission_digest: hash(&serde_json::to_vec(&identity)?),
         };
         state.event(
             unix_now(),
@@ -336,6 +369,11 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
         .filter(|t| {
             t.status == "pending"
                 && t.spec
+                    .workflow_id
+                    .as_ref()
+                    .and_then(|id| state.workflows.get(id))
+                    .is_none_or(|w| !w.collaboration.paused)
+                && t.spec
                     .dependencies
                     .iter()
                     .all(|id| state.tasks.get(id).is_some_and(|d| d.status == "completed"))
@@ -350,6 +388,12 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
             .values()
             .filter(|i| {
                 i.enabled
+                    && !state.instance_commands.values().any(|c| {
+                        c.instance_id == i.id
+                            && c.status == "executing"
+                            && !c.action.ends_with("read")
+                            && !c.action.ends_with("list")
+                    })
                     && !i.incarnation.is_empty()
                     && i.last_seen > now - ONLINE_SECONDS
                     && i.projects.contains(&task.spec.project_id)
@@ -361,6 +405,16 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
                         .is_none_or(|wanted| wanted == &i.id)
                     && i.capabilities
                         .satisfies(&task.spec.requirements.capabilities)
+                    && task
+                        .spec
+                        .workflow_id
+                        .as_ref()
+                        .and_then(|id| state.workflows.get(id))
+                        .is_none_or(|w| {
+                            (w.collaboration.participants.is_empty()
+                                || w.collaboration.participants.contains_key(&i.id))
+                                && i.capabilities.satisfies(&w.collaboration.requirements)
+                        })
                     && instance_used.get(&i.id).copied().unwrap_or(0) < i.max_executions
                     && state.hosts.get(&i.host_id).is_some_and(|host| {
                         host.enabled
@@ -390,6 +444,7 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
                 started_at: now,
                 ended_at: None,
                 error: None,
+                sessions: vec![],
             });
             host_used
                 .entry(instance.host_id.clone())
@@ -413,8 +468,12 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
             .values()
             .filter(|t| t.spec.workflow_id.as_deref() == Some(&workflow.id))
             .collect();
-        let status = if tasks.iter().any(|t| !t.terminal()) {
+        let status = if workflow.collaboration.paused {
+            "paused"
+        } else if tasks.iter().any(|t| !t.terminal()) {
             "active"
+        } else if tasks.iter().any(|t| t.status == "failed") {
+            "blocked"
         } else if state
             .tasks
             .get(&workflow.root_task_id)
@@ -438,6 +497,47 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
     }
     for (task, detail) in workflow_events {
         state.event(now, "workflow.status", Some(&task), None, &detail);
+    }
+    let mut expired_management = vec![];
+    for command in state
+        .instance_commands
+        .values_mut()
+        .filter(|c| ["pending", "executing"].contains(&c.status.as_str()))
+    {
+        if !state.instances.get(&command.instance_id).is_some_and(|i| {
+            i.enabled
+                && i.remote_management
+                && i.incarnation == command.incarnation
+                && i.last_seen > now - 30
+        }) {
+            command.status = "failed".into();
+            command.result = Some(
+                serde_json::json!({"error":"AX management ownership lost or offline; inspect local settings before retrying uncertain writes"}),
+            );
+            expired_management.push((command.instance_id.clone(), command.id.clone()));
+        }
+    }
+    for (instance, id) in expired_management {
+        state.event(
+            now,
+            "instance.management_result",
+            None,
+            Some(&instance),
+            &id,
+        );
+    }
+    for command in state
+        .commands
+        .values_mut()
+        .filter(|c| c.status == "pending" || c.status == "executing")
+    {
+        if !state.tasks.get(&command.task_id).is_some_and(|t| {
+            t.status == "running" && t.generation == command.generation && t.lease_until > now
+        }) {
+            command.status = "failed".into();
+            command.result =
+                Some("execution ended or ownership changed; command was not replayed".into());
+        }
     }
 }
 pub fn heartbeat(db: &Db, id: &str, body: Heartbeat) -> Result<Vec<Assignment>> {
@@ -643,7 +743,7 @@ pub fn report(db: &Db, id: &str, body: Report) -> Result<()> {
         "report too large or missing message_id"
     );
     ensure!(
-        ["completed", "failed", "observation"].contains(&body.kind.as_str()),
+        ["completed", "failed", "observation", "session", "activity"].contains(&body.kind.as_str()),
         "invalid report kind"
     );
     db.cluster_update(|state| {
@@ -661,7 +761,22 @@ pub fn report(db: &Db, id: &str, body: Report) -> Result<()> {
             ensure_artifact_project(state, artifact, &project)?;
         }
         let task = state.tasks.get_mut(&body.task_id).unwrap();
-        if body.kind != "observation" {
+        if body.kind == "session" {
+            let value: serde_json::Value = serde_json::from_str(&body.text)?;
+            let session = value["session_id"]
+                .as_str()
+                .filter(|s| valid_identity(s))
+                .ok_or_else(|| anyhow::anyhow!("invalid AX Session identity"))?;
+            let sessions = &mut task
+                .attempts
+                .last_mut()
+                .ok_or_else(|| anyhow::anyhow!("attempt missing"))?
+                .sessions;
+            if !sessions.iter().any(|s| s == session) {
+                sessions.push(session.to_owned());
+            }
+        }
+        if ["completed", "failed"].contains(&body.kind.as_str()) {
             task.status = body.kind.clone();
             for artifact in &body.artifacts {
                 if !task.artifacts.contains(artifact) {
@@ -751,6 +866,35 @@ pub fn control(db: &Db, creator: &str, id: &str, action: &str) -> Result<()> {
                 task.failure = None;
                 task.artifacts.clear();
                 state.event(unix_now(), "task.retried", Some(id), None, "explicit retry");
+            }
+            "pause" => {
+                ensure!(!task.terminal(), "terminal task cannot pause");
+                if task.status == "running" {
+                    finish_attempt(task, unix_now(), Some("paused by operator"));
+                }
+                task.status = "paused".into();
+                task.owner = None;
+                task.incarnation = None;
+                state.event(
+                    unix_now(),
+                    "task.paused",
+                    Some(id),
+                    None,
+                    "operator paused placement and fenced execution; latest checkpoint retained",
+                );
+            }
+            "resume" => {
+                ensure!(task.status == "paused", "only paused tasks can resume");
+                task.status = "pending".into();
+                // Operator controls do not consume the failure retry allowance.
+                task.retry_allowance = task.retry_allowance.saturating_add(1);
+                state.event(
+                    unix_now(),
+                    "task.resumed",
+                    Some(id),
+                    None,
+                    "explicit resume from retained checkpoint",
+                );
             }
             _ => bail!("invalid control action"),
         }

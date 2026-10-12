@@ -74,6 +74,8 @@ pub struct HostInventory {
     pub gpu_names: Vec<String>,
     #[serde(default)]
     pub errors: Vec<String>,
+    #[serde(default)]
+    pub metrics: Option<serde_json::Value>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Instance {
@@ -89,6 +91,8 @@ pub struct Instance {
     pub enabled: bool,
     pub last_seen: i64,
     pub incarnation: String,
+    #[serde(default)]
+    pub remote_management: bool,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub credential_hash: String,
 }
@@ -127,6 +131,8 @@ pub struct Submit {
     pub parent_generation: Option<u64>,
     #[serde(default = "default_attempts")]
     pub max_attempts: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collaboration: Option<Collaboration>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Attempt {
@@ -136,6 +142,9 @@ pub struct Attempt {
     pub started_at: i64,
     pub ended_at: Option<i64>,
     pub error: Option<String>,
+    /// AX-owned identities only. Crew does not store a second Session database.
+    #[serde(default)]
+    pub sessions: Vec<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DistributedTask {
@@ -154,6 +163,8 @@ pub struct DistributedTask {
     #[serde(default)]
     pub retry_allowance: u32,
     pub created_at: i64,
+    #[serde(default)]
+    pub submission_digest: String,
 }
 impl DistributedTask {
     pub fn terminal(&self) -> bool {
@@ -194,6 +205,10 @@ pub struct Cluster {
     pub workflows: BTreeMap<String, Workflow>,
     #[serde(default)]
     pub receipts: BTreeMap<String, Report>,
+    #[serde(default)]
+    pub commands: BTreeMap<String, ExecutionCommand>,
+    #[serde(default)]
+    pub instance_commands: BTreeMap<String, InstanceCommand>,
 }
 impl Cluster {
     pub fn event(
@@ -285,6 +300,46 @@ pub struct Workflow {
     /// Necessary planner checkpoints only, never full AX sessions or memory.
     pub state: serde_json::Value,
     pub updated_at: i64,
+    #[serde(default)]
+    pub collaboration: Collaboration,
+}
+
+/// Control-plane policy, kept separate from worker-owned runtime checkpoints.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Collaboration {
+    pub kind: String,
+    pub paused: bool,
+    pub participants: BTreeMap<String, String>,
+    pub requirements: Capabilities,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExecutionCommand {
+    pub id: String,
+    pub task_id: String,
+    pub generation: u64,
+    pub session_id: String,
+    pub kind: String,
+    #[serde(default)]
+    pub request_id: Option<String>,
+    pub text: String,
+    pub status: String,
+    pub result: Option<String>,
+    pub created_at: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InstanceCommand {
+    pub id: String,
+    pub instance_id: String,
+    pub incarnation: String,
+    pub action: String,
+    pub scope: String,
+    pub project_id: Option<String>,
+    pub input: serde_json::Value,
+    pub status: String,
+    pub result: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]

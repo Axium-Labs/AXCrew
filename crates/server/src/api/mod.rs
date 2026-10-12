@@ -57,6 +57,36 @@ pub fn router(state: App) -> Router {
         .route("/api/distributed/catalog", get(distributed::catalog))
         .route("/api/distributed/events", get(distributed::events))
         .route("/api/distributed/enroll", post(distributed::enroll))
+        .route("/api/distributed/batch", post(distributed::batch))
+        .route(
+            "/api/distributed/instances/{id}/manage",
+            post(distributed::manage),
+        )
+        .route(
+            "/api/distributed/worker/manage",
+            post(distributed::management_poll),
+        )
+        .route(
+            "/api/distributed/workflows/{id}/settings",
+            post(distributed::workflow_settings),
+        )
+        .route(
+            "/api/distributed/workflows/{id}/control/{action}",
+            post(distributed::workflow_control),
+        )
+        .route(
+            "/api/distributed/tasks/{id}/reassign",
+            post(distributed::reassign),
+        )
+        .route(
+            "/api/distributed/tasks/{id}/commands",
+            post(distributed::command),
+        )
+        .route("/api/distributed/worker/inbox", post(distributed::inbox))
+        .route(
+            "/api/distributed/worker/commands/{id}",
+            post(distributed::acknowledge),
+        )
         .route(
             "/api/distributed/instances/{id}/capabilities",
             post(distributed::configure),

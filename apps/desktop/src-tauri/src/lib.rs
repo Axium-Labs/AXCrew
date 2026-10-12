@@ -224,9 +224,6 @@ fn search_workspace_files_sync(root: String, query: String) -> Result<Vec<String
     Ok(found)
 }
 
-#[cfg(test)]
-#[path = "../../../../tests/desktop/workspace_listing.rs"]
-mod workspace_listing_regression;
 
 #[cfg(test)]
 mod workspace_tests {

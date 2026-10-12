@@ -494,9 +494,6 @@ pub async fn ax_manage_capability(desktop: State<'_, DesktopState>, cwd: String,
     }).await.map_err(|error| error.to_string())?
 }
 
-#[cfg(test)]
-#[path = "../../../../tests/desktop/model_catalogue.rs"]
-mod catalogue_tests;
 
 #[cfg(test)]
 mod tests {

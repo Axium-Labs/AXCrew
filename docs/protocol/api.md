@@ -46,6 +46,15 @@ does not generate or revise the DAG with a model.
 
 ## Sessions and devices
 
+- `GET /api/ax/local` lists local AX projects and conversations. Placeholder
+  `ACP session`/empty titles use the first user request (up to 80 characters),
+  without writing AX stores. `GET /api/ax/local/{ax_session_id}` replays history.
+- `POST /api/sessions/attach` with `ax_session_id` and optional `cwd`/`title`
+  records an existing local conversation binding, reusing an existing task when
+  already adopted. Omitted/placeholder titles resolve from the original local
+  session. Follow-up messages use `/api/sessions/{task_id}/message` and resume
+  the same AX session rather than copying its transcript into a new one.
+
 - `POST /api/sessions` creates a conversation; `POST /api/sessions/{task_id}/message`
   appends a follow-up when idle. During active work it sends guidance to the
   currently running task in that conversation and returns that same task after
@@ -161,3 +170,10 @@ remote command. Private key paths are never exposed by its host list.
 SSH tasks bypass configured Crew global/member concurrency limits; independent
 SSH tools bypass the fixed local tool pool, retaining dependency/resource and
 permission checks. Local and paired AX limits are unchanged.
+
+
+Distributed collaboration adds admin Workflow policy/control, generation-fenced
+reassignment, live Session inbox, confirmed partial batch and opt-in target
+native-management operations. Worker inbox/outcomes require the existing lease
+and native management requires incarnation identity. All are additive under
+`/api/distributed`; see the [canonical workbench contract](../distributed-collaboration.md#workbench-policy-session-control-and-native-settings).

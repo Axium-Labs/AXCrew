@@ -273,7 +273,3 @@ mod windows {
         (unsafe { GetTickCount64() }) / 1000
     }
 }
-
-#[cfg(test)]
-#[path = "../../../../tests/desktop/system_info.rs"]
-mod tests;

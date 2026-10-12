@@ -52,3 +52,13 @@ Connections/projects are additive authenticated REST resources documented in
 SSH directory inspection uses remote shell commands; inference/history run in
 local AX with an SSH context. Heartbeats optionally advertise registered roots;
 existing gateway envelopes and session bindings are unchanged.
+
+
+The collaboration workbench extends the existing distributed aggregate with
+serde-defaulted Workflow policy, reported Attempt Session chains, execution
+inbox commands and opt-in instance native-management commands. No new Session
+store, Goal ledger, scheduler or SQL table is introduced. The collaboration
+orchestration module handles CAS scope policy, whole-Workflow control,
+reassignment and partial batch results; the API only authenticates and delegates.
+AX retains ACP execution, settings validation, approvals and native Long Project
+history. See [workbench scope and command contracts](../distributed-collaboration.md).

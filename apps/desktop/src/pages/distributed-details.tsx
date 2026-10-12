@@ -19,6 +19,11 @@ export function HostDetails({host,label}:{host:ClusterHost;label:Label}){
     <div><span>RAM</span><b>{info.ram_mb===null?unknown:`${info.ram_mb} MiB`}</b></div>
     <div><span>{label('GPU 数量','GPU count')}</span><b>{info.gpu??unknown}{info.gpu_names.length>0&&` · ${info.gpu_names.join(', ')}`}</b></div>
     <div><span>{label('上次检测','Last detected')}</span><b>{host.inventory_at?new Date(host.inventory_at*1000).toLocaleString():unknown}</b></div>
+    <div><span>{label('CPU 使用率','CPU utilization')}</span><b>{info.metrics?.system.cpu_usage==null?unknown:`${info.metrics.system.cpu_usage.toFixed(1)}%`}</b></div>
+    <div><span>{label('内存使用量','Memory usage')}</span><b>{info.metrics?.system.memory_used_mb==null?unknown:`${info.metrics.system.memory_used_mb} / ${info.metrics.system.memory_total_mb} MiB`}</b></div>
+    <div><span>{label('GPU 使用率 / 显存','GPU utilization / VRAM')}</span><b>{info.metrics?.system.gpus?.map(g=>`${g.name} · ${g.usage??unknown}% · ${g.memory_used_mb??unknown}/${g.memory_total_mb??unknown} MiB`).join('; ')||unknown}</b></div>
+    <div><span>{label('磁盘可用 / 总量','Disk available / total')}</span><b>{info.metrics?.disks.map(d=>`${d.mount} · ${d.available_mb}/${d.total_mb} MiB`).join('; ')||unknown}</b></div>
+    <div><span>{label('网络接收 / 发送','Network receive / transmit')}</span><b>{info.metrics?`${Math.round(info.metrics.network.received_bytes_per_second)} / ${Math.round(info.metrics.network.transmitted_bytes_per_second)} B/s`:unknown}</b></div>
     {info.errors.length>0&&<p className="text-sm text-muted">{label('部分信息检测失败','Some inventory fields could not be detected')}: {info.errors.join('; ')}</p>}
   </div>
 }
@@ -27,6 +32,7 @@ export function ConfigureInstance({instance,close,run,busy,label,error}:{instanc
   const caps=instance.pending_capabilities??instance.capabilities
   const [form,setForm]=useState({...Object.fromEntries(Object.entries(caps).map(([key,values])=>[key,values.join(', ')])),provider:'',skills_dir:'',mcp_config:''} as Record<string,string>)
   const [settings,setSettings]=useState<Record<string,unknown>|null>(null)
+  const [confirmed,setConfirmed]=useState(false)
   const field=(key:string,cn:string,en:string)=><Field label={label(cn,en)}><Input value={form[key]??''} onChange={e=>setForm({...form,[key]:e.target.value})}/></Field>
   // Built-in tool names come from the local AX catalog; the target machine's AX may differ.
   const builtins=useQuery({queryKey:['ax-catalog','','global'],queryFn:()=>axCatalog(undefined,'global'),enabled:axAvailable,retry:false}).data?.tools??[]
@@ -45,7 +51,9 @@ export function ConfigureInstance({instance,close,run,busy,label,error}:{instanc
         </div>}
         <Field label={label('执行权限','Execution permissions')}><select value={form.permissions||'ask'} onChange={e=>setForm({...form,permissions:e.target.value})}><option value="ask">Ask</option><option value="allow">Allow</option><option value="deny">Deny</option></select></Field>
       </div>
-      <Button disabled={busy||list(form.models??'').length>1} onClick={()=>void run(async()=>{
+      <details><summary>{label('配置差异预览','Configuration difference preview')}</summary><pre>{JSON.stringify({from:caps,to:Object.fromEntries(['roles','skills','mcp','tools','models','permissions','environments'].map(key=>[key,list(form[key]??'')]))},null,2)}</pre></details>
+      <label className="cluster-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>{label('确认实例配置影响使用此 AX 的全部 Goal','Confirm instance settings affect all Goals using this AX')}</label>
+      <Button disabled={busy||!confirmed||list(form.models??'').length>1} onClick={()=>void run(async()=>{
         const next=Object.fromEntries(['roles','skills','mcp','tools','models','permissions','environments'].map(key=>[key,list(key==='permissions'?(form[key]||'ask'):(form[key]??''))])) as Capabilities
         await distributed.configure(instance.id,next)
         setSettings({roles:next.roles,skills:next.skills,mcp:next.mcp,tools:next.tools,model:next.models[0]??null,environments:next.environments,permission_profile:next.permissions[0],...(form.provider?{provider:form.provider}:{}),...(form.skills_dir?{skills_dir:form.skills_dir}:{}),...(form.mcp_config?{mcp_config:form.mcp_config}:{})})

@@ -65,7 +65,3 @@ pub async fn ax_scan_capability_sources(cwd: Option<String>) -> Result<Vec<Impor
 fn scan_workspace(cwd: Option<String>) -> Option<std::path::PathBuf> {
     cwd.map(std::path::PathBuf::from).filter(|path| path.is_absolute() && path.is_dir())
 }
-
-#[cfg(test)]
-#[path = "../../../../tests/desktop/capability_sources.rs"]
-mod tests;

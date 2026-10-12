@@ -47,6 +47,12 @@ pub async fn state(State(app): State<App>, headers: HeaderMap) -> Api<Cluster> {
         state
             .workflows
             .retain(|_, w| projects.contains(&w.project_id));
+        state
+            .commands
+            .retain(|_, c| state.tasks.contains_key(&c.task_id));
+        state
+            .instance_commands
+            .retain(|_, c| c.instance_id == actor);
     }
     Ok(Json(state))
 }
@@ -313,4 +319,97 @@ pub async fn download(
     Ok(Json(
         json!({"artifact":artifact,"content_base64":STANDARD.encode(app.db.cluster_blob_get(&artifact.sha256)?)}),
     ))
+}
+
+pub async fn workflow_settings(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<crate::orchestration::collaboration::Settings>,
+) -> Api<Workflow> {
+    app.authorize(&headers)?;
+    Ok(Json(crate::orchestration::collaboration::settings(
+        &app.db, &id, body,
+    )?))
+}
+pub async fn workflow_control(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path((id, action)): Path<(String, String)>,
+) -> Api<Value> {
+    app.authorize(&headers)?;
+    crate::orchestration::collaboration::control(&app.db, &id, &action)?;
+    Ok(Json(json!({"accepted":true})))
+}
+pub async fn reassign(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<crate::orchestration::collaboration::Placement>,
+) -> Api<Value> {
+    app.authorize(&headers)?;
+    crate::orchestration::collaboration::reassign(&app.db, &id, body)?;
+    Ok(Json(json!({"accepted":true})))
+}
+pub async fn command(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<crate::orchestration::collaboration::CommandInput>,
+) -> Api<ExecutionCommand> {
+    app.authorize(&headers)?;
+    Ok(Json(crate::orchestration::collaboration::command(
+        &app.db, &id, body,
+    )?))
+}
+pub async fn inbox(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<Report>,
+) -> Api<Vec<ExecutionCommand>> {
+    let id = worker(&app, &headers)?;
+    Ok(Json(crate::orchestration::collaboration::inbox(
+        &app.db, &id, &body,
+    )?))
+}
+pub async fn acknowledge(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<crate::orchestration::collaboration::Acknowledge>,
+) -> Api<Value> {
+    let worker = worker(&app, &headers)?;
+    crate::orchestration::collaboration::acknowledge(&app.db, &worker, &id, body)?;
+    Ok(Json(json!({"accepted":true})))
+}
+pub async fn batch(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<crate::orchestration::collaboration::Batch>,
+) -> Api<Value> {
+    app.authorize(&headers)?;
+    Ok(Json(
+        json!({"results":crate::orchestration::collaboration::batch(&app.db, body)?}),
+    ))
+}
+pub async fn manage(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<crate::orchestration::collaboration::ManageInput>,
+) -> Api<InstanceCommand> {
+    app.authorize(&headers)?;
+    Ok(Json(crate::orchestration::collaboration::manage(
+        &app.db, &id, body,
+    )?))
+}
+pub async fn management_poll(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<crate::orchestration::collaboration::ManagePoll>,
+) -> Api<Vec<InstanceCommand>> {
+    let id = worker(&app, &headers)?;
+    Ok(Json(crate::orchestration::collaboration::management_poll(
+        &app.db, &id, body,
+    )?))
 }

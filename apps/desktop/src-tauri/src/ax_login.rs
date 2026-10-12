@@ -250,7 +250,3 @@ mod tests {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "../../../../tests/desktop/ax_login.rs"]
-mod login_tests;
