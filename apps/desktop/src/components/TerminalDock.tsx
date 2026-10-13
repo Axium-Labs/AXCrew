@@ -6,8 +6,9 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus, SquareTerminal, X } from 'lucide-react'
 import { Menu } from './ui/menu'
-import { useTerminalDock, type TerminalPosition, type TerminalTab } from '../store/terminal'
-import { useT, translate } from '../lib/i18n'
+import { useTerminalDock, type TerminalContext, type TerminalPosition, type TerminalTab } from '../store/terminal'
+import { useLang, useT, translate } from '../lib/i18n'
+import { connections } from '../lib/connections'
 import '@xterm/xterm/css/xterm.css'
 import './terminal.css'
 
@@ -38,6 +39,9 @@ function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: bool
     fit.current = addon
     let disposed = false
     let ready = false
+    let starting = true
+    let exited = false
+    let pendingInput = ''
     let unlistenOutput: (() => void) | undefined
     let unlistenExit: (() => void) | undefined
     const fitToHost = () => {
@@ -47,19 +51,33 @@ function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: bool
     }
     const observer = new ResizeObserver(fitToHost)
     observer.observe(host.current)
-    const input = term.onData(data => { if (ready) void invoke('terminal_write', { id: tab.id, data }).catch(setError) })
+    const input = term.onData(data => {
+      if (ready) void invoke('terminal_write', { id: tab.id, data }).catch(setError)
+      else if (starting) pendingInput += data
+    })
     void (async () => {
       try {
         unlistenOutput = await listen<Output>('terminal-output', event => { if (event.payload.id === tab.id) term.write(new Uint8Array(event.payload.data)) })
         if (disposed) { unlistenOutput(); return }
-        unlistenExit = await listen<Exit>('terminal-exit', event => { if (event.payload.id === tab.id) term.write(`\r\n${translate('terminal.exited')}\r\n`) })
+        unlistenExit = await listen<Exit>('terminal-exit', event => { if (event.payload.id === tab.id) { ready = false; starting = false; exited = true; term.write(`\r\n${translate('terminal.exited')}\r\n`) } })
         if (disposed) { unlistenOutput(); unlistenExit(); return }
         fitToHost()
-        await invoke('terminal_create', { id: tab.id, cwd: tab.cwd, cols: term.cols, rows: term.rows })
-        ready = true
+        const ssh = tab.context.deviceId.startsWith('ssh:')
+          ? (await connections.ssh()).find(connection => connection.id === tab.context.deviceId)
+          : undefined
+        if (disposed) return
+        if (tab.context.deviceId !== 'local' && !ssh) throw new Error(translate('terminal.sshMissing'))
+        await invoke('terminal_create', { id: tab.id, cwd: tab.cwd, ssh: ssh ?? null, cols: term.cols, rows: term.rows })
+        if (disposed) { await invoke('terminal_close', { id: tab.id }); return }
+        starting = false
+        ready = !exited
+        // ConPTY can request a cursor report before terminal_create resolves.
+        // Preserve xterm's reply so OpenSSH does not stall during startup.
+        if (ready && pendingInput) await invoke('terminal_write', { id: tab.id, data: pendingInput })
+        pendingInput = ''
         fitToHost()
-        if (tab.initialCommand) await invoke('terminal_write', { id: tab.id, data: `${tab.initialCommand}\r` })
-      } catch (cause) { if (!disposed) setError(String(cause)) }
+        if (ready && tab.initialCommand) await invoke('terminal_write', { id: tab.id, data: `${tab.initialCommand}\r` })
+      } catch (cause) { starting = false; if (!disposed) setError(String(cause)) }
     })()
     return () => {
       disposed = true
@@ -80,7 +98,7 @@ function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: bool
   return <div className="terminal-view" hidden={!visible}><div ref={host} className="terminal-screen"/>{error&&<div className="terminal-error" role="alert">{error}</div>}{!isTauri()&&<div className="terminal-error">{t('terminal.desktopOnly')}</div>}</div>
 }
 
-export function TerminalDock({ cwd, theme }: { cwd?: string; theme: 'dark' | 'light' }) {
+export function TerminalDock({ context, theme }: { context: TerminalContext; theme: 'dark' | 'light' }) {
   const { open, position, height, width, tabs, activeId, addTab, closeTab, reorderTab, setOpen, setActive, setPosition, setHeight, setWidth } = useTerminalDock()
   const [viewport,setViewport]=useState({width:window.innerWidth,height:window.innerHeight})
   useEffect(()=>{const resize=()=>setViewport({width:window.innerWidth,height:window.innerHeight});window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)},[])
@@ -99,6 +117,10 @@ export function TerminalDock({ cwd, theme }: { cwd?: string; theme: 'dark' | 'li
   const [draggedTab, setDraggedTab] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const t = useT()
+  const lang = useLang(state => state.lang)
+  const activeTab = tabs.find(tab => tab.id === activeId)
+  const tabLabel = (tab: TerminalTab) => `${tab.context.deviceId === 'local' ? t('terminal.local') : `SSH · ${tab.context.name ?? tab.context.deviceId}`} · ${tab.cwd?.replace(/\\/g, '/').split('/').filter(Boolean).at(-1) ?? t('terminal.title')}`
+  const emptyMessage = context.blocked === 'loading' ? t('terminal.loading') : context.blocked === 'select' ? t('terminal.selectEnvironment') : context.blocked === 'paired' ? t('terminal.pairedUnsupported') : tabs.length >= 8 ? t('terminal.limit') : t('terminal.newHint')
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
     event.preventDefault()
@@ -161,19 +183,20 @@ export function TerminalDock({ cwd, theme }: { cwd?: string; theme: 'dark' | 'li
           {tabs.map(tab => <div
             className={`terminal-tab ${activeId === tab.id ? 'is-active' : ''} ${draggedTab === tab.id ? 'is-dragging' : ''} ${dropTarget === tab.id ? 'is-drop-target' : ''}`}
             key={tab.id}
-            title={t('terminal.reorder')}
+            title={`${tabLabel(tab)}\n${tab.cwd ?? ''}\n${t('terminal.reorder')}`}
             data-terminal-id={tab.id}
             onPointerDown={event => startTabDrag(event, tab.id)}
           >
-            <button role="tab" aria-selected={activeId === tab.id} onClick={() => setActive(tab.id)}><SquareTerminal size={14}/><span>{t('terminal.title')}</span></button>
-            <button aria-label={t('terminal.closeTab', { name: t('terminal.title') })} title={t('terminal.close')} onClick={() => close(tab.id)}><X size={13}/></button>
+            <button role="tab" aria-selected={activeId === tab.id} onClick={() => setActive(tab.id)}><SquareTerminal size={14}/><span>{tabLabel(tab)}</span></button>
+            <button aria-label={t('terminal.closeTab', { name: tabLabel(tab) })} title={t('terminal.close')} onClick={() => close(tab.id)}><X size={13}/></button>
           </div>)}
-          <button className="terminal-tool" title={t('terminal.new')} aria-label={t('terminal.new')} disabled={tabs.length >= 8} onClick={() => addTab(cwd)}><Plus size={17}/></button>
+          <button className="terminal-tool" title={t('terminal.new')} aria-label={t('terminal.new')} disabled={tabs.length >= 8 || !!context.blocked} onClick={() => addTab(context.cwd, undefined, context)}><Plus size={17}/></button>
           <div className="terminal-tab-spacer"/>
           <Menu trigger={<button className="terminal-tool" title={t('terminal.layout')} aria-label={t('terminal.layout')}><MoreHorizontal size={17}/></button>} items={[{ label: position === 'bottom' ? t('terminal.moveRight') : t('terminal.moveBottom'), action: () => setPosition(position === 'bottom' ? 'right' : 'bottom') }]}/>
           <button className="terminal-tool" title={t('terminal.hide')} aria-label={t('terminal.hide')} onClick={() => setOpen(false)}>{position === 'bottom' ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}</button>
         </div>
-        <div className="terminal-views">{tabs.map(tab => <TerminalView key={tab.id} tab={tab} visible={activeId === tab.id} theme={theme}/>)}</div>
+        {activeTab && <div className="terminal-location" lang={lang} title={activeTab.cwd}>{activeTab.context.deviceId === 'local' ? t('terminal.local') : `SSH · ${activeTab.context.name ?? activeTab.context.deviceId}`} · {activeTab.cwd}</div>}
+        <div className="terminal-views">{tabs.map(tab => <TerminalView key={tab.id} tab={tab} visible={activeId === tab.id} theme={theme}/>)}{!activeId && <div className="terminal-empty" role="status">{emptyMessage}</div>}</div>
       </div>
     </div>
   </section>

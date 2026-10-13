@@ -245,3 +245,25 @@
   .cluster-segments button{padding:6px 8px;font-size:10px}
   .cluster-node-work{flex-basis:100px}
 }
+
+/* Editing dialogs are portals: all layout and border tokens are scoped here. */
+.distributed-page{max-width:none;width:100%;padding-top:18px}
+.cluster-navigation>.ax-button{flex:none}
+.ax-dialog.cluster-edit-dialog{--cluster-line:var(--color-border);padding:0;display:flex;flex-direction:column;max-width:880px;max-height:90dvh;overflow:hidden}
+.cluster-edit-dialog>div:first-child{margin:0;padding:20px 24px;border-bottom:1px solid var(--color-border);flex:none}
+.cluster-edit-dialog .cluster-edit-body{padding:24px;overflow-y:auto;min-height:0;overscroll-behavior:contain}
+.cluster-edit-footer{padding:16px 24px;border-top:1px solid var(--color-border);display:flex;justify-content:flex-end;gap:10px;flex:none}
+.cluster-edit-note{font-size:12px;line-height:1.8;color:var(--color-muted);overflow-wrap:anywhere}
+.cluster-edit-members{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.cluster-edit-member{padding:16px;border:1px solid var(--color-border);border-radius:var(--radius-card);background:var(--color-surface);min-width:0;display:flex;flex-direction:column;gap:16px}
+.cluster-edit-identity{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+.cluster-edit-identity .cluster-check{min-width:0;flex:1}
+.cluster-edit-identity b,.cluster-edit-identity small{display:block;overflow-wrap:anywhere}
+.cluster-edit-identity small{font-size:11px;color:var(--color-muted);margin-top:4px}
+.cluster-edit-member .collaboration-model-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.cluster-edit-member input,.cluster-edit-member .ax-select,.cluster-edit-member textarea{max-width:100%;min-width:0}
+.cluster-edit-member input[type=checkbox]{flex:none;accent-color:var(--color-accent)}
+.cluster-edit-member .cluster-check{align-items:flex-start;line-height:1.6}
+.cluster-edit-member .cluster-check input{margin-top:4px}
+.cluster-task-edit-dialog textarea[readonly]{opacity:.7}
+@media(max-width:760px){.cluster-edit-members{grid-template-columns:minmax(0,1fr)}.cluster-edit-dialog .cluster-edit-body{padding:18px}.cluster-edit-footer{padding:14px 18px}}

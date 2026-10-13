@@ -79,6 +79,10 @@ pub fn router(state: App) -> Router {
             post(distributed::workflow_control),
         )
         .route(
+            "/api/distributed/tasks/{id}/edit",
+            post(distributed::edit_task),
+        )
+        .route(
             "/api/distributed/tasks/{id}/reassign",
             post(distributed::reassign),
         )

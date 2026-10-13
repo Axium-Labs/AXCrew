@@ -8,6 +8,7 @@
 
 pub mod approval;
 pub mod collaboration;
+pub mod collaboration_edit;
 pub mod connections;
 pub mod crew;
 pub mod distributed;

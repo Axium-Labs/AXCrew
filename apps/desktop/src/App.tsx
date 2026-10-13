@@ -1,6 +1,6 @@
 import { usePanelDrawer } from './lib/usePanelDrawer'
 import { WorkspaceLayoutContext, useWorkspaceLayoutManager } from './lib/workspaceLayoutContext'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { HashRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { Activity, CalendarDays, Cpu, House, ListTodo, Monitor, Settings2, ShieldCheck, Users, MessagesSquare, Plus, PanelLeftClose, PanelLeftOpen, SquareTerminal, Globe, Package } from 'lucide-react'
 import { QueryClientProvider, useQuery } from '@tanstack/react-query'
@@ -48,6 +48,8 @@ function Shell(){
   usePanelDrawer(navigationRef,compactNavOpen)
   const crews=useCrews(),sessions=useSessions(),tasks=useTasks(),devices=useDevices(),backend=useQuery({queryKey:['settings'],queryFn:endpoints.settings,retry:1})
   const navigate=useNavigate(),location=useLocation(),sessionView=location.pathname.startsWith('/sessions')
+  const terminalContext=useMemo(()=>sessionView?(terminal.sessionContext??{deviceId:'local',blocked:'loading' as const}):{deviceId:'local',cwd:terminalCwd??backend.data?.default_cwd},[sessionView,terminal.sessionContext,terminalCwd,backend.data?.default_cwd])
+  useLayoutEffect(()=>useTerminalDock.getState().setContext(terminalContext),[terminalContext])
   const layout=useWorkspaceLayoutManager(workspaceRef,sessionView,terminal.open&&terminal.position==='right')
   const sidebar=layout.navigation==='expanded'||compactNavOpen
   const setSidebar=(value:boolean)=>{saveSidebar(value);setCompactNavOpen(value&&layout.navigation!=='expanded')}
@@ -69,7 +71,7 @@ function Shell(){
   useEffect(()=>startLive(),[])
   useEffect(()=>startCompletionNotifications(),[])
   useEffect(()=>startWindowScale(),[])
-  useEffect(()=>{const handler=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setPalette(true)}if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='b'){e.preventDefault();setSidebar(!sidebar)}if((e.ctrlKey||e.metaKey)&&e.code==='Backquote'){e.preventDefault();useTerminalDock.getState().setOpen(!useTerminalDock.getState().open,terminalCwd??backend.data?.default_cwd)}if(e.altKey&&e.key.toLowerCase()==='c'){e.preventDefault();navigate('/sessions')}};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler)},[setPalette,navigate,backend.data?.default_cwd,terminalCwd,sidebar,layout.navigation])
+  useEffect(()=>{const handler=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setPalette(true)}if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='b'){e.preventDefault();setSidebar(!sidebar)}if((e.ctrlKey||e.metaKey)&&e.code==='Backquote'){e.preventDefault();useTerminalDock.getState().setOpen(!useTerminalDock.getState().open,terminalCwd??backend.data?.default_cwd,terminalContext)}if(e.altKey&&e.key.toLowerCase()==='c'){e.preventDefault();navigate('/sessions')}};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler)},[setPalette,navigate,backend.data?.default_cwd,terminalCwd,terminalContext,sidebar,layout.navigation])
   useEffect(()=>{const media=window.matchMedia('(prefers-color-scheme: dark)');const apply=()=>{document.documentElement.dataset.theme=(theme==='system'?media.matches:theme==='dark')?'dark':'light'};apply();media.addEventListener('change',apply);return()=>media.removeEventListener('change',apply)},[theme])
   const [search,setSearch]=useState(''),[commandIndex,setCommandIndex]=useState(0),[focusReveal,setFocusReveal]=useState(false)
   useEffect(()=>{
@@ -99,13 +101,13 @@ function Shell(){
       <button className="brand" type="button" aria-label={sidebar?t('titlebar.collapseNav'):t('titlebar.expandNav')} aria-expanded={sidebar} title={sidebar?t('titlebar.collapseNav'):t('titlebar.expandNav')} onClick={()=>setSidebar(!sidebar)}><span className="brand-mark" aria-hidden="true">AX</span><span className="brand-name" aria-hidden="true">AX <b>CREW</b></span><span className="sidebar-collapse" aria-hidden="true">{sidebar?<PanelLeftClose size={18}/>:<PanelLeftOpen size={18}/>}</span></button>
       <nav className="sidebar-nav sidebar-primary" aria-label={t('nav.primary')}>{primaryNav.map(([path,key,Icon])=>{const label=t(key);return <NavLink key={path} to={path} title={label} className={({isActive})=>`nav-item ${isActive?'active':''}`}><Icon size={18}/><span className="nav-label">{label}</span>{path==='/sessions'&&<CompletionDot/>}</NavLink>})}</nav>
       <nav className="sidebar-nav sidebar-utilities" aria-label={t('nav.utilities')}>
-        <button className={`nav-item ${terminal.open?'active':''}`} type="button" aria-label={t('nav.terminal')} aria-pressed={terminal.open} title={t('nav.terminal')} onClick={()=>terminal.setOpen(!terminal.open,terminalCwd??backend.data?.default_cwd)}><SquareTerminal size={18}/><span className="nav-label">{t('nav.terminal')}</span></button>
+        <button className={`nav-item ${terminal.open?'active':''}`} type="button" aria-label={t('nav.terminal')} aria-pressed={terminal.open} title={t('nav.terminal')} onClick={()=>terminal.setOpen(!terminal.open,terminalCwd??backend.data?.default_cwd,terminalContext)}><SquareTerminal size={18}/><span className="nav-label">{t('nav.terminal')}</span></button>
         {utilityNav.map(([path,key,Icon])=>{const label=t(key);return <Link key={path} to={path} title={label} aria-current={utilityActive(path)?'page':undefined} className={`nav-item ${utilityActive(path)?'active':''}`}><Icon size={18}/><span className="nav-label">{label}</span></Link>})}
       </nav>
     </aside>
     <div className={`main ${terminalDockClass(terminal.position)}`}>
       <main className={`content ${sessionView?'content-session':''}`}><Routes><Route path="/" element={<Navigate to="/sessions" replace/>}/><Route path="/overview" element={<Home/>}/><Route path="/crews" element={<Crews/>}/><Route path="/crews/:id" element={<CrewDetail/>}/><Route path="/crews/:id/members/:memberId" element={<MemberWorkspace/>}/><Route path="/tasks" element={<Tasks/>}/><Route path="/tasks/:id" element={<TaskDetail/>}/><Route path="/devices" element={<Devices/>}/><Route path="/devices/:id" element={<DeviceDetail/>}/><Route path="/connect" element={<ConnectPhone/>}/><Route path="/sessions/:id?" element={<SessionsWorkspace/>}/><Route path="/schedule" element={<Schedule/>}/><Route path="/artifacts" element={<Artifacts/>}/><Route path="/distributed" element={<Distributed/>}/><Route path="/activity" element={<ActivityPage/>}/><Route path="/settings/:section?" element={<Settings/>}/></Routes></main>
-      <TerminalDock cwd={terminalCwd??backend.data?.default_cwd} theme={theme==='light'||theme==='system'&&!window.matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'}/>
+      <TerminalDock context={terminalContext} theme={theme==='light'||theme==='system'&&!window.matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'}/>
     </div>
     </div>
     <Dialog open={palette} onOpenChange={setPalette} title={t('titlebar.runCommand')}><Input autoFocus aria-label={t('shell.searchCommands')} placeholder={t('shell.searchPlaceholder')} value={search} onChange={e=>{setSearch(e.target.value);setCommandIndex(0)}} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();setCommandIndex(index=>Math.max(0,Math.min(filteredCommands.length-1,index+(e.key==='ArrowDown'?1:-1))))}if(e.key==='Enter'){e.preventDefault();runCommand(commandIndex)}}}/><div className="mt-3 max-h-[52vh] overflow-auto" role="listbox" aria-label={t('shell.commandList')}>{filteredCommands.map(({path,label,icon:Icon},index)=><button role="option" aria-selected={index===commandIndex} key={`${path}${label}`} className={`row w-full text-left command-option ${index===commandIndex?'is-selected':''}`} onMouseEnter={()=>setCommandIndex(index)} onClick={()=>runCommand(index)}><Icon size={15} className="text-muted"/>{label}</button>)}{!filteredCommands.length&&<p className="p-4 text-sm text-muted">{t('shell.noCommands')}</p>}</div></Dialog>

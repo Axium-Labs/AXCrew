@@ -332,6 +332,13 @@ export function SessionsWorkspace(){
   const title=meta(localId??current?.key??'').title??originalTitle
   const permissionLabel=t(`session.permission.${permissionMode}`)
   const workspace=localMode?localMatch?.project.root:member?.cwd??ui.selectedCwd??settings.data?.default_cwd
+  const terminalDevice=id?(member?.device_id??task?.assigned_device??selectedBinding?.device_id):remoteMode?member?.device_id:'local'
+  const terminalWorkspace=(id&&!member)||(localMode&&!localMatch)?undefined:workspace
+  const terminalBlocked=id&&(!terminalDevice||!member)||localMode&&!localMatch?'loading':remoteMode&&!terminalDevice?'select':terminalDevice&&terminalDevice!=='local'&&!terminalDevice.startsWith('ssh:')?'paired':undefined
+  useLayoutEffect(()=>{
+    useTerminalDock.getState().setSessionContext({deviceId:terminalDevice??'unresolved',cwd:terminalWorkspace,name:device?.name,blocked:terminalBlocked})
+    return()=>useTerminalDock.getState().setSessionContext(null)
+  },[terminalDevice,terminalWorkspace,device?.name,terminalBlocked])
   const imageRoot=remoteMode?undefined:localMode?localMatch?.project.root:workspace
   const currentChanges=useMemo(()=>latestTurnChangedFiles(localMode?localLines:lines),[localMode,localLines,lines])
   const reviewFiles=changedView.request&&changedView.liveKey!==draftKey?changedView.files:currentChanges

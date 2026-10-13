@@ -188,6 +188,8 @@ pub struct Attempt {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DistributedTask {
+    #[serde(default)]
+    pub removed: bool,
     pub id: String,
     pub creator: String,
     pub spec: Submit,
@@ -342,6 +344,8 @@ pub struct Assignment {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Workflow {
+    #[serde(default)]
+    pub objective: Option<String>,
     pub id: String,
     pub project_id: String,
     pub title: String,

@@ -448,3 +448,14 @@ pub async fn management_poll(
         &app.db, &id, body,
     )?))
 }
+
+pub async fn edit_task(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<crate::orchestration::collaboration_edit::TaskEdit>,
+) -> Api<Value> {
+    app.authorize(&headers)?;
+    crate::orchestration::collaboration_edit::edit_task(&app.db, &id, body)?;
+    Ok(Json(json!({"accepted":true})))
+}

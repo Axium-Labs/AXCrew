@@ -72,6 +72,13 @@ const zh: Record<string, string> = {
   'terminal.reorder': '拖拽可调整标签顺序',
   'terminal.exited': '[终端进程已退出]',
   'terminal.desktopOnly': '终端仅在 AX Crew 桌面应用中可用。',
+  'terminal.local': '本地',
+  'terminal.loading': '正在读取当前项目环境…',
+  'terminal.selectEnvironment': '请先选择远程项目。',
+  'terminal.pairedUnsupported': '配对 AX 设备暂不支持交互式终端，请通过 SSH 添加该主机。',
+  'terminal.sshMissing': '找不到这个 SSH 连接，请在连接页面检查已保存的主机。',
+  'terminal.limit': '已达到 8 个终端的上限，请关闭一个标签后新建当前项目终端。',
+  'terminal.newHint': '点击 + 打开当前项目的终端。',
 
   // ---------- session list ----------
   'session.listOpen': '会话列表',
@@ -371,6 +378,13 @@ const en: Record<string, string> = {
   'terminal.reorder': 'Drag to reorder tabs',
   'terminal.exited': '[Terminal process exited]',
   'terminal.desktopOnly': 'The terminal is only available in the AX Crew desktop app.',
+  'terminal.local': 'Local',
+  'terminal.loading': 'Loading the current project environment…',
+  'terminal.selectEnvironment': 'Choose a remote project first.',
+  'terminal.pairedUnsupported': 'Paired AX devices do not support interactive terminals yet. Add this host through SSH.',
+  'terminal.sshMissing': 'This SSH connection was not found. Check the saved host on the Connections page.',
+  'terminal.limit': 'The eight-terminal limit was reached. Close a tab to open the current project terminal.',
+  'terminal.newHint': 'Click + to open a terminal for the current project.',
 
   // ---------- session list ----------
   'session.listOpen': 'Session list',

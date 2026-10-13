@@ -10,6 +10,12 @@ keeps their credentials, tools, skills, memory, and session history.
   above the composer, with numbered choices, an optional text reply and collapse. Pending questions survive reopening;
   answering continues the same task/session, and failures retain drafts.
 - **Native desktop** — a Windows app with a system tray and integrated terminal.
+- **Project terminals** — local projects use the selected local shell; SSH
+  projects open interactive OpenSSH in the remote project directory, reusing
+  saved host/port/key settings and normal SSH authentication/host-key prompts.
+  Switching projects selects the matching terminal and retains existing
+  connections, with explicit host/directory labels and an eight-terminal limit.
+  Paired AX devices need an SSH connection for interactive terminals.
 - **AX runtime** — use the AX installed on your machine or a workspace build.
 - **Goal settings** — global/project defaults and an opt-in switch that lets
   ordinary new tasks automatically use AX Goal policies, with configurable
@@ -386,3 +392,16 @@ same policy transaction. Latest-Session routing and read-only Session history
 retain rotation and migration associations. Resource minimums reserve scheduler
 capacity; system resource limits are explicitly unsupported. See
 [distributed contracts](../../docs/distributed-collaboration.md).
+
+
+### Collaboration editing
+
+The distributed workspace fills the available width and places actions in their
+own views: one Connect AX entry in Nodes, creation in Workspace, refresh by the
+tabs. Edit collaboration saves its name, descriptive objective and members in
+responsive cards; adding members can optionally include new work. Task details
+support renaming, editing input before the first execution and confirmed removal.
+Started inputs remain historical; send Session guidance or add replacement work.
+Dependency checks protect removal, execution history is retained in Activity, and
+failed/stale saves preserve drafts. See [distributed collaboration](../../docs/distributed-collaboration.md)
+for persistence, fencing and editing limits.

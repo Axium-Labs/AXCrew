@@ -97,6 +97,10 @@ pub fn preview(db: &Db, body: Preview) -> Result<Vec<PlacementMatch>> {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub objective: Option<String>,
     pub expected_revision: u64,
     pub kind: String,
     pub participants: std::collections::BTreeMap<String, String>,
@@ -109,6 +113,15 @@ pub struct Settings {
     pub new_tasks: Vec<Submit>,
 }
 pub fn settings(db: &Db, id: &str, body: Settings) -> Result<Workflow> {
+    if let Some(title) = &body.title {
+        ensure!(
+            !title.trim().is_empty() && title.len() <= 512,
+            "invalid collaboration title"
+        );
+    }
+    if let Some(objective) = &body.objective {
+        ensure!(objective.len() <= 256 * 1024, "objective too large");
+    }
     ensure!(
         ["goal", "task"].contains(&body.kind.as_str()),
         "invalid collaboration kind"
@@ -157,6 +170,8 @@ pub fn settings(db: &Db, id: &str, body: Settings) -> Result<Workflow> {
             }
         }
         let w = state.workflows.get_mut(id).unwrap();
+        if let Some(title) = body.title { w.title = title.trim().into(); }
+        if let Some(objective) = body.objective { w.objective = Some(objective); }
         w.collaboration.kind = body.kind;
         w.collaboration.participants = body.participants;
         w.collaboration.requirements = body.requirements;
@@ -216,7 +231,7 @@ pub fn control(db: &Db, id: &str, action: &str) -> Result<()> {
         for t in state
             .tasks
             .values_mut()
-            .filter(|t| t.spec.workflow_id.as_deref() == Some(id))
+            .filter(|t| !t.removed && t.spec.workflow_id.as_deref() == Some(id))
         {
             let change = match action {
                 "pause" => !t.terminal(),
@@ -284,7 +299,7 @@ pub fn reassign(db: &Db, id: &str, body: Placement) -> Result<()> {
             ensure!(dependencies.len() <= 64, "too many dependencies");
             for dep in dependencies {
                 let dependency = state.tasks.get(dep).ok_or_else(|| anyhow::anyhow!("dependency missing"))?;
-                ensure!(dependency.spec.workflow_id == t.spec.workflow_id && dependency.spec.project_id == t.spec.project_id, "dependency collaboration differs");
+                ensure!(!dependency.removed && dependency.spec.workflow_id == t.spec.workflow_id && dependency.spec.project_id == t.spec.project_id, "dependency collaboration differs");
                 let mut visit = vec![dep.clone()];
                 let mut seen = std::collections::BTreeSet::new();
                 while let Some(next) = visit.pop() {

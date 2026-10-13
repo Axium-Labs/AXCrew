@@ -1,4 +1,5 @@
 mod terminal;
+mod terminal_ssh;
 mod capability_sources;
 mod ax;
 mod ax_login;

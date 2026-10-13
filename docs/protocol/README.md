@@ -91,3 +91,10 @@ same policy transaction. Latest-Session routing and read-only Session history
 retain rotation and migration associations. Resource minimums reserve scheduler
 capacity; system resource limits are explicitly unsupported. See
 [distributed contracts](../distributed-collaboration.md).
+
+
+Distributed workflow settings optionally accept `title` and `objective` with the
+existing revision CAS. Admin-only `POST /api/distributed/tasks/{id}/edit` compares
+generation and original title/input before editing or soft removal. Started task
+input is immutable; removal fences ownership and preserves history. See the
+[editing contract](../distributed-collaboration.md#editing-an-existing-collaboration).

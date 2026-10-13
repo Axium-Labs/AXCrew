@@ -20,13 +20,16 @@
 .terminal-tab.is-dragging{opacity:.45;cursor:grabbing}
 .terminal-tab.is-drop-target{border-color:var(--shell-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--shell-accent) 22%,transparent)}
 .terminal-tab>button{display:flex;align-items:center;justify-content:center;gap:6px;height:28px;border:0;border-radius:16px;background:transparent;color:inherit;cursor:pointer}
-.terminal-tab>button:first-child{max-width:125px;padding:0 8px;font-size:12px}
+.terminal-tab>button:first-child{max-width:240px;padding:0 8px;font-size:12px}
+.terminal-tab>button:first-child>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .terminal-tab>button:last-child{width:24px}
 .terminal-tab>button:hover,.terminal-tool:hover{background:var(--shell-active);color:var(--shell-text)}
 .terminal-tab-spacer{flex:1}
 .terminal-tool{width:28px;height:28px;flex:none;display:grid;place-items:center;border:0;border-radius:7px;background:transparent;color:var(--shell-muted);cursor:pointer}
 .terminal-tool:disabled{opacity:.4;cursor:default}
 .terminal-views{position:relative;flex:1;min-height:0;overflow:hidden}
+.terminal-location{flex:none;padding:0 12px 6px;font-size:11px;color:var(--shell-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.terminal-empty{padding:15px;color:var(--shell-muted);font-size:12px}
 .terminal-view{position:absolute;inset:0;padding:4px 10px 8px}
 .terminal-view[hidden]{display:none}
 .terminal-screen{height:100%;width:100%}

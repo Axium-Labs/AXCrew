@@ -181,6 +181,13 @@ environment menu for paired AX or SSH projects. Paired AX runs on its host;
 SSH runs local AX and local models, using SSH only for remote shell commands. Existing sessions keep their directory, host and model fixed.
 Add project opens a named-project dialog with local/remote source selection.
 
+The desktop terminal follows the current project: local projects open the configured
+local shell, and SSH projects open an interactive OpenSSH session in the remote
+project directory using the saved host, port and identity file. Switching projects
+selects or creates the matching terminal while keeping existing terminals attached
+to their original hosts. Tabs show their host and directory. Paired AX devices
+currently need a separate SSH connection for interactive terminals.
+
 ### Add another machine
 
 Generate a one-time pairing code on the gateway, then on the second machine:
@@ -298,3 +305,16 @@ same policy transaction. Latest-Session routing and read-only Session history
 retain rotation and migration associations. Resource minimums reserve scheduler
 capacity; system resource limits are explicitly unsupported. See
 [distributed contracts](docs/distributed-collaboration.md).
+
+
+### Collaboration editing
+
+The distributed workspace fills the available width and places actions in their
+own views: one Connect AX entry in Nodes, creation in Workspace, refresh by the
+tabs. Edit collaboration saves its name, descriptive objective and members in
+responsive cards; adding members can optionally include new work. Task details
+support renaming, editing input before the first execution and confirmed removal.
+Started inputs remain historical; send Session guidance or add replacement work.
+Dependency checks protect removal, execution history is retained in Activity, and
+failed/stale saves preserve drafts. See [distributed collaboration](docs/distributed-collaboration.md)
+for persistence, fencing and editing limits.

@@ -628,6 +628,35 @@ dark/light themes and narrow or short windows retain accessible controls.
 
 ## Connections and named projects
 
+### Project terminals
+
+Opening the desktop terminal or using Ctrl+Backquote follows the displayed
+conversation's bound host and project directory; a new conversation uses its
+chosen environment. Local projects start the configured PowerShell/CMD/Git
+Bash/WSL shell. SSH projects start OpenSSH directly inside the native PTY with
+`-tt`, the saved host/port/identity file and a safely quoted remote `cd`, followed
+by the remote user's interactive POSIX shell. No remote AX installation is
+required for this terminal. The SSH directory is never validated on local disk.
+OpenSSH reads the desktop user's SSH config and agent, checks known hosts and
+can display normal interactive authentication/host-key prompts. This is separate
+from the noninteractive authentication used by the agent's SSH tools.
+
+Switching host or directory selects an existing matching terminal or opens a new
+one when the dock is visible. Hiding keeps processes running; reopening selects
+the current project. Tabs retain their original host/directory, show local/SSH
+labels and remain manually selectable. Remote directory matching is case-sensitive.
+There are at most eight total terminals; reaching this limit leaves the new
+project without an active terminal until a tab is closed and + is used. Failed
+SSH startup or remote `cd` never opens a fallback local shell. Closing a tab kills
+its local SSH transport, and a tab closed during startup also closes any late
+process. ConPTY cursor reports arriving during creation are buffered for OpenSSH.
+
+Unresolved project metadata and an unselected remote environment do not open a
+local terminal. Paired AX devices currently have no interactive-terminal gateway
+protocol; the dock explains that an SSH connection is needed. This change does
+not add remote file browsing or alter agent placement. SSH hosts still require
+a POSIX shell; a real SSH client must be installed on the desktop machine.
+
 The previous phone-connection route now opens Connections. Control this computer
 shows pending/authorized devices with allow, deny and revoke actions. Add device
 opens Android connection information. Control other devices lists paired AX
@@ -671,3 +700,16 @@ first. Removing a project retains members and existing conversation history.
 
 
 Goal 系统界面文案按当前语言显示：中文“目标”、英文“Goal”。设置导航使用共享 i18n 键 settings.goal，目标策略与分布式相关说明保持同一语言；API 字段、原生命令和用户内容保留原值。
+
+
+### Collaboration editing
+
+The distributed workspace fills the available width and places actions in their
+own views: one Connect AX entry in Nodes, creation in Workspace, refresh by the
+tabs. Edit collaboration saves its name, descriptive objective and members in
+responsive cards; adding members can optionally include new work. Task details
+support renaming, editing input before the first execution and confirmed removal.
+Started inputs remain historical; send Session guidance or add replacement work.
+Dependency checks protect removal, execution history is retained in Activity, and
+failed/stale saves preserve drafts. See [distributed collaboration](../distributed-collaboration.md)
+for persistence, fencing and editing limits.

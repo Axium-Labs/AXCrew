@@ -125,6 +125,17 @@ selector never validates a remote directory on the gateway disk.
 
 ### Desktop file workspace
 
+The desktop terminal remains a native PTY surface. `store/terminal.ts` binds each
+tab to a host/directory context and selects matching tabs as SessionsWorkspace
+publishes the current conversation environment. `App.tsx` supplies that context
+to TerminalDock and the terminal shortcut. `TerminalDock.tsx` reads saved SSH
+configuration through the existing authenticated connections API, then invokes
+`terminal_create` with optional SSH settings. `terminal_ssh.rs` validates the
+settings, quotes the remote directory and constructs a direct interactive
+OpenSSH command; `terminal.rs` owns PTY input/output/resize/close. Local shell
+configuration is read only for local tabs. Paired-device terminal support is
+explicitly unavailable. No REST/WS/AX protocol or database schema changes.
+
 `SessionsWorkspace.tsx` supplies the current conversation's workspace and saved
 turn changes, routes transcript review requests, and opens Files through the shared workspace layout. `UnifiedFilePanel.tsx` owns review selection, open document tabs,
 the lazy directory explorer and Markdown preview/source. Switching side-panel
@@ -244,3 +255,11 @@ same policy transaction. Latest-Session routing and read-only Session history
 retain rotation and migration associations. Resource minimums reserve scheduler
 capacity; system resource limits are explicitly unsupported. See
 [distributed contracts](../distributed-collaboration.md).
+
+
+Collaboration metadata/member editing and task editors live in the desktop's
+`distributed-edit.tsx`. The authenticated `/tasks/{id}/edit` handler delegates to
+`orchestration/collaboration_edit.rs`, which atomically compares generation and
+content, preserves submission identity and retains removed tasks as history.
+It uses the existing cluster transaction and reconciliation; no additional store
+or scheduler is introduced.

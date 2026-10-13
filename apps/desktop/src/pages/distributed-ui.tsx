@@ -21,7 +21,7 @@ export function QuietEmpty({ title, description, icon, action }: { title: string
 }
 
 export function ClusterOverview({ state, label, loading }: { state?: Cluster; label: Label; loading: boolean }) {
-  const instances = Object.values(state?.instances ?? {}), tasks = Object.values(state?.tasks ?? {}), workflows = Object.values(state?.workflows ?? {})
+  const instances = Object.values(state?.instances ?? {}), tasks = Object.values(state?.tasks ?? {}).filter(t => !t.removed), workflows = Object.values(state?.workflows ?? {})
   const online = instances.filter(i => isOnline(i.last_seen, i.enabled, state?.server_time ?? 0)).length
   const running = tasks.filter(t => t.status === 'running').length
   const active = workflows.filter(w => w.status === 'active').length

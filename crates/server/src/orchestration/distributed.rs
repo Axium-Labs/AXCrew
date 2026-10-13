@@ -203,7 +203,7 @@ pub(super) fn submit_in_cluster(
             .get(parent)
             .ok_or_else(|| anyhow::anyhow!("parent missing"))?;
         ensure!(
-            parent.spec.project_id == spec.project_id,
+            !parent.removed && parent.spec.project_id == spec.project_id,
             "parent project differs"
         );
         if creator != "admin" {
@@ -264,7 +264,7 @@ pub(super) fn submit_in_cluster(
             .get(dep)
             .ok_or_else(|| anyhow::anyhow!("dependency missing"))?;
         ensure!(
-            dep.spec.project_id == spec.project_id,
+            !dep.removed && dep.spec.project_id == spec.project_id,
             "dependency project differs"
         );
     }
@@ -277,6 +277,7 @@ pub(super) fn submit_in_cluster(
         state.workflows.insert(
             workflow_id.clone(),
             Workflow {
+                objective: None,
                 id: workflow_id.clone(),
                 project_id: spec.project_id.clone(),
                 title: spec.title.clone(),
@@ -293,6 +294,7 @@ pub(super) fn submit_in_cluster(
     let mut identity = spec.clone();
     identity.parent_generation = None;
     let task = DistributedTask {
+        removed: false,
         id: task_id,
         creator: creator.into(),
         spec,
@@ -700,9 +702,11 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
         let tasks: Vec<_> = state
             .tasks
             .values()
-            .filter(|t| t.spec.workflow_id.as_deref() == Some(&workflow.id))
+            .filter(|t| !t.removed && t.spec.workflow_id.as_deref() == Some(&workflow.id))
             .collect();
-        let status = if workflow.collaboration.paused {
+        let status = if tasks.is_empty() {
+            "cancelled"
+        } else if workflow.collaboration.paused {
             "paused"
         } else if tasks.iter().any(|t| !t.terminal()) {
             "active"
@@ -711,7 +715,8 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
         } else if state
             .tasks
             .get(&workflow.root_task_id)
-            .is_some_and(|t| t.status == "completed")
+            .is_some_and(|t| !t.removed && t.status == "completed")
+            || tasks.iter().all(|t| t.status == "completed")
         {
             "completed"
         } else if tasks.iter().any(|t| t.status == "cancelled") {
@@ -1119,6 +1124,7 @@ pub fn control(db: &Db, creator: &str, id: &str, action: &str) -> Result<()> {
             creator == "admin" || task.creator == creator || inherited,
             "task control denied"
         );
+        ensure!(!task.removed, "removed task cannot be controlled");
         match action {
             "cancel" => {
                 let mut ids = vec![id.to_owned()];

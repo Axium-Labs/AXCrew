@@ -111,3 +111,11 @@ same policy transaction. Latest-Session routing and read-only Session history
 retain rotation and migration associations. Resource minimums reserve scheduler
 capacity; system resource limits are explicitly unsupported. See
 [distributed contracts](../distributed-collaboration.md).
+
+
+Distributed collaboration edits add defaulted `Workflow.objective: Option<String>`
+and `DistributedTask.removed: bool` to the existing JSON aggregate. An operator
+removal retains task records, dependencies, attempts, artifacts and checkpoints;
+it cancels unfinished work and clears lease ownership. Retained dependents/children
+block removal. Removed tasks cannot execute again and are excluded from workflow
+completion aggregation. See the distributed collaboration edit contract.

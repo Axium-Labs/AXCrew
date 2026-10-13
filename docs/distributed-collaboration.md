@@ -236,10 +236,13 @@ durable Event stream; reads/polls support delayed/disconnected clients.
 
 ## Desktop and operational limits
 
-The desktop uses a compact console layout with a shared status overview above
+The desktop fills the available page width without a duplicate title/action banner.
+Connect AX appears once in Nodes (also in an empty node list); Create collaboration
+lives in Workspace. Refresh is beside the view tabs. Empty node lists omit batch
+selection controls. The desktop uses a shared status overview above
 Workspace / Nodes / Activity. Counts come from the current cluster snapshot:
 online AX (enabled and seen within 30 seconds), running Tasks and active
-collaborations, failed Tasks plus enabled offline AX, and pending Tasks awaiting
+collaborations, non-removed failed Tasks plus enabled offline AX, and pending Tasks awaiting
 placement. Disabled AX are excluded from the offline issue count. Missing state
 shows a reading indicator rather than zero counts; a failed refresh shows a sync
 error alongside the retained snapshot.
@@ -247,8 +250,8 @@ error alongside the retained snapshot.
 Workspace navigation shows collaboration status and completion counts. The same
 objective, work-task, member and recent-activity regions remain visible when there
 are no collaborations, with compact contextual empty states. Objective text is a
-bounded preview of the root input/Goal target; the full input remains in task
-details. Nodes show configured execution slots (not guaranteed available capacity),
+bounded preview of the saved objective description, falling back to the root
+input/Goal target for older collaborations; the full input remains in task details. Nodes show configured execution slots (not guaranteed available capacity),
 active Session counts from the last Session of each running attempt,
 current/pinned/previously attempted collaborations and Tasks and capability tags before expansion.
 Host inventory and measured metrics stay distinct from requested reservations.
@@ -338,8 +341,9 @@ Additional admin routes (existing admin authentication and error shape):
 
 | POST suffix | Contract |
 |---|---|
-| `/workflows/{id}/settings` | `expected_revision, kind, participants, requirements`, optional `member_models, excluded_instances, new_tasks:[Submit]`; atomic CAS policy/tasks, member fencing; preserves checkpoint state |
+| `/workflows/{id}/settings` | `expected_revision, kind, participants, requirements`, optional `title, objective, member_models, excluded_instances, new_tasks:[Submit]`; atomic CAS policy/tasks, member fencing; preserves checkpoint state |
 | `/workflows/{id}/control/{pause|resume|cancel|retry}` | Controls all Workflow tasks and retains checkpoints/usage |
+| `/tasks/{id}/edit` | `generation, expected_title, expected_input, title, input`, optional `remove:false`; admin-only atomic compare-and-save, preserves submission digest/history; see edit limits below |
 | `/tasks/{id}/reassign` | `generation, instance_id` (null = automatic), optional exact `model`, `duty`, `dependencies`, `host_id`, `clear_host`, `resources`; fences old execution, rejects cross-Workflow dependencies/cycles; omitted/null model inherits the new owner |
 | `/tasks/{id}/commands` | `generation, session_id, kind, text, request_id?`; latest Session of live attempt only |
 | `/plans` | `tasks:[{spec:Submit, depends_on:[earlier task index]}]`; 1-64 tasks in one transaction, first task owns root policy or joins existing Workflow; stable request IDs make retries idempotent; placement occurs after all tasks exist |
@@ -502,3 +506,36 @@ A new worker reports model discovery as pending until its first native catalog
 arrives. Heartbeats apply fresh capability/catalog/inventory data before new
 placement, then fence expired leases before renewals. Newly unavailable models
 cannot consume a just-released execution slot using the previous report.
+
+
+### Editing an existing collaboration
+
+Workspace's **Edit collaboration** updates the collaboration name, descriptive
+objective, member selection, duties, model defaults and matching requirements.
+The description organizes work; it does not rewrite a running AX Goal or broadcast
+a prompt. The portaled dialog uses responsive member cards, one scrolling body
+and a fixed save footer. Adding a member does not require creating another task;
+users can explicitly opt into a new task, saved atomically with the member policy.
+Deselecting a member also excludes it from automatic placement in this workflow.
+An empty selection retains the existing automatic-placement semantics. Existing
+policy/title/description changes during editing block stale drafts; API revision
+CAS rejects writes racing the final save. Failed saves retain the draft.
+
+Task details expose **Edit task** for renaming, editing unstarted work and removing
+it from the work list. Goal task editors show the target as text and preserve the
+remaining `/goal create` configuration. Input changes are accepted only before
+any attempt and while nonterminal; started or finished tasks retain the original
+input. Use current Session guidance or a replacement task for changed execution
+requirements. Names remain editable without replaying completed work. Expected
+name/input and execution generation prevent overwriting another edit or execution.
+
+Removal requires an explicit in-dialog confirmation. Any retained dependent or
+child task blocks removal, with the relevant names shown. Reassign dependencies
+or remove those tasks first. Removal sets serde-defaulted `Task.removed=true`,
+cancels unfinished work and clears ownership/lease; late worker reports are fenced.
+Completed/failed receipts, artifacts, checkpoints and immutable submission identity
+remain available through Activity. Removed tasks cannot retry/resume, be selected
+as new dependencies/parents or participate in workflow completion counts. A
+workflow containing only removed tasks becomes cancelled; remaining tasks can
+still determine completion when the original root was removed. No SQL table or
+AX runtime protocol is added. `Workflow.objective` is optional and serde-defaulted.
