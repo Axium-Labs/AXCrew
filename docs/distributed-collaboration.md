@@ -438,6 +438,14 @@ additional AX creates editable work-task rows; adding a member later accepts its
 work task in the same CAS policy transaction. More tasks and dependencies remain
 editable through existing task creation and fenced reassignment controls.
 
+The desktop creation wizard keeps step navigation and actions visible while its
+content scrolls. Task/Goal choices, expandable selected-member cards and numbered
+work-task cards separate objective, team settings and assignments. AX/Host names
+and online status remain visible when duty/model settings expand. Member search
+appears for pools larger than four AX. Confirmation includes task content, duties,
+execution model choices and placement reasons; going back retains edits. These
+presentation changes reuse the same plan submission and placement endpoints.
+
 A Task has one effective owner for its current generation. Attempt records freeze
 its exact execution Provider/Model and work duty. Task model selection overrides
 a member default; otherwise AX's reported current model is inherited. Capability

@@ -37,6 +37,11 @@ store or scheduling loop. Event history redacts question/answer content.
 
 The root only organises the product; it holds no code of its own.
 
+Desktop collaboration creation is presented by `src/pages/distributed-create.tsx`
+and its scoped stylesheet. `distributed-forms.tsx` retains enrollment/configuration
+forms and re-exports the creation dialog. The wizard calls the existing distributed
+plan and placement client methods; it does not own scheduling or execution.
+
 | Path | Responsibility |
 |---|---|
 | `crates/server/` | The control plane: REST/WebSocket API, scheduling, storage, transports. The only Cargo workspace member. |

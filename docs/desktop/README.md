@@ -615,6 +615,16 @@ closes an open composer menu first, leaving the side panel open.
 
 The **分布式协作 / Distributed** sidebar entry opens `/distributed`. Workspace, Nodes and Activity views organize existing Goal/Task collaborations, Host → AX Instance management and Execution/Session history. They support participant roles, scoped policies, live ACP guidance/approvals, shared capacity, whole-Workflow pause/resume/cancel/retry, reassignment, confirmed batch operations and opt-in target native settings/plugins. Long Project stays optional and inline inside a Goal. This optional surface is backed by the existing durable cluster and AX-owned Sessions/settings; legacy device controls remain available. See [Distributed Collaboration](../distributed-collaboration.md) for policy and worker setup.
 
+The creation and add-work dialogs use a three-step wizard with a fixed step
+navigation and action footer, and a scrolling content area. Creation starts with
+equally sized Task/Goal choices. Members have separate AX/Host identity and
+online status; selection reveals duty and model settings below the identity,
+without squeezing the name. More than four available members adds an AX/Host
+search. Numbered work-task cards contain assignments, model overrides and
+dependencies. The confirmation step summarizes work, duties, models, resource
+minimums and current node matching reasons. Back navigation preserves drafts;
+dark/light themes and narrow or short windows retain accessible controls.
+
 
 ## Connections and named projects
 
