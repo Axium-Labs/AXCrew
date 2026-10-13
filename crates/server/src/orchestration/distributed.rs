@@ -67,6 +67,8 @@ pub fn enroll(db: &Db, body: Enrollment) -> Result<(Instance, String)> {
             last_seen: 0,
             incarnation: String::new(),
             remote_management: false,
+            model_catalog: None,
+            model_catalog_at: 0,
             credential_hash: hash(token.as_bytes()),
         };
         state
@@ -111,166 +113,214 @@ pub fn submit(db: &Db, creator: &str, mut spec: Submit) -> Result<DistributedTas
         spec.requirements.resources.cpu = 1;
     }
     db.cluster_update(|state| {
-        if creator != "admin" {
-            let instance = state
-                .instances
-                .get(creator)
-                .ok_or_else(|| anyhow::anyhow!("instance missing"))?;
-            ensure!(
-                instance.enabled
-                    && instance.can_delegate
-                    && instance.projects.contains(&spec.project_id),
-                "delegation policy denied"
-            );
-            ensure!(
-                spec.collaboration.is_none(),
-                "only admin can set Goal policy"
-            );
-        }
-        if let Some(policy) = &spec.collaboration {
-            ensure!(
-                spec.workflow_id.is_none()
-                    && spec.parent_id.is_none()
-                    && !policy.paused
-                    && ["goal", "task"].contains(&policy.kind.as_str()),
-                "invalid root Goal policy"
-            );
-            validate_capabilities(&policy.requirements)?;
-            for (id, role) in &policy.participants {
-                ensure!(
-                    role.len() <= 128
-                        && state
-                            .instances
-                            .get(id)
-                            .is_some_and(|i| i.projects.contains(&spec.project_id)),
-                    "invalid Goal participant or project policy"
-                );
-            }
-        }
-        if let Some(parent) = &spec.parent_id {
-            let parent = state
-                .tasks
-                .get(parent)
-                .ok_or_else(|| anyhow::anyhow!("parent missing"))?;
-            ensure!(
-                parent.spec.project_id == spec.project_id,
-                "parent project differs"
-            );
-            if creator != "admin" {
-                ensure!(
-                    parent.status == "running"
-                        && parent.owner.as_deref() == Some(creator)
-                        && Some(parent.generation) == spec.parent_generation
-                        && parent.lease_until > unix_now(),
-                    "parent ownership expired"
-                );
-            }
-            ensure!(
-                spec.workflow_id.is_none() || spec.workflow_id == parent.spec.workflow_id,
-                "parent workflow differs"
-            );
-            spec.workflow_id = parent.spec.workflow_id.clone();
-        }
-        if let Some(old) = state.tasks.values().find(|t| {
-            t.spec.request_id == spec.request_id
-                && if spec.parent_id.is_some() {
-                    t.spec.parent_id == spec.parent_id
-                } else {
-                    t.creator == creator && t.spec.parent_id.is_none()
-                }
-        }) {
-            let mut incoming = spec.clone();
-            let mut original = old.spec.clone();
-            // Generation fences mutation but is not the identity of a durable planned task.
-            incoming.parent_generation = None;
-            original.parent_generation = None;
-            if incoming.workflow_id.is_none() {
-                incoming.workflow_id = original.workflow_id.clone();
-            }
-            ensure!(
-                if old.submission_digest.is_empty() {
-                    serde_json::to_value(&original)? == serde_json::to_value(&incoming)?
-                } else {
-                    hash(&serde_json::to_vec(&incoming)?) == old.submission_digest
-                },
-                "request_id reused with different task"
-            );
-            return Ok(old.clone());
-        }
-        if let Some(workflow_id) = &spec.workflow_id {
-            let workflow = state
-                .workflows
-                .get(workflow_id)
-                .ok_or_else(|| anyhow::anyhow!("workflow missing"))?;
-            ensure!(
-                workflow.project_id == spec.project_id && workflow.status != "cancelled",
-                "workflow policy denied"
-            );
-        }
-        // Only existing dependencies can be referenced, so submission cannot add a cycle.
-        for dep in &spec.dependencies {
-            let dep = state
-                .tasks
-                .get(dep)
-                .ok_or_else(|| anyhow::anyhow!("dependency missing"))?;
-            ensure!(
-                dep.spec.project_id == spec.project_id,
-                "dependency project differs"
-            );
-        }
-        for id in &spec.artifacts {
-            ensure_artifact_project(state, id, &spec.project_id)?;
-        }
-        let task_id = Uuid::new_v4().to_string();
-        if spec.workflow_id.is_none() {
-            let workflow_id = Uuid::new_v4().to_string();
-            state.workflows.insert(
-                workflow_id.clone(),
-                Workflow {
-                    id: workflow_id.clone(),
-                    project_id: spec.project_id.clone(),
-                    title: spec.title.clone(),
-                    root_task_id: task_id.clone(),
-                    status: "active".into(),
-                    revision: 0,
-                    state: serde_json::json!({}),
-                    updated_at: unix_now(),
-                    collaboration: spec.collaboration.clone().unwrap_or_default(),
-                },
-            );
-            spec.workflow_id = Some(workflow_id);
-        }
-        let mut identity = spec.clone();
-        identity.parent_generation = None;
-        let task = DistributedTask {
-            id: task_id,
-            creator: creator.into(),
-            spec,
-            status: "pending".into(),
-            owner: None,
-            incarnation: None,
-            generation: 0,
-            lease_until: 0,
-            result: None,
-            failure: None,
-            artifacts: vec![],
-            attempts: vec![],
-            retry_allowance: 0,
-            created_at: unix_now(),
-            submission_digest: hash(&serde_json::to_vec(&identity)?),
-        };
-        state.event(
-            unix_now(),
-            "task.created",
-            Some(&task.id),
-            None,
-            &task.spec.title,
-        );
-        state.tasks.insert(task.id.clone(), task.clone());
+        let task = submit_in_cluster(state, creator, spec)?;
         reconcile(state, unix_now());
         Ok(state.tasks[&task.id].clone())
     })
 }
+pub(super) fn submit_in_cluster(
+    state: &mut Cluster,
+    creator: &str,
+    mut spec: Submit,
+) -> Result<DistributedTask> {
+    ensure!(
+        !spec.request_id.is_empty()
+            && spec.request_id.len() <= 128
+            && !spec.title.trim().is_empty()
+            && !spec.input.trim().is_empty(),
+        "request_id, title and input required"
+    );
+    ensure!(
+        spec.input.len() + spec.context_summary.len() <= 256 * 1024
+            && valid_identity(&spec.project_id)
+            && (1..=20).contains(&spec.max_attempts),
+        "invalid task input, project or retry budget"
+    );
+    validate_capabilities(&spec.requirements.capabilities)?;
+    if let Some(model) = &spec.requirements.model {
+        ensure!(
+            !model.provider.is_empty()
+                && !model.model.is_empty()
+                && model.provider.len() <= 128
+                && model.model.len() <= 512,
+            "invalid execution model"
+        );
+    }
+    ensure!(spec.requirements.duty.len() <= 2048, "work duty too long");
+    ensure!(
+        spec.requirements.resource_limits.is_none(),
+        "system resource limits are not implemented; use scheduling minimums"
+    );
+    if spec.requirements.resources.cpu == 0 {
+        spec.requirements.resources.cpu = 1;
+    }
+    if creator != "admin" {
+        let instance = state
+            .instances
+            .get(creator)
+            .ok_or_else(|| anyhow::anyhow!("instance missing"))?;
+        ensure!(
+            instance.enabled
+                && instance.can_delegate
+                && instance.projects.contains(&spec.project_id),
+            "delegation policy denied"
+        );
+        ensure!(
+            spec.collaboration.is_none(),
+            "only admin can set Goal policy"
+        );
+    }
+    if let Some(policy) = &spec.collaboration {
+        ensure!(
+            spec.workflow_id.is_none()
+                && spec.parent_id.is_none()
+                && !policy.paused
+                && ["goal", "task"].contains(&policy.kind.as_str()),
+            "invalid root Goal policy"
+        );
+        validate_capabilities(&policy.requirements)?;
+        ensure!(
+            policy
+                .member_models
+                .keys()
+                .all(|id| policy.participants.contains_key(id)),
+            "model settings require a selected member"
+        );
+        for (id, role) in &policy.participants {
+            ensure!(
+                role.len() <= 128
+                    && state
+                        .instances
+                        .get(id)
+                        .is_some_and(|i| i.projects.contains(&spec.project_id)),
+                "invalid Goal participant or project policy"
+            );
+        }
+    }
+    if let Some(parent) = &spec.parent_id {
+        let parent = state
+            .tasks
+            .get(parent)
+            .ok_or_else(|| anyhow::anyhow!("parent missing"))?;
+        ensure!(
+            parent.spec.project_id == spec.project_id,
+            "parent project differs"
+        );
+        if creator != "admin" {
+            ensure!(
+                parent.status == "running"
+                    && parent.owner.as_deref() == Some(creator)
+                    && Some(parent.generation) == spec.parent_generation
+                    && parent.lease_until > unix_now(),
+                "parent ownership expired"
+            );
+        }
+        ensure!(
+            spec.workflow_id.is_none() || spec.workflow_id == parent.spec.workflow_id,
+            "parent workflow differs"
+        );
+        spec.workflow_id = parent.spec.workflow_id.clone();
+    }
+    if let Some(old) = state.tasks.values().find(|t| {
+        t.spec.request_id == spec.request_id
+            && if spec.parent_id.is_some() {
+                t.spec.parent_id == spec.parent_id
+            } else {
+                t.creator == creator && t.spec.parent_id.is_none()
+            }
+    }) {
+        let mut incoming = spec.clone();
+        let mut original = old.spec.clone();
+        // Generation fences mutation but is not the identity of a durable planned task.
+        incoming.parent_generation = None;
+        original.parent_generation = None;
+        if incoming.workflow_id.is_none() {
+            incoming.workflow_id = original.workflow_id.clone();
+        }
+        ensure!(
+            if old.submission_digest.is_empty() {
+                serde_json::to_value(&original)? == serde_json::to_value(&incoming)?
+            } else {
+                hash(&serde_json::to_vec(&incoming)?) == old.submission_digest
+            },
+            "request_id reused with different task"
+        );
+        return Ok(old.clone());
+    }
+    if let Some(workflow_id) = &spec.workflow_id {
+        let workflow = state
+            .workflows
+            .get(workflow_id)
+            .ok_or_else(|| anyhow::anyhow!("workflow missing"))?;
+        ensure!(
+            workflow.project_id == spec.project_id && workflow.status != "cancelled",
+            "workflow policy denied"
+        );
+    }
+    // Only existing dependencies can be referenced, so submission cannot add a cycle.
+    for dep in &spec.dependencies {
+        let dep = state
+            .tasks
+            .get(dep)
+            .ok_or_else(|| anyhow::anyhow!("dependency missing"))?;
+        ensure!(
+            dep.spec.project_id == spec.project_id,
+            "dependency project differs"
+        );
+    }
+    for id in &spec.artifacts {
+        ensure_artifact_project(state, id, &spec.project_id)?;
+    }
+    let task_id = Uuid::new_v4().to_string();
+    if spec.workflow_id.is_none() {
+        let workflow_id = Uuid::new_v4().to_string();
+        state.workflows.insert(
+            workflow_id.clone(),
+            Workflow {
+                id: workflow_id.clone(),
+                project_id: spec.project_id.clone(),
+                title: spec.title.clone(),
+                root_task_id: task_id.clone(),
+                status: "active".into(),
+                revision: 0,
+                state: serde_json::json!({}),
+                updated_at: unix_now(),
+                collaboration: spec.collaboration.clone().unwrap_or_default(),
+            },
+        );
+        spec.workflow_id = Some(workflow_id);
+    }
+    let mut identity = spec.clone();
+    identity.parent_generation = None;
+    let task = DistributedTask {
+        id: task_id,
+        creator: creator.into(),
+        spec,
+        status: "pending".into(),
+        owner: None,
+        incarnation: None,
+        generation: 0,
+        lease_until: 0,
+        result: None,
+        failure: None,
+        artifacts: vec![],
+        attempts: vec![],
+        retry_allowance: 0,
+        created_at: unix_now(),
+        submission_digest: hash(&serde_json::to_vec(&identity)?),
+        placement: vec![],
+    };
+    state.event(
+        unix_now(),
+        "task.created",
+        Some(&task.id),
+        None,
+        &task.spec.title,
+    );
+    state.tasks.insert(task.id.clone(), task.clone());
+    Ok(state.tasks[&task.id].clone())
+}
+
 fn ensure_artifact_project(state: &Cluster, id: &str, project: &str) -> Result<()> {
     ensure!(
         state
@@ -301,6 +351,170 @@ fn lose(task: &mut DistributedTask, now: i64, reason: &str) {
     task.artifacts.clear();
     task.owner = None;
     task.incarnation = None;
+}
+pub(super) fn execution_model<'a>(
+    need: &'a Requirements,
+    policy: Option<&'a Collaboration>,
+    i: &'a Instance,
+) -> Option<&'a ExecutionModel> {
+    need.model
+        .as_ref()
+        .or_else(|| policy.and_then(|p| p.member_models.get(&i.id)))
+        .or_else(|| i.model_catalog.as_ref().and_then(|c| c.current.as_ref()))
+}
+#[derive(Default)]
+struct PlacementLoad {
+    hosts: BTreeMap<String, Resources>,
+    instances: BTreeMap<String, usize>,
+}
+impl PlacementLoad {
+    fn read(state: &Cluster) -> Self {
+        let mut load = Self::default();
+        for t in state.tasks.values().filter(|t| t.status == "running") {
+            if let Some(i) = t.owner.as_ref().and_then(|id| state.instances.get(id)) {
+                load.reserve(i, &t.spec.requirements.resources);
+            }
+        }
+        load
+    }
+    fn reserve(&mut self, i: &Instance, need: &Resources) {
+        self.hosts.entry(i.host_id.clone()).or_default().add(need);
+        *self.instances.entry(i.id.clone()).or_default() += 1;
+    }
+}
+/// The scheduler and preview share this predicate and the same running reservations.
+pub fn placement(
+    state: &Cluster,
+    project: &str,
+    need: &Requirements,
+    policy: Option<&Collaboration>,
+    now: i64,
+) -> Vec<PlacementMatch> {
+    placement_with_load(
+        state,
+        project,
+        need,
+        policy,
+        now,
+        &PlacementLoad::read(state),
+    )
+}
+fn placement_with_load(
+    state: &Cluster,
+    project: &str,
+    need: &Requirements,
+    policy: Option<&Collaboration>,
+    now: i64,
+    load: &PlacementLoad,
+) -> Vec<PlacementMatch> {
+    state
+        .instances
+        .values()
+        .map(|i| {
+            let mut reasons = vec![];
+            let mut reject = |ok: bool, message: &str| {
+                if !ok {
+                    reasons.push(message.to_owned());
+                }
+            };
+            reject(
+                i.enabled && !i.incarnation.is_empty() && i.last_seen > now - ONLINE_SECONDS,
+                "AX offline or disabled",
+            );
+            reject(
+                i.projects.iter().any(|p| p == project),
+                "project not approved",
+            );
+            reject(
+                need.instance_id.as_ref().is_none_or(|id| id == &i.id),
+                "different AX requested",
+            );
+            reject(
+                need.host_id.as_ref().is_none_or(|id| id == &i.host_id),
+                "different Host requested",
+            );
+            reject(
+                i.capabilities.satisfies(&need.capabilities),
+                "task capabilities unavailable",
+            );
+            if let Some(catalog) = &i.model_catalog {
+                reject(
+                    i.model_catalog_at > now - 180 && catalog.error.is_none(),
+                    "execution model unavailable or catalog stale",
+                );
+                reject(
+                    execution_model(need, policy, i).is_some(),
+                    "AX default model not configured",
+                );
+            }
+            if let Some(p) = policy {
+                reject(!p.paused, "collaboration paused");
+                reject(
+                    (p.participants.is_empty() || p.participants.contains_key(&i.id))
+                        && !p.excluded_instances.contains(&i.id),
+                    "outside collaboration members",
+                );
+                reject(
+                    i.capabilities.satisfies(&p.requirements),
+                    "collaboration capabilities unavailable",
+                );
+            }
+            reject(
+                need.resource_limits.is_none(),
+                "system resource limits unsupported",
+            );
+            if let Some(selected) = need
+                .model
+                .as_ref()
+                .or_else(|| policy.and_then(|p| p.member_models.get(&i.id)))
+            {
+                reject(
+                    i.model_catalog_at > now - 180
+                        && i.model_catalog.as_ref().is_some_and(|c| {
+                            c.error.is_none()
+                                && c.models.iter().any(|m| {
+                                    m.provider == selected.provider && m.model == selected.model
+                                })
+                        }),
+                    "execution model unavailable or catalog stale",
+                );
+            }
+            reject(
+                load.instances.get(&i.id).copied().unwrap_or(0) < i.max_executions as usize,
+                "AX execution slots full",
+            );
+            reject(
+                !state.instance_commands.values().any(|c| {
+                    c.instance_id == i.id
+                        && c.status == "executing"
+                        && !c.action.ends_with("read")
+                        && !c.action.ends_with("list")
+                }),
+                "instance configuration executing",
+            );
+            if let Some(host) = state.hosts.get(&i.host_id) {
+                reject(
+                    host.enabled && host.last_seen > now - ONLINE_SECONDS,
+                    "Host offline or disabled",
+                );
+                let mut resources = need.resources.clone();
+                resources.cpu = resources.cpu.max(1);
+                reject(
+                    host.resources.fits(
+                        load.hosts.get(&host.id).unwrap_or(&Resources::default()),
+                        &resources,
+                    ),
+                    "Host scheduling capacity insufficient or unknown",
+                );
+            } else {
+                reject(false, "Host missing");
+            }
+            PlacementMatch {
+                instance_id: i.id.clone(),
+                reasons,
+            }
+        })
+        .collect()
 }
 pub fn reconcile(state: &mut Cluster, now: i64) {
     let mut notices = vec![];
@@ -352,17 +566,7 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
             ));
         }
     }
-    let mut host_used: BTreeMap<String, Resources> = BTreeMap::new();
-    let mut instance_used: BTreeMap<String, u32> = BTreeMap::new();
-    for task in state.tasks.values().filter(|t| t.status == "running") {
-        if let Some(owner) = task.owner.as_ref().and_then(|id| state.instances.get(id)) {
-            host_used
-                .entry(owner.host_id.clone())
-                .or_default()
-                .add(&task.spec.requirements.resources);
-            *instance_used.entry(owner.id.clone()).or_default() += 1;
-        }
-    }
+    let mut load = PlacementLoad::read(state);
     let mut ready: Vec<_> = state
         .tasks
         .values()
@@ -383,54 +587,52 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
     ready.sort();
     for (_, id) in ready {
         let task = &state.tasks[&id];
-        let mut candidates: Vec<_> = state
-            .instances
-            .values()
-            .filter(|i| {
-                i.enabled
-                    && !state.instance_commands.values().any(|c| {
-                        c.instance_id == i.id
-                            && c.status == "executing"
-                            && !c.action.ends_with("read")
-                            && !c.action.ends_with("list")
-                    })
-                    && !i.incarnation.is_empty()
-                    && i.last_seen > now - ONLINE_SECONDS
-                    && i.projects.contains(&task.spec.project_id)
-                    && task
-                        .spec
-                        .requirements
-                        .instance_id
-                        .as_ref()
-                        .is_none_or(|wanted| wanted == &i.id)
-                    && i.capabilities
-                        .satisfies(&task.spec.requirements.capabilities)
-                    && task
-                        .spec
-                        .workflow_id
-                        .as_ref()
-                        .and_then(|id| state.workflows.get(id))
-                        .is_none_or(|w| {
-                            (w.collaboration.participants.is_empty()
-                                || w.collaboration.participants.contains_key(&i.id))
-                                && i.capabilities.satisfies(&w.collaboration.requirements)
-                        })
-                    && instance_used.get(&i.id).copied().unwrap_or(0) < i.max_executions
-                    && state.hosts.get(&i.host_id).is_some_and(|host| {
-                        host.enabled
-                            && host.last_seen > now - ONLINE_SECONDS
-                            && host.resources.fits(
-                                host_used.get(&host.id).unwrap_or(&Resources::default()),
-                                &task.spec.requirements.resources,
-                            )
-                    })
+        let policy = task
+            .spec
+            .workflow_id
+            .as_ref()
+            .and_then(|id| state.workflows.get(id))
+            .map(|w| &w.collaboration);
+        let matches = placement_with_load(
+            state,
+            &task.spec.project_id,
+            &task.spec.requirements,
+            policy,
+            now,
+            &load,
+        );
+        let mut candidates: Vec<_> = matches
+            .iter()
+            .filter(|m| m.reasons.is_empty())
+            .map(|m| {
+                (
+                    load.instances.get(&m.instance_id).copied().unwrap_or(0),
+                    m.instance_id.clone(),
+                )
             })
-            .map(|i| (instance_used.get(&i.id).copied().unwrap_or(0), i.id.clone()))
             .collect();
+        state.tasks.get_mut(&id).unwrap().placement = matches;
         candidates.sort();
         if let Some((_, owner)) = candidates.first() {
             let instance = &state.instances[owner];
+            let task = &state.tasks[&id];
+            let policy = task
+                .spec
+                .workflow_id
+                .as_ref()
+                .and_then(|id| state.workflows.get(id))
+                .map(|w| &w.collaboration);
+            let model = execution_model(&task.spec.requirements, policy, instance).cloned();
+            let duty = if task.spec.requirements.duty.is_empty() {
+                policy
+                    .and_then(|p| p.participants.get(owner))
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                task.spec.requirements.duty.clone()
+            };
             let task = state.tasks.get_mut(&id).unwrap();
+            task.placement.clear();
             task.generation += 1;
             task.status = "running".into();
             task.failure = None;
@@ -445,18 +647,50 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
                 ended_at: None,
                 error: None,
                 sessions: vec![],
+                model,
+                duty,
             });
-            host_used
-                .entry(instance.host_id.clone())
-                .or_default()
-                .add(&task.spec.requirements.resources);
-            *instance_used.entry(owner.clone()).or_default() += 1;
+            load.reserve(instance, &task.spec.requirements.resources);
             notices.push((
                 id,
                 "task.assigned",
                 format!("{owner} generation {}", task.generation),
             ));
         }
+    }
+    let pending: Vec<_> = state
+        .tasks
+        .values()
+        .filter(|t| t.status == "pending")
+        .map(|t| {
+            let policy = t
+                .spec
+                .workflow_id
+                .as_ref()
+                .and_then(|id| state.workflows.get(id))
+                .map(|w| &w.collaboration);
+            let mut matches = placement_with_load(
+                state,
+                &t.spec.project_id,
+                &t.spec.requirements,
+                policy,
+                now,
+                &load,
+            );
+            if t.spec
+                .dependencies
+                .iter()
+                .any(|id| state.tasks.get(id).is_none_or(|d| d.status != "completed"))
+            {
+                for m in &mut matches {
+                    m.reasons.push("dependencies unfinished".into());
+                }
+            }
+            (t.id.clone(), matches)
+        })
+        .collect();
+    for (id, matches) in pending {
+        state.tasks.get_mut(&id).unwrap().placement = matches;
     }
     for (id, kind, detail) in notices {
         state.event(now, kind, Some(&id), None, &detail);
@@ -532,7 +766,14 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
         .filter(|c| c.status == "pending" || c.status == "executing")
     {
         if !state.tasks.get(&command.task_id).is_some_and(|t| {
-            t.status == "running" && t.generation == command.generation && t.lease_until > now
+            t.status == "running"
+                && t.generation == command.generation
+                && t.lease_until > now
+                && (command.status == "executing"
+                    || t.attempts
+                        .last()
+                        .and_then(|a| a.sessions.last())
+                        .is_some_and(|s| s == &command.session_id))
         }) {
             command.status = "failed".into();
             command.result =
@@ -559,10 +800,23 @@ pub fn heartbeat(db: &Db, id: &str, body: Heartbeat) -> Result<Vec<Assignment>> 
     if let Some(caps) = &body.capabilities {
         validate_capabilities(caps)?;
     }
+    if let Some(catalog) = &body.model_catalog {
+        ensure!(
+            serde_json::to_vec(catalog)?.len() <= 1024 * 1024 && catalog.models.len() <= 5000,
+            "model catalog too large"
+        );
+        for model in &catalog.models {
+            ensure!(
+                !model.provider.is_empty()
+                    && !model.model.is_empty()
+                    && model.provider.len() <= 128
+                    && model.model.len() <= 512,
+                "invalid model selection"
+            );
+        }
+    }
     db.cluster_update(|state| {
         let now = unix_now();
-        // Expired leases are never revived by a delayed heartbeat.
-        reconcile(state, now);
         let instance = state
             .instances
             .get_mut(id)
@@ -579,10 +833,26 @@ pub fn heartbeat(db: &Db, id: &str, body: Heartbeat) -> Result<Vec<Assignment>> 
             .as_ref()
             .is_some_and(|caps| *caps != instance.capabilities);
         if let Some(caps) = body.capabilities {
-            if instance.pending_capabilities.as_ref() == Some(&caps) {
+            if instance
+                .pending_capabilities
+                .as_ref()
+                .is_some_and(|pending| {
+                    let mut reported = caps.clone();
+                    reported.models = pending.models.clone();
+                    reported == *pending
+                        && pending
+                            .models
+                            .iter()
+                            .all(|model| caps.models.contains(model))
+                })
+            {
                 instance.pending_capabilities = None;
             }
             instance.capabilities = caps;
+        }
+        if let Some(catalog) = body.model_catalog {
+            instance.model_catalog = Some(catalog);
+            instance.model_catalog_at = now;
         }
         let host = state.hosts.get_mut(&host_id).unwrap();
         host.last_seen = now;
@@ -612,6 +882,9 @@ pub fn heartbeat(db: &Db, id: &str, body: Heartbeat) -> Result<Vec<Assignment>> 
                 "worker reported active capabilities",
             );
         }
+        // Apply the current report before placement, but fence expired leases
+        // before renewal. A capability refresh must not assign stale models.
+        reconcile(state, now);
         for active in &body.active {
             if let Some(task) = state.tasks.get_mut(&active.task_id)
                 && task.status == "running"
@@ -669,8 +942,14 @@ pub fn heartbeat(db: &Db, id: &str, body: Heartbeat) -> Result<Vec<Assignment>> 
     })
 }
 fn validate_capabilities(caps: &Capabilities) -> Result<()> {
+    // Model discovery can legitimately return hundreds of IDs. Preserve the
+    // existing small policy bound for other tags, without dropping worker leases.
+    let mut policy = caps.clone();
+    policy.models.clear();
     ensure!(
-        serde_json::to_vec(caps)?.len() <= 16384,
+        serde_json::to_vec(&policy)?.len() <= 16384
+            && serde_json::to_vec(&caps.models)?.len() <= 512 * 1024
+            && caps.models.len() <= 5000,
         "capabilities too large"
     );
     Ok(())
@@ -710,6 +989,7 @@ pub fn restart(db: &Db, id: &str, incarnation: &str) -> Result<()> {
         if instance.incarnation != incarnation {
             instance.incarnation = incarnation.into();
             instance.last_seen = 0;
+            instance.model_catalog_at = 0;
             reconcile(state, unix_now());
             state.event(
                 unix_now(),
@@ -767,6 +1047,18 @@ pub fn report(db: &Db, id: &str, body: Report) -> Result<()> {
                 .as_str()
                 .filter(|s| valid_identity(s))
                 .ok_or_else(|| anyhow::anyhow!("invalid AX Session identity"))?;
+            if let Some(model) = value.get("model").filter(|m| !m.is_null()) {
+                let actual: ExecutionModel = serde_json::from_value(model.clone())?;
+                let attempt = task
+                    .attempts
+                    .last_mut()
+                    .ok_or_else(|| anyhow::anyhow!("attempt missing"))?;
+                ensure!(
+                    attempt.model.as_ref().is_none_or(|m| m == &actual),
+                    "AX execution model differs from assigned model"
+                );
+                attempt.model = Some(actual);
+            }
             let sessions = &mut task
                 .attempts
                 .last_mut()

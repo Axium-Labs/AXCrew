@@ -2,7 +2,8 @@ import { Disclosure } from '../components/ui/disclosure'
 import { Select } from '../components/ui/select'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { distributed, type AxInstance, type Capabilities, type ClusterHost } from '../lib/distributed'
+import { distributed, modelKey, parseModel, type AxInstance, type Capabilities, type ClusterHost } from '../lib/distributed'
+import { ModelPicker } from './distributed-models'
 import { axAvailable, axCatalog } from '../lib/ax'
 import { Field } from '../components/shared'
 import { Button } from '../components/ui/button'
@@ -35,6 +36,7 @@ export function ConfigureInstance({instance,close,run,busy,label,error}:{instanc
   const [form,setForm]=useState({...Object.fromEntries(Object.entries(caps).map(([key,values])=>[key,values.join(', ')])),provider:'',skills_dir:'',mcp_config:''} as Record<string,string>)
   const [settings,setSettings]=useState<Record<string,unknown>|null>(null)
   const [confirmed,setConfirmed]=useState(false)
+  const [model,setModel]=useState(instance.model_catalog?.current?modelKey(instance.model_catalog.current):'')
   const field=(key:string,cn:string,en:string)=><Field label={label(cn,en)}><Input value={form[key]??''} onChange={e=>setForm({...form,[key]:e.target.value})}/></Field>
   // Built-in tool names come from the local AX catalog; the target machine's AX may differ.
   const builtins=useQuery({queryKey:['ax-catalog','','global'],queryFn:()=>axCatalog(undefined,'global'),enabled:axAvailable,retry:false}).data?.tools??[]
@@ -44,21 +46,22 @@ export function ConfigureInstance({instance,close,run,busy,label,error}:{instanc
   return <Dialog open onOpenChange={open=>{if(!open)close()}} title={`${label('配置 AX 能力','Configure AX capabilities')} · ${instance.name}`}>
     {error&&<p role="alert" className="ax-notice is-error is-flush">{error}</p>}
     {settings?<div className="cluster-detail"><p>{label('配置已保存为待生效。将以下字段合并到目标机器原有 worker.json，安装或配置对应 Skill/MCP 后重启 Worker。保留原有连接凭证和项目路径；AX 回传实际能力后才用于调度。','Configuration saved as pending. Merge these fields into the target machine’s existing worker.json, install/configure the selected skills and MCP, then restart the worker. Keep connection credentials and project mappings. Scheduling uses capabilities reported by AX.')}</p><pre>{JSON.stringify(settings,null,2)}</pre><Button onClick={download}>{label('下载配置字段','Download settings')}</Button></div>:<div className="cluster-form">
-      <p className="text-sm text-muted">{label('这里配置已连接实例的能力。Skill/MCP 必须在目标机器安装并启用；Tool 名称填写 AX 内置工具，MCP 工具通过 MCP 配置。模型填写一个 ID，认证保留在目标机器。','Configure a connected instance. Install and enable skills/MCP locally. Tool names select AX built-ins; configure MCP tools through MCP. Use one model ID; credentials stay on the target machine.')}</p>
+      <p className="text-sm text-muted">{label('这里配置已连接实例的能力。Skill/MCP 必须在目标机器安装并启用；Tool 名称填写 AX 内置工具，MCP 工具通过 MCP 配置。模型从此 AX 的目录选择，认证保留在目标机器。','Configure a connected instance. Install and enable skills/MCP locally. Tool names select AX built-ins; configure MCP tools through MCP. Select a model reported by this AX; credentials stay on the target machine.')}</p>
       <div className="cluster-form-grid">
-        {field('roles','角色（逗号分隔）','Roles (comma separated)')}{field('models','模型 ID','Model ID')}{field('provider','Provider ID（可选）','Provider ID (optional)')}{field('skills','Skill 名称','Skill names')}{field('skills_dir','目标机器 Skill 目录（可选）','Local skill directory (optional)')}{field('mcp','MCP 名称','MCP names')}{field('mcp_config','目标机器 MCP 配置路径（可选）','Local MCP config path (optional)')}{field('tools','Tool 名称','Tool names')}{field('environments','环境标签','Environment tags')}
+        {field('roles','能力分类标签（用于匹配）','Capability category tags (placement)')}<ModelPicker label={label} instances={[instance]} now={Math.floor(Date.now()/1000)} value={model} onChange={setModel} title={label('实例默认执行模型','Instance default execution model')}/>{field('skills','Skill 名称','Skill names')}{field('skills_dir','目标机器 Skill 目录（可选）','Local skill directory (optional)')}{field('mcp','MCP 名称','MCP names')}{field('mcp_config','目标机器 MCP 配置路径（可选）','Local MCP config path (optional)')}{field('tools','Tool 名称','Tool names')}{field('environments','环境标签','Environment tags')}
         {builtins.length>0&&<div className="cluster-tool-picker" role="group" aria-label={label('可选内置工具','Available built-in tools')}>
           <span>{label('点选本机 AX 内置工具（以目标机器 AX 为准）','Pick from this machine’s AX built-in tools (the target AX decides)')}</span>
           <div>{builtins.map(tool=><button key={tool.name} type="button" title={tool.description||undefined} aria-pressed={chosenTools.includes(tool.name)} onClick={()=>toggleTool(tool.name)}>{tool.name}</button>)}</div>
         </div>}
         <Field label={label('执行权限','Execution permissions')}><Select label={label('执行权限','Execution permissions')} value={form.permissions||'ask'} onChange={permissions=>setForm({...form,permissions})} options={['ask','allow','deny'].map(value=>({value,label:value[0].toUpperCase()+value.slice(1)}))}/></Field>
       </div>
-      <Disclosure title={<>{label('配置差异预览','Configuration difference preview')}</>}> <pre>{JSON.stringify({from:caps,to:Object.fromEntries(['roles','skills','mcp','tools','models','permissions','environments'].map(key=>[key,list(form[key]??'')]))},null,2)}</pre></Disclosure>
+      <Disclosure title={<>{label('配置差异预览','Configuration difference preview')}</>}> <pre>{JSON.stringify({from:caps,to:Object.fromEntries(['roles','skills','mcp','tools','models','permissions','environments'].map(key=>[key,key==='models'?(parseModel(model)?[parseModel(model)!.model]:[]):list(form[key]??'')]))},null,2)}</pre></Disclosure>
       <label className="cluster-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>{label('确认实例配置影响使用此 AX 的全部目标','Confirm instance settings affect all Goals using this AX')}</label>
-      <Button disabled={busy||!confirmed||list(form.models??'').length>1} onClick={()=>void run(async()=>{
+      <Button disabled={busy||!confirmed} onClick={()=>void run(async()=>{
         const next=Object.fromEntries(['roles','skills','mcp','tools','models','permissions','environments'].map(key=>[key,list(key==='permissions'?(form[key]||'ask'):(form[key]??''))])) as Capabilities
+        const selected=parseModel(model);next.models=selected?[selected.model]:[]
         await distributed.configure(instance.id,next)
-        setSettings({roles:next.roles,skills:next.skills,mcp:next.mcp,tools:next.tools,model:next.models[0]??null,environments:next.environments,permission_profile:next.permissions[0],...(form.provider?{provider:form.provider}:{}),...(form.skills_dir?{skills_dir:form.skills_dir}:{}),...(form.mcp_config?{mcp_config:form.mcp_config}:{})})
+        setSettings({roles:next.roles,skills:next.skills,mcp:next.mcp,tools:next.tools,model:next.models[0]??null,environments:next.environments,permission_profile:next.permissions[0],...(selected?{provider:selected.provider}:{provider:null}),...(form.skills_dir?{skills_dir:form.skills_dir}:{}),...(form.mcp_config?{mcp_config:form.mcp_config}:{})})
       })}>{label('保存并生成本地配置','Save and generate local settings')}</Button>
     </div>}
   </Dialog>

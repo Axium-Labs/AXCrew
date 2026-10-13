@@ -80,3 +80,14 @@ active-task/pinned-task, unfinished explicit Workflow membership and executing n
 management checks run in the orchestration transaction. The response is `{accepted:true}`,
 including a repeated deletion of an archived ID. Workers lose authentication; Tasks,
 Sessions, Events and artifact histories are retained. See the distributed contract.
+
+
+Distributed collaboration now creates actual multi-AX work through a three-step
+plan form and one atomic Task/Workflow transaction. Native worker model catalogs
+feed searchable execution selections; each Attempt freezes its Provider/Model
+and duty. Matching previews share scheduler predicates and pending Tasks display
+reasons. Member removal fences only its Workflow; new-member work can save in the
+same policy transaction. Latest-Session routing and read-only Session history
+retain rotation and migration associations. Resource minimums reserve scheduler
+capacity; system resource limits are explicitly unsupported. See
+[distributed contracts](../distributed-collaboration.md).

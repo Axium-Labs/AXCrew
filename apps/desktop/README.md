@@ -343,7 +343,7 @@ Android release signing reads AXCREW_ANDROID_KEYSTORE, AXCREW_ANDROID_STORE_PASS
 
 ## 分布式协作
 
-侧边栏「分布式协作」现在包含协作工作台、节点管理、执行活动三个视图。以已有 Workflow/Task 组织普通任务或 AX Goal，按能力与资源自动分配或手动选择 AX，添加成员角色、依赖及工作任务，查看整体进度和实时 ACP 消息/工具调用，进入真实 Session 补充要求、回答问题及进行单请求权限审批。支持整个协作或单任务暂停、恢复、取消、重试、重新分配与检查点接管。
+侧边栏「分布式协作」现在包含协作工作台、节点管理、执行活动三个视图。以已有 Workflow/Task 组织普通任务或 AX Goal，按能力与资源自动分配或手动选择 AX，设置成员工作职责、依赖及实际工作任务，查看整体进度和实时 ACP 消息/工具调用，进入真实 Session 补充要求、回答问题及进行单请求权限审批。支持整个协作或单任务暂停、恢复、取消、重试、重新分配与检查点接管。
 
 节点按 Host → AX Instance 展示，分别显示机器实测 CPU/RAM/GPU/磁盘/网络、跨 Goal 任务预留与执行槽位。展开 AX 可查看项目、能力、当前 Goal/任务/Session，并复用配置组件管理目标 AX 原生设置、个性化、Memory 开关、自定义指令和插件。远程原生管理需要机器明确启用；配置写入必须确认实例/项目影响范围，活动执行期间拒绝写入。Goal 成员/能力策略只影响该 Goal。多选批量能力配置、原生子 Agent 设置与启停提供逐节点差异预览、确认及部分失败结果；共享配置导出不含凭证，一次性连接 worker.json 明确标为私有。
 
@@ -355,7 +355,7 @@ not distributed in the source repository.
 
 ### 分布式控制台布局
 
-三个入口共用在线 AX、运行任务、异常与待调度概览，以及自动同步状态。异常统计为失败任务与已启用但离线的 AX；未读取到状态时显示读取提示。协作列表提供状态和完成数，目标、任务、成员、最近动态在空状态与已有协作之间保持相同布局。节点折叠行显示执行槽位、关联协作/任务、运行任务最近执行的 Session 链数量与能力标签；配置槽位不代表当前可调度容量。执行活动采用紧凑筛选和带计数的二级导航，可清除筛选，保留 Execution → Session、恢复记录和产物下载。深浅主题共用桌面配色变量，窄窗口自动分栏收起。
+三个入口共用在线 AX、运行任务、异常与待调度概览，以及自动同步状态。异常统计为失败任务与已启用但离线的 AX；未读取到状态时显示读取提示。协作列表提供状态和完成数，目标、任务、成员、最近动态在空状态与已有协作之间保持相同布局。节点折叠行显示执行槽位、关联协作/任务、运行任务的当前活动 Session 数量与能力标签；配置槽位不代表当前可调度容量。执行活动采用紧凑筛选和带计数的二级导航，可清除筛选，保留 Execution → Session、恢复记录和产物下载。深浅主题共用桌面配色变量，窄窗口自动分栏收起。
 
 
 分布式页面及弹窗的全部下拉选择使用与设置页一致的共享 `Select`：主题色弹层、分组、选中勾选、禁用项和键盘操作统一实现，弹窗内首次 Escape 只关闭下拉。后续页面从 `src/components/ui/select.tsx` 导入即可，组件自动加载样式；旧 `SettingsSelect` 是同一实现的兼容导出。
@@ -373,3 +373,14 @@ AX 行右侧箭头和实例名称都可展开 / 收起详情，状态同步；�
 目标功能的系统界面文案随语言切换：中文使用“目标”，英文使用“Goal”，不并列重复显示；设置导航、默认策略、协作类型及相关提示统一处理。协议字段、命令名与用户自行输入的标题不做翻译。
 
 目标执行预算的费用上限按美元输入，输入 / 输出估算单价按“美元 / 百万 Token”输入，最多支持 6 位小数。界面精确转换为原有后台整数计量单位，读取旧配置时金额不变。上限 0 表示不追加限制，单价留空表示未配置、0 表示免费；负数、超精度或超安全整数范围会阻止保存。
+
+
+Distributed collaboration now creates actual multi-AX work through a three-step
+plan form and one atomic Task/Workflow transaction. Native worker model catalogs
+feed searchable execution selections; each Attempt freezes its Provider/Model
+and duty. Matching previews share scheduler predicates and pending Tasks display
+reasons. Member removal fences only its Workflow; new-member work can save in the
+same policy transaction. Latest-Session routing and read-only Session history
+retain rotation and migration associations. Resource minimums reserve scheduler
+capacity; system resource limits are explicitly unsupported. See
+[distributed contracts](../../docs/distributed-collaboration.md).

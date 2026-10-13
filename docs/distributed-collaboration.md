@@ -134,7 +134,7 @@ retain their inventory and display a compact no-instance message.
 
 Eligibility combines **AX Capability + Host Resource**:
 
-- Every requested role, Skill, MCP, Tool, model, permission and environment tag
+- Every requested capability category, Skill, MCP, Tool, model matching condition, permission and environment tag
   must be advertised by the instance. The logical project must be approved.
 - Optional `requirements.instance_id` pins an instance; otherwise Crew chooses.
 - Host and AX must be enabled and seen within 30 seconds. A Host is maintained
@@ -225,8 +225,10 @@ allow admin where appropriate.
 | POST `/artifacts` | Source lease identity, `kind, name, content_base64` → Artifact |
 | GET `/artifacts/{id}` | `artifact, content_base64` after project access check |
 
-Requirements contain `capabilities` (string arrays by category), `resources`
-(`cpu`, `ram_mb`, `gpu`) and optional `instance_id`. Task input and summary are
+Requirements contain `capabilities` (string arrays used only for matching), `resources`
+(`cpu`, `ram_mb`, `gpu`) and optional `instance_id`, `host_id`, execution `model`
+(`provider`, `model`), and task `duty`. `resource_limits` is rejected: this
+release does not enforce operating-system quotas. Task input and summary are
 bounded (256 KiB combined); CPU defaults to one. Use a new request ID for a new logical
 step; retries of the same request must have the same content. Heartbeat responses
 omit already acknowledged task payloads. Observations remain in the ordered
@@ -247,8 +249,8 @@ objective, work-task, member and recent-activity regions remain visible when the
 are no collaborations, with compact contextual empty states. Objective text is a
 bounded preview of the root input/Goal target; the full input remains in task
 details. Nodes show configured execution slots (not guaranteed available capacity),
-Session IDs recorded in the latest attempts of running Tasks (including rotation
-history), related collaborations/Tasks and capability tags before expansion.
+active Session counts from the last Session of each running attempt,
+current/pinned/previously attempted collaborations and Tasks and capability tags before expansion.
 Host inventory and measured metrics stay distinct from requested reservations.
 All dropdowns in the distributed views and dialogs use the shared settings-style
 Select, including project/AX placement, permissions, batch operation and native
@@ -262,9 +264,9 @@ palette tokens; narrow windows stack the content regions.
 
 The workspace organizes existing Workflows as ordinary collaborative tasks or
 explicit AX Goals. Create tasks, add peer work to a Workflow, specify dependencies,
-choose automatic/manual placement, assign participant roles, inspect the common
-feed, and enter an individual live Session. Participant roles enter the existing
-AX task context. Whole-Workflow controls include all peers, including tasks that
+choose automatic/manual placement, assign participant work duties, inspect the common
+feed, and enter an individual live Session. Work duties enter the existing
+AX task context; capability tags never become role prompts. Whole-Workflow controls include all peers, including tasks that
 are not descendants of the root. Reassignment fences the previous attempt,
 retains original request idempotency, and schedules the next generation from the
 existing checkpoint and resource policy.
@@ -306,10 +308,14 @@ existing ACP stream, and `distributed_settings` invokes existing native CLI
 settings/capability operations on the target host.
 
 `Workflow.collaboration` has `kind` (`goal`/`task`; legacy default empty), `paused`,
-`participants` (AX ID to role; empty means automatic), and capability
-`requirements`. Root submissions save policy atomically before placement;
+`participants` (AX ID to work duty; empty means automatic), capability
+`requirements`, exact `member_models` (AX ID to Provider/Model), and
+`excluded_instances` (excluded even during automatic placement). Root submissions save policy atomically before placement;
 only admins may set it. The policy restricts eligible AX and never mutates host
-permissions, installed capabilities or settings of active executions. Each task
+permissions or installed capabilities. Removing/excluding a member fences its
+active ownership and clears its nonterminal task pins in this Workflow. Retained
+owners keep frozen execution settings; new work duties and models apply to
+subsequent attempts. New-member tasks can save atomically with the policy. Each task
 retains its own requirements, dependencies, attempt history and immutable
 submission digest. AX Instances can participate in several Workflows.
 
@@ -320,19 +326,24 @@ Configuration scopes:
   that target home/project. Writes require explicit scope confirmation and no
   active executions. Pending native writes block new placement while executing.
 - Goal batch policy changes only that Workflow's participant range and required
-  capabilities. Existing AX Goal policy/budget remains frozen in its checkpoint.
+  capabilities, member work duties and execution model defaults. Removing members
+  fences their work in this Workflow only. Existing AX Goal policy/budget remains
+  frozen in its checkpoint.
 - Session guidance, native Long Project edits and one-request approvals target
-  the recorded Session of one current execution generation. They cannot grant
+  the latest recorded Session of one current execution generation; historical
+  Sessions are read-only and pending commands for retired Sessions fail visibly. They cannot grant
   a persistent permission or weaken a host Sandbox.
 
 Additional admin routes (existing admin authentication and error shape):
 
 | POST suffix | Contract |
 |---|---|
-| `/workflows/{id}/settings` | `expected_revision, kind, participants, requirements`; CAS policy, preserves checkpoint state |
+| `/workflows/{id}/settings` | `expected_revision, kind, participants, requirements`, optional `member_models, excluded_instances, new_tasks:[Submit]`; atomic CAS policy/tasks, member fencing; preserves checkpoint state |
 | `/workflows/{id}/control/{pause|resume|cancel|retry}` | Controls all Workflow tasks and retains checkpoints/usage |
-| `/tasks/{id}/reassign` | `generation, instance_id` (null = automatic); fences old execution |
-| `/tasks/{id}/commands` | `generation, session_id, kind, text, request_id?`; live recorded Session only |
+| `/tasks/{id}/reassign` | `generation, instance_id` (null = automatic), optional exact `model`, `duty`, `dependencies`, `host_id`, `clear_host`, `resources`; fences old execution, rejects cross-Workflow dependencies/cycles; omitted/null model inherits the new owner |
+| `/tasks/{id}/commands` | `generation, session_id, kind, text, request_id?`; latest Session of live attempt only |
+| `/plans` | `tasks:[{spec:Submit, depends_on:[earlier task index]}]`; 1-64 tasks in one transaction, first task owns root policy or joins existing Workflow; stable request IDs make retries idempotent; placement occurs after all tasks exist |
+| `/placement` | `project_id, requirements`, optional `workflow_id` or `collaboration`; returns `[{instance_id,reasons}]`, empty reasons means currently eligible; uses scheduler predicate and current reservations |
 | `/batch` | `instance_ids, confirm_instance_scope:true`, exactly one of `capabilities`/`enabled`; per-node accepted/error, partial failures retained |
 | `/instances/{id}/manage` | `action, scope:global|project, project_id?, input, confirm_instance_scope`; target opt-in required |
 
@@ -407,3 +418,79 @@ AX home settings remain the global base. Active executions retain their existing
 snapshot; already saved Goals retain policy from their authoritative checkpoint.
 Automatic result patches exclude `.ax` and execution-input metadata so local
 configuration, MCP credentials and runtime stores are not exported as code changes.
+
+
+## Execution-path audit and completed connections
+
+The original production path already provided transactional Task/Workflow storage,
+lease/generation/incarnation fencing, asynchronous child work, dependency gating,
+Host-wide reservations, approved AX slots, isolated ACP workspaces and failover.
+These remain the authority. Desktop creation now calls `POST /plans`, which
+reuses `submit_in_cluster` within one aggregate transaction and invokes the same
+`reconcile` once. It adds no planning agent, Goal ledger or execution loop.
+
+Previously the form submitted one Task, models were only capability predicates,
+and some desktop and permission-event paths used the first Session. Member
+changes affected only future placement. The current three-step form defines work,
+organizes AX/work duties/model choices and actual work-task assignments, then
+previews dependencies, resource minimums and per-node matching reasons. Selecting
+additional AX creates editable work-task rows; adding a member later accepts its
+work task in the same CAS policy transaction. More tasks and dependencies remain
+editable through existing task creation and fenced reassignment controls.
+
+A Task has one effective owner for its current generation. Attempt records freeze
+its exact execution Provider/Model and work duty. Task model selection overrides
+a member default; otherwise AX's reported current model is inherited. Capability
+`models` remains a separate all-required scheduling predicate. Worker commands
+pass the frozen selection to that attempt's ACP process; no global AX model
+configuration is written. The worker rechecks its own catalog before spawning and
+reports the ACP-resolved model; Crew rejects a differing model report.
+
+The worker uses existing `_ax/models` under its own AX_HOME to report a
+credential-filtered local Provider/Model catalog, plus current selection and
+errors. The existing ACP response adds optional `current:{provider,model}`.
+Discovery has a 15-second deadline and runs separately from lease heartbeats,
+refreshing every 60 seconds. Crew timestamps accepted catalogs; new execution
+model selection requires online nodes and a catalog less than 180 seconds old.
+Restart invalidates the previous catalog timestamp until the new incarnation
+reports discovery. Pending model defaults match the active catalog as a subset,
+so a model picker directory does not prevent local configuration acknowledgement.
+Model catalogs are bounded to 5000 entries / 1 MiB, with model capability IDs
+bounded independently from other 16 KiB capability policy fields so large valid
+provider lists do not break lease heartbeats.
+Successful heartbeats without new discovery do not refresh that timestamp.
+Offline, expired and errored catalogs are visible and excluded from the picker.
+This is local configured/catalog availability, not a remote provider health
+attestation; actual inference errors remain real failed Tasks. Credentials never
+leave AX. Older workers without catalogs retain inherited-model execution, but
+cannot accept exact per-execution model overrides through the new picker.
+
+Ordinary creation reserves one logical CPU slot and no explicit RAM/GPU minimum.
+Advanced choices select actual reported Skill/MCP/environment tags, resource
+minimums or a Host/AX pin. Every pending Task includes current per-node `placement`
+reasons (including unfinished dependencies). Preview is a current snapshot, not a
+capacity guarantee: separate rows can compete for the same remaining slots after
+submission. CPU/RAM/GPU values reserve scheduler capacity only; they do not pin
+GPU devices or enforce process quotas. Requests for `resource_limits` fail
+explicitly. Real OS limits and physical GPU isolation remain outside this adapter.
+
+Session chains are chronological. Desktop interaction, PROJECT_STATE imports and
+permission events use the latest active Session; the server and AX bridge reject
+historical targets. Rotation fails undeliverable old commands instead of replaying
+them into a different Session. History selection filters each Session's activity
+and exposes no message/answer/approval controls. Node participation includes
+current ownership, queued pins and all prior attempts, so migrations remain
+visible. Session/Memory stores and full workspaces remain AX-owned and are not
+silently copied during takeover.
+
+
+Workbench edit/add dialogs retain the Workflow ID captured when opened; new
+collaborations arriving in a refresh cannot retarget them. Configuration drafts
+also detect changes to collaboration policy and require a fresh review rather
+than overwriting another operator's policy. Runtime checkpoint-only revisions
+can still use the current CAS revision when that policy is unchanged.
+
+A new worker reports model discovery as pending until its first native catalog
+arrives. Heartbeats apply fresh capability/catalog/inventory data before new
+placement, then fence expired leases before renewals. Newly unavailable models
+cannot consume a just-released execution slot using the previous report.

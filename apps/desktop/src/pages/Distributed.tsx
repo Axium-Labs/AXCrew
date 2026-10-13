@@ -31,7 +31,7 @@ export function Distributed(){
       {tab==='nodes'&&<Nodes {...props} enroll={()=>setEnrolling(true)}/>}
       {tab==='activity'&&<Activity {...props}/>}
     </div>}
-    {state&&task&&state.tasks[task]&&<TaskInspector {...props!} task={state.tasks[task]} close={()=>setTask(null)}/>}
+    {state&&task&&state.tasks[task]&&<TaskInspector key={task} {...props!} task={state.tasks[task]} close={()=>setTask(null)}/>}
     <Enroll open={enrolling} close={()=>setEnrolling(false)} state={state} run={run} busy={busy} label={label} error={error}/>
     <CreateTask key={creating?'creating':'closed'} open={creating} close={()=>setCreating(false)} state={state} run={run} busy={busy} label={label} error={error} onCreated={id=>{setWorkflow(id);setTab('workbench')}}/>
   </div>

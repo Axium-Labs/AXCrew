@@ -100,3 +100,14 @@ and disables management. It never removes Task/Attempt/Workflow/Session/Event/ar
 history or Host inventory. The same transaction rejects unfinished ownership/pinning,
 unfinished explicit participation and executing native management; pending native and
 undeliverable execution commands fail. Repeated deletion retains the original event.
+
+
+Distributed collaboration now creates actual multi-AX work through a three-step
+plan form and one atomic Task/Workflow transaction. Native worker model catalogs
+feed searchable execution selections; each Attempt freezes its Provider/Model
+and duty. Matching previews share scheduler predicates and pending Tasks display
+reasons. Member removal fences only its Workflow; new-member work can save in the
+same policy transaction. Latest-Session routing and read-only Session history
+retain rotation and migration associations. Resource minimums reserve scheduler
+capacity; system resource limits are explicitly unsupported. See
+[distributed contracts](../distributed-collaboration.md).

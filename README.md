@@ -281,3 +281,14 @@ MIT. See [crates/server/Cargo.toml](crates/server/Cargo.toml).
 ## Optional Distributed Collaboration
 
 The **Distributed** sidebar opens a unified collaboration workspace with three views: Workspace, Nodes and Activity. Expandable distributed sections use the shared app-style Disclosure, preserving drafts when collapsed. All distributed dropdowns reuse the shared settings-style Select with themed popups and keyboard navigation. A compact status overview shows online AX, running work, failed Tasks/offline AX and queued Tasks. Stable objective/task/member/feed regions keep the workspace usable even before the first collaboration; node rows expose capacity, work/Session associations and capabilities, while Activity provides counted secondary navigation and resettable filters. Organize existing Tasks/Workflows as ordinary collaborations or explicit AX Goals; add AX participants and roles, choose placement, inspect dependencies and live ACP Sessions, and pause/resume/cancel/reassign work. Instance names and their disclosure buttons both expand details, including offline nodes. Nodes support confirmed instance deletion with busy/reference checks, credential revocation and retained execution history. Nodes follow Host → AX Instance; shared capacity and approved execution slots govern concurrency across Goals. Goal-scoped policies stay separate from AX-wide configuration. Batch operations preview differences and retain partial failures; optional native remote settings/plugins require host opt-in and confirmed write scope. Long Project is off by default and stays inline within a Goal, retaining AX-owned document/history, Session rotation and cumulative budget checkpoints. See [architecture, API and setup](docs/distributed-collaboration.md).
+
+
+Distributed collaboration now creates actual multi-AX work through a three-step
+plan form and one atomic Task/Workflow transaction. Native worker model catalogs
+feed searchable execution selections; each Attempt freezes its Provider/Model
+and duty. Matching previews share scheduler predicates and pending Tasks display
+reasons. Member removal fences only its Workflow; new-member work can save in the
+same policy transaction. Latest-Session routing and read-only Session history
+retain rotation and migration associations. Resource minimums reserve scheduler
+capacity; system resource limits are explicitly unsupported. See
+[distributed contracts](docs/distributed-collaboration.md).

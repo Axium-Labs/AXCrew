@@ -1,5 +1,5 @@
 //! Workbench policy and execution inbox over the existing durable cluster aggregate.
-use super::distributed::{configure, reconcile, validate_lease};
+use super::distributed::{configure, reconcile, submit_in_cluster, validate_lease};
 use crate::{
     domain::{distributed::*, unix_now},
     storage::Db,
@@ -10,11 +10,103 @@ use uuid::Uuid;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct Plan {
+    pub tasks: Vec<PlannedTask>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlannedTask {
+    pub spec: Submit,
+    #[serde(default)]
+    pub depends_on: Vec<usize>,
+}
+/// Atomic organization of existing durable Tasks. No second execution mechanism.
+pub fn plan(db: &Db, body: Plan) -> Result<Vec<DistributedTask>> {
+    ensure!(
+        !body.tasks.is_empty() && body.tasks.len() <= 64,
+        "a plan requires 1-64 tasks"
+    );
+    db.cluster_update(|state| {
+        let mut created: Vec<DistributedTask> = vec![];
+        let mut flow = None;
+        let mut keys = std::collections::BTreeSet::new();
+        for (index, entry) in body.tasks.into_iter().enumerate() {
+            let mut spec = entry.spec;
+            ensure!(
+                keys.insert(spec.request_id.clone()),
+                "duplicate plan task identity"
+            );
+            ensure!(
+                entry.depends_on.iter().all(|d| *d < index),
+                "dependencies must reference earlier plan tasks"
+            );
+            ensure!(spec.parent_id.is_none(), "plan tasks cannot set a parent");
+            if index > 0 {
+                ensure!(
+                    spec.workflow_id.is_none() || spec.workflow_id == flow,
+                    "plan workflow differs"
+                );
+                ensure!(
+                    spec.collaboration.is_none(),
+                    "only the first plan task defines collaboration policy"
+                );
+                spec.workflow_id = flow.clone();
+            }
+            for d in entry.depends_on {
+                spec.dependencies.push(created[d].id.clone());
+            }
+            let t = submit_in_cluster(state, "admin", spec)?;
+            flow = t.spec.workflow_id.clone();
+            created.push(t);
+        }
+        reconcile(state, unix_now());
+        Ok(created.iter().map(|t| state.tasks[&t.id].clone()).collect())
+    })
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Preview {
+    pub project_id: String,
+    pub requirements: Requirements,
+    #[serde(default)]
+    pub collaboration: Option<Collaboration>,
+    #[serde(default)]
+    pub workflow_id: Option<String>,
+}
+pub fn preview(db: &Db, body: Preview) -> Result<Vec<PlacementMatch>> {
+    let state = db.cluster_read()?;
+    let policy = if let Some(id) = body.workflow_id.as_ref() {
+        let w = state
+            .workflows
+            .get(id)
+            .ok_or_else(|| anyhow::anyhow!("workflow missing"))?;
+        ensure!(w.project_id == body.project_id, "project policy denied");
+        Some(&w.collaboration)
+    } else {
+        body.collaboration.as_ref()
+    };
+    Ok(super::distributed::placement(
+        &state,
+        &body.project_id,
+        &body.requirements,
+        policy,
+        unix_now(),
+    ))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Settings {
     pub expected_revision: u64,
     pub kind: String,
     pub participants: std::collections::BTreeMap<String, String>,
     pub requirements: Capabilities,
+    #[serde(default)]
+    pub member_models: std::collections::BTreeMap<String, ExecutionModel>,
+    #[serde(default)]
+    pub excluded_instances: Vec<String>,
+    #[serde(default)]
+    pub new_tasks: Vec<Submit>,
 }
 pub fn settings(db: &Db, id: &str, body: Settings) -> Result<Workflow> {
     ensure!(
@@ -34,6 +126,8 @@ pub fn settings(db: &Db, id: &str, body: Settings) -> Result<Workflow> {
             w.revision == body.expected_revision,
             "workflow revision conflict; refresh before saving"
         );
+        ensure!(body.new_tasks.len() <= 64, "too many new work tasks");
+        let project = w.project_id.clone();
         for (instance, role) in &body.participants {
             ensure!(role.len() <= 128, "role too long");
             ensure!(
@@ -44,11 +138,30 @@ pub fn settings(db: &Db, id: &str, body: Settings) -> Result<Workflow> {
                 "AX instance is not approved for this project"
             );
         }
-        // Changing policy never revokes an in-flight lease or mutates AX global config.
+        ensure!(body.member_models.keys().all(|id| body.participants.contains_key(id)), "model settings require a selected member");
+        let removed: Vec<_> = w.collaboration.participants.keys().filter(|id| !body.participants.contains_key(*id)).cloned().collect();
+        let mut excluded = body.excluded_instances;
+        excluded.extend(removed.iter().cloned());
+        excluded.retain(|id| !body.participants.contains_key(id));
+        excluded.sort(); excluded.dedup();
+        // Member removal is a fenced transfer in this Workflow only.
+        for t in state.tasks.values_mut().filter(|t| t.spec.workflow_id.as_deref() == Some(id) && !t.terminal()) {
+            if t.spec.requirements.instance_id.as_ref().is_some_and(|i| excluded.contains(i) || (!body.participants.is_empty() && !body.participants.contains_key(i))) {
+                t.spec.requirements.instance_id = None;
+            }
+            if t.owner.as_ref().is_some_and(|i| excluded.contains(i) || (!body.participants.is_empty() && !body.participants.contains_key(i))) {
+                if let Some(a) = t.attempts.last_mut() { a.ended_at = Some(unix_now()); a.error = Some("collaboration member removed".into()); }
+                t.owner = None; t.incarnation = None; t.lease_until = 0;
+                if t.status != "paused" { t.status = "pending".into(); }
+                t.retry_allowance = t.retry_allowance.saturating_add(1);
+            }
+        }
         let w = state.workflows.get_mut(id).unwrap();
         w.collaboration.kind = body.kind;
         w.collaboration.participants = body.participants;
         w.collaboration.requirements = body.requirements;
+        w.collaboration.member_models = body.member_models;
+        w.collaboration.excluded_instances = excluded;
         w.revision += 1;
         w.updated_at = unix_now();
         let root = w.root_task_id.clone();
@@ -57,8 +170,13 @@ pub fn settings(db: &Db, id: &str, body: Settings) -> Result<Workflow> {
             "workflow.configuration",
             Some(&root),
             None,
-            "Goal-scoped placement policy updated; running execution settings retained",
+            "Goal-scoped policy updated; removed owners fenced; retained owners keep execution settings",
         );
+        for mut spec in body.new_tasks {
+            ensure!(spec.project_id == project && spec.parent_id.is_none() && spec.collaboration.is_none() && spec.workflow_id.as_deref().is_none_or(|flow| flow == id), "new member task scope differs");
+            spec.workflow_id = Some(id.to_owned());
+            submit_in_cluster(state, "admin", spec)?;
+        }
         reconcile(state, unix_now());
         Ok(state.workflows[id].clone())
     })
@@ -145,21 +263,53 @@ pub fn control(db: &Db, id: &str, action: &str) -> Result<()> {
 pub struct Placement {
     pub generation: u64,
     pub instance_id: Option<String>,
+    #[serde(default)]
+    pub model: Option<ExecutionModel>,
+    #[serde(default)]
+    pub duty: Option<String>,
+    #[serde(default)]
+    pub dependencies: Option<Vec<String>>,
+    #[serde(default)]
+    pub host_id: Option<String>,
+    #[serde(default)]
+    pub clear_host: bool,
+    #[serde(default)]
+    pub resources: Option<Resources>,
 }
 pub fn reassign(db: &Db, id: &str, body: Placement) -> Result<()> {
     db.cluster_update(|state| {
         let t = state.tasks.get(id).ok_or_else(|| anyhow::anyhow!("task missing"))?;
         ensure!(t.generation == body.generation && !t.terminal(), "execution changed or task is terminal");
+        if let Some(dependencies) = &body.dependencies {
+            ensure!(dependencies.len() <= 64, "too many dependencies");
+            for dep in dependencies {
+                let dependency = state.tasks.get(dep).ok_or_else(|| anyhow::anyhow!("dependency missing"))?;
+                ensure!(dependency.spec.workflow_id == t.spec.workflow_id && dependency.spec.project_id == t.spec.project_id, "dependency collaboration differs");
+                let mut visit = vec![dep.clone()];
+                let mut seen = std::collections::BTreeSet::new();
+                while let Some(next) = visit.pop() {
+                    ensure!(next != id, "task dependency cycle");
+                    if seen.insert(next.clone()) && let Some(task) = state.tasks.get(&next) { visit.extend(task.spec.dependencies.iter().cloned()); }
+                }
+            }
+        }
         if let Some(instance) = &body.instance_id {
             let i = state.instances.get(instance).ok_or_else(|| anyhow::anyhow!("instance missing"))?;
             ensure!(i.projects.contains(&t.spec.project_id), "project policy denied");
             if let Some(w) = t.spec.workflow_id.as_ref().and_then(|id| state.workflows.get(id)) {
-                ensure!(w.collaboration.participants.is_empty() || w.collaboration.participants.contains_key(instance), "AX is outside Goal participants");
+                ensure!((w.collaboration.participants.is_empty() || w.collaboration.participants.contains_key(instance)) && !w.collaboration.excluded_instances.contains(instance), "AX is outside Goal participants");
             }
         }
         let t = state.tasks.get_mut(id).unwrap();
         if t.status == "running" && let Some(a) = t.attempts.last_mut() { a.ended_at = Some(unix_now()); a.error = Some("reassigned by operator".into()); }
         t.spec.requirements.instance_id = body.instance_id;
+        if body.clear_host { t.spec.requirements.host_id = None; }
+        else if let Some(host) = body.host_id { t.spec.requirements.host_id = Some(host); }
+        if let Some(mut resources) = body.resources { resources.cpu = resources.cpu.max(1); t.spec.requirements.resources = resources; }
+        // Explicit null means inherit the new owner's model, not the previous owner's model.
+        t.spec.requirements.model = body.model;
+        if let Some(dependencies) = body.dependencies { t.spec.dependencies = dependencies; }
+        if let Some(duty) = body.duty { ensure!(duty.len() <= 2048, "work duty too long"); t.spec.requirements.duty = duty; }
         if t.status != "paused" { t.status = "pending".into(); }
         t.owner = None; t.incarnation = None; t.lease_until = 0;
         t.retry_allowance = t.retry_allowance.saturating_add(1);
@@ -241,8 +391,9 @@ pub fn command(db: &Db, task: &str, body: CommandInput) -> Result<ExecutionComma
         ensure!(
             t.attempts
                 .last()
-                .is_some_and(|a| a.sessions.contains(&body.session_id)),
-            "Session does not belong to this execution"
+                .and_then(|a| a.sessions.last())
+                .is_some_and(|s| s == &body.session_id),
+            "Session is historical or does not belong to the active execution"
         );
         ensure!(
             state

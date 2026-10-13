@@ -93,6 +93,10 @@ pub struct Instance {
     pub incarnation: String,
     #[serde(default)]
     pub remote_management: bool,
+    #[serde(default)]
+    pub model_catalog: Option<ModelCatalog>,
+    #[serde(default)]
+    pub model_catalog_at: i64,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub credential_hash: String,
 }
@@ -102,6 +106,38 @@ pub struct Requirements {
     pub capabilities: Capabilities,
     pub resources: Resources,
     pub instance_id: Option<String>,
+    pub host_id: Option<String>,
+    /// Execution selection, distinct from capability matching.
+    pub model: Option<ExecutionModel>,
+    pub duty: String,
+    /// Reserved for enforceable limits; currently rejected rather than promised.
+    pub resource_limits: Option<Resources>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExecutionModel {
+    pub provider: String,
+    pub model: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModelOption {
+    pub provider: String,
+    pub model: String,
+    pub name: String,
+    pub source: String,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ModelCatalog {
+    pub current: Option<ExecutionModel>,
+    pub models: Vec<ModelOption>,
+    pub error: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PlacementMatch {
+    pub instance_id: String,
+    pub reasons: Vec<String>,
 }
 fn default_attempts() -> u32 {
     3
@@ -145,6 +181,10 @@ pub struct Attempt {
     /// AX-owned identities only. Crew does not store a second Session database.
     #[serde(default)]
     pub sessions: Vec<String>,
+    #[serde(default)]
+    pub model: Option<ExecutionModel>,
+    #[serde(default)]
+    pub duty: String,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DistributedTask {
@@ -165,6 +205,8 @@ pub struct DistributedTask {
     pub created_at: i64,
     #[serde(default)]
     pub submission_digest: String,
+    #[serde(default)]
+    pub placement: Vec<PlacementMatch>,
 }
 impl DistributedTask {
     pub fn terminal(&self) -> bool {
@@ -275,6 +317,8 @@ pub struct Heartbeat {
     pub host_inventory: Option<HostInventory>,
     #[serde(default)]
     pub capabilities: Option<Capabilities>,
+    #[serde(default)]
+    pub model_catalog: Option<ModelCatalog>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Report {
@@ -319,6 +363,8 @@ pub struct Collaboration {
     pub paused: bool,
     pub participants: BTreeMap<String, String>,
     pub requirements: Capabilities,
+    pub member_models: BTreeMap<String, ExecutionModel>,
+    pub excluded_instances: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

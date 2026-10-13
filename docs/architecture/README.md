@@ -228,3 +228,14 @@ Button, Lucide chevron and its automatically imported stylesheet, with local ope
 state and stable ARIA IDs. Collapsing hides mounted children so form drafts survive.
 The distributed views/dialogs use this component for requirements, previews, tool
 information and history; browser-native summary styling is no longer involved.
+
+
+Distributed collaboration now creates actual multi-AX work through a three-step
+plan form and one atomic Task/Workflow transaction. Native worker model catalogs
+feed searchable execution selections; each Attempt freezes its Provider/Model
+and duty. Matching previews share scheduler predicates and pending Tasks display
+reasons. Member removal fences only its Workflow; new-member work can save in the
+same policy transaction. Latest-Session routing and read-only Session history
+retain rotation and migration associations. Resource minimums reserve scheduler
+capacity; system resource limits are explicitly unsupported. See
+[distributed contracts](../distributed-collaboration.md).

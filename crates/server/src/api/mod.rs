@@ -96,6 +96,8 @@ pub fn router(state: App) -> Router {
             post(distributed::configure),
         )
         .route("/api/distributed/tasks", post(distributed::submit))
+        .route("/api/distributed/plans", post(distributed::plan))
+        .route("/api/distributed/placement", post(distributed::preview))
         .route("/api/distributed/tasks/{id}", get(distributed::task))
         .route(
             "/api/distributed/workflows/{id}",

@@ -195,6 +195,26 @@ pub async fn submit(
     let actor = actor(&app, &headers)?;
     Ok(Json(service::submit(&app.db, &actor, body)?))
 }
+pub async fn plan(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<crate::orchestration::collaboration::Plan>,
+) -> Api<Vec<DistributedTask>> {
+    app.authorize(&headers)?;
+    Ok(Json(crate::orchestration::collaboration::plan(
+        &app.db, body,
+    )?))
+}
+pub async fn preview(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<crate::orchestration::collaboration::Preview>,
+) -> Api<Vec<PlacementMatch>> {
+    app.authorize(&headers)?;
+    Ok(Json(crate::orchestration::collaboration::preview(
+        &app.db, body,
+    )?))
+}
 pub async fn configure(
     State(app): State<App>,
     headers: HeaderMap,

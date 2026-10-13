@@ -165,3 +165,6 @@ MIT。见 [crates/server/Cargo.toml](crates/server/Cargo.toml)。
 ## 可选的 Distributed Collaboration
 
 AX 0.3.7 / AXCrew 0.3.3 新增侧边栏「分布式协作」与 `/api/distributed` 控制层，区分 Host、AX Instance 与 Execution；允许一台 Host 多个 AX，一个 AX 并发执行多个任务。AXCrew 结合 AX 能力和 Host 资源统一管理分配、租约、重试、取消与恢复。AX 通过 Durable Task、Event、Artifact、Workflow State 异步协作，无须高频直接通信或持续存活的 Coordinator Agent。在管理页注册实例、下载配置，在各机器运行 `ax crew worker worker.json`。普通 AX 和原有 Crew 控制方式仍可独立使用。见 [完整配置、API 与限制](docs/distributed-collaboration.md)。
+
+
+协作创建采用“定义工作 → 组织 AX → 确认执行”，将多个工作任务和依赖一次性提交到既有 Workflow / 调度器。模型从目标 AX 实际回报的 Provider / Model 目录搜索选择，逐 Execution 生效；工作职责进入任务上下文，能力标签仅用于匹配。默认自动按 Host 容量和 AX 槽位调度，高级设置可选择最低资源需求及 Host / AX。匹配结果和待调度原因明确展示；移除成员仅撤销当前协作中的执行所有权，添加成员可一并安排实际任务。轮换后的交互路由到最新活动 Session，历史 Session 独立只读；节点保留迁移前后的参与记录。资源数值属于调度预留，系统强制限额仍未实现。见 [功能与接口说明](docs/distributed-collaboration.md)。
