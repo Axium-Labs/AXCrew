@@ -1,7 +1,7 @@
 # AX Crew
 
-A Rust control plane that connects, controls and orchestrates AX agents across
-your machines.
+A Rust control plane that orchestrates and controls AX agents across multiple
+machines — and keeps their work running when a machine goes away.
 
 The shared desktop client has Windows, Linux and macOS build/packaging adapters.
 See [platform support](docs/platforms.md) for prerequisites, native shell settings,
@@ -15,18 +15,33 @@ and a release containing those assets before download.
 **English** | [简体中文](README.zh-CN.md)
 
 [AX](https://github.com/Axium-Labs/AX) is a fast, native terminal agent that
-runs on any machine — a laptop, a build server, a GPU box, a cloud VM. AX Crew
-is the control plane on top of it: it pairs those machines, delegates work
-between them, streams what their agents are doing, and gives you one surface
-to control the whole fleet. The two are developed and released together — the
-agent runtime and the control plane that coordinates it.
+runs on any machine. AX Crew is the control plane on top of it: it connects
+the AX instances on your machines, orchestrates work across them, and keeps
+that work durable — task state and checkpoints live in Crew, so when an AX
+drops out mid-task, another AX can pick the task up and continue. You control
+every instance from one surface. The two are developed and released together —
+the agent runtime and the control plane that orchestrates it.
+
+- **Multi-machine orchestration** — Crew places tasks on AX instances across
+  your machines by capability and Host resources, starts dependent tasks when
+  their inputs complete, and streams events and artifacts back. AX instances
+  never connect to each other; Crew coordinates all of them.
+- **Durable, recoverable work** — tasks, attempts, Workflow State checkpoints,
+  events and artifacts persist in Crew. When an AX goes offline, its lease
+  expires and the task is placed again on an eligible AX, continuing from the
+  last checkpoint. Leases and generations fence stale results.
+- **One control surface** — sessions, guidance, approvals, pause, resume,
+  cancel and reassignment for every AX from a single desktop app; core task and
+  approval controls are also available from the Android client.
+- **Local-first** — agents stay on your hardware; each machine keeps its own
+  credentials, sessions and memory. There is no agent cloud.
+
+Desktop app highlights:
 
 - **Interactive chat questions** — ordinary main and side chats show compact
   floating AX questions above the composer, with choices and optional text replies. Answering resumes the
   same task/session; pending questions survive reopening and failed answers
   retain their drafts.
-- **One control surface** — drive AX on your laptop, server, GPU server and
-  cloud VMs from a single desktop app, or from your phone.
 - **Native Computer Use** — the local AX desktop tool has Windows UIA, Linux
   AT-SPI and macOS Accessibility adapters. Unix requires installed runtime
   dependencies; macOS requires system privacy grants. Linux Wayland currently
@@ -83,42 +98,37 @@ agent runtime and the control plane that coordinates it.
 - **Continue local AX conversations** — opening local history shows the original
   messages and composer together. Sending resumes the same AX session in its
   original workspace. Placeholder titles use the first user request.
-- **Cross-machine delegation** — hand a task to another machine; Crew routes
-  it to that machine's AX and streams the result back.
-- **Task orchestration** — deterministic task DAGs with dependencies, retries,
-  cancellation and automatic resume across devices.
 - **Automation** — recurring jobs such as nightly builds, error digests,
   standup briefs and deployment checks, scheduled from presets or plain chat.
-- **Local-first** — agents stay on your hardware; each machine keeps its own
-  credentials, sessions and memory. There is no agent cloud.
 
 ## Screenshot / Topology
 
 ![AX Crew desktop](docs/images/session.png)
 
-AX runs where the work happens; Crew connects the machines and gives you one
-control surface:
+Every machine runs its own AX; Crew orchestrates them from one control plane:
 
 ```text
-   Laptop (AX)   Server (AX)   GPU Server (AX)   Cloud VM (AX)
-        │             │              │                │
-        └─────────────┴──────────────┴────────────────┘
-                             ▼
-                ┌──────────────────────────┐
-                │      Crew Gateway        │
-                │  pairing · routing ·     │
-                │  DAG scheduling ·        │
-                │  event streaming         │
-                └────────────┬─────────────┘
-                             │  REST / WebSocket
-                ┌────────────▼─────────────┐
-                │   Desktop client         │
-                │   (+ Android client)     │
-                └──────────────────────────┘
+   AX · machine 1   AX · machine 2   AX · machine 3   AX · machine N
+         │                │                │                │
+         └────────────────┴────────────────┴────────────────┘
+                              ▼  outbound only
+                 ┌──────────────────────────┐
+                 │  AX Crew control plane   │
+                 │  pairing · placement ·   │
+                 │  leases · task DAGs ·    │
+                 │  checkpoints · events    │
+                 └────────────┬─────────────┘
+                              │  REST / WebSocket
+                 ┌────────────▼─────────────┐
+                 │   Desktop client         │
+                 │   (+ Android client)     │
+                 └──────────────────────────┘
 ```
 
-Each device pairs over authenticated WSS; the desktop and Android clients talk
-to the gateway over REST/WebSocket.
+Every AX connects outbound — paired devices over authenticated WSS,
+distributed workers over HTTPS — so no AX needs an inbound port, and AX
+instances never connect to each other. The desktop and Android clients talk
+to Crew over REST/WebSocket.
 
 ## What is AX Crew
 
@@ -137,20 +147,31 @@ into one fleet.
 
 ## Why
 
-Running AX on one machine is easy. Running it on five — a laptop for
-interactive work, a build server for long tasks, a GPU server for heavy jobs,
-a cloud VM for 24/7 automation — is where you need a control plane.
+Running AX on one machine is easy. Once AX runs on several machines, you need
+one place to orchestrate them and keep their work alive — that is AX Crew.
 
-- **Put the agent where the work is.** Long builds and heavy jobs run on
-  machines that can handle them; you stay on your laptop.
-- **Delegate across machines.** Send a task to another member of the Crew and
-  get the result back without copying files, sessions or credentials.
+- **Orchestrate many AX as one.** Define a collaboration's tasks and
+  dependencies — or let an AX delegate subtasks — and Crew places each task on
+  an eligible AX, starts dependents when their inputs complete, and streams
+  events and artifacts back to one place.
+- **Keep work running.** A machine going offline doesn't end the job: its
+  lease expires, the task returns to the queue, and another eligible AX
+  continues it from the last checkpoint.
+- **Durable by default.** Task state, attempts, checkpoints, events and
+  artifacts survive AX disconnects and Crew restarts; no Coordinator Agent has
+  to stay alive for the work to continue.
 - **Automate the routine.** Nightly builds, error digests, standup briefs and
   deployment checks run on schedule and report to one place.
 - **Keep control in your hands.** Approve tool access from the desktop or the
   phone; every machine keeps its own credentials.
 - **No agent cloud.** Your agents never run on someone else's infrastructure
   just to be coordinated.
+
+Recovery is at-least-once and resumes durable work from checkpoints, not a
+model's complete session. Crew itself is one authoritative process backed by
+SQLite; keep its database on durable storage. See
+[distributed collaboration](docs/distributed-collaboration.md) for the exact
+guarantees.
 
 ## How it works
 
@@ -297,7 +318,15 @@ build flow — desktop, Android, packaging — and the process-level tests.
 
 MIT. See [crates/server/Cargo.toml](crates/server/Cargo.toml).
 
-## Optional Distributed Collaboration
+## Distributed Collaboration
+
+Distributed collaboration is how AX Crew orchestrates AX across multiple
+machines and keeps that work running. Each machine runs one or more enrolled
+AX workers (`ax crew worker worker.json`); Crew owns task placement, leases,
+retries, cancellation and Workflow State checkpoints. When a worker stops
+renewing its lease, Crew places the task on another eligible AX, which
+continues from the last checkpoint. Ordinary single-machine AX and the
+existing paired-device control keep working without it.
 
 The **Distributed** sidebar opens a unified collaboration workspace with three views: Workspace, Nodes and Activity. Expandable distributed sections use the shared app-style Disclosure, preserving drafts when collapsed. All distributed dropdowns reuse the shared settings-style Select with themed popups and keyboard navigation. A compact status overview shows online AX, running work, failed Tasks/offline AX and queued Tasks. Stable objective/task/member/feed regions keep the workspace usable even before the first collaboration; node rows expose capacity, work/Session associations and capabilities, while Activity provides counted secondary navigation and resettable filters. Organize existing Tasks/Workflows as ordinary collaborations or explicit AX Goals; add AX participants and roles, choose placement, inspect dependencies and live ACP Sessions, and pause/resume/cancel/reassign work. Instance names and their disclosure buttons both expand details, including offline nodes. Nodes support confirmed instance deletion with busy/reference checks, credential revocation and retained execution history. Nodes follow Host → AX Instance; shared capacity and approved execution slots govern concurrency across Goals. Goal-scoped policies stay separate from AX-wide configuration. Batch operations preview differences and retain partial failures; optional native remote settings/plugins require host opt-in and confirmed write scope. Long Project is off by default and stays inline within a Goal, retaining AX-owned document/history, Session rotation and cumulative budget checkpoints. See [architecture, API and setup](docs/distributed-collaboration.md).
 

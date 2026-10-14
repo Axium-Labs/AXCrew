@@ -1,6 +1,6 @@
 # AX Crew
 
-用 Rust 编写的控制平面：连接、控制并编排分布在各台机器上的 AX Agent。
+用 Rust 编写的控制平面：编排并控制多台机器上的 AX Agent，并在机器掉线时保持工作持续运行。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](crates/server/Cargo.toml)
 [![Rust 1.92+](https://img.shields.io/badge/rust-1.92+-orange)](https://www.rust-lang.org)
@@ -8,10 +8,16 @@
 
 [English](README.md) | **简体中文**
 
-[AX](https://github.com/Axium-Labs/AX) 是一个快速、原生的终端 Agent，可以在任意机器上运行——笔记本、构建服务器、GPU 服务器、云虚拟机。AX Crew 是它之上的控制平面：把各台机器配对、在它们之间委派任务、实时流转 Agent 的执行动态，并给你一个统一面板来掌控整个集群。两者一同开发、一同发布——Agent 运行时，以及协调它的控制平面。
+[AX](https://github.com/Axium-Labs/AX) 是一个快速、原生的终端 Agent，可以在任意机器上运行。AX Crew 是它之上的控制平面：连接各台机器上的 AX 实例、跨机器编排任务，并让工作保持持久——任务状态与检查点留存在 Crew 中，当某台 AX 断开后，另一台 AX 可以接手并从上次检查点继续。你从一个统一界面控制所有实例。两者一同开发、一同发布——Agent 运行时，以及编排它的控制平面。
+
+- **多机器编排** — Crew 按能力和主机资源把任务放到各 AX 实例上，前置任务完成后自动启动后续任务，并把事件和产物流式回传到同一个地方。AX 实例之间不直接通信，Crew 统一协调所有实例。
+- **持久、可恢复的工作** — 任务、执行尝试、Workflow State 检查点、事件和产物全部持久化在 Crew 中。当某台 AX 掉线，其租约到期后任务重新放置到另一台合适的 AX，从上次检查点继续。租约和 generation 隔离机制防止过期结果写入。
+- **统一控制面板** — 从单个桌面应用对每一个 AX 进行会话、引导、审批、暂停、恢复、取消和重新分配；核心的任务与审批控制也可以在 Android 客户端上完成。
+- **本地优先** — Agent 留在你自己的硬件上；每台机器各自持有自己的凭证、会话与记忆。没有"Agent 云"。
+
+桌面应用功能：
 
 - **聊天提问交互** — 普通主聊天及侧边聊天在输入框上方显示紧凑悬浮问题，支持编号选项、自由输入及收起；回答后续接原任务与原会话。未回答问题可在重新打开后继续处理，失败保留回答草稿。
-- **统一控制面板** — 从单个桌面应用（或手机）驱动运行在笔记本、服务器、GPU 服务器与云虚拟机上的 AX。
 - **原生桌面操作** — 本地 AX 提供 Windows UIA、Linux AT-SPI 和 macOS Accessibility 适配器。Unix 需安装运行依赖，macOS 需授予系统隐私权限；Linux Wayland 当前支持无障碍读取和控件动作，原始键鼠输入及截图有明确限制。[平台要求与验证状态](docs/platforms.md)。
 - **设置 → Goal 目标** — 配置 AX 的全局/项目验收器、保守进展观察和累计 Runtime 预算。“开启目标”开关保存后可让普通对话的新任务自动使用 Goal，默认关闭；验收、验证器、预算与恢复设置默认收起，点击展开且保留草稿；持久化执行及接管复用 Crew 的租约与检查点。
 - **会话文件** — 加宽的文件面板包含审查、工作目录文件树、多文件标签页与 Markdown 预览/源码切换；本地 UTF-8 文件支持编辑、保存、取消，保存时检查磁盘内容是否变化。草稿在本次应用运行期间跨标签页、会话保留；切到侧边聊天或详情后保留已打开文件。
@@ -20,36 +26,33 @@
 - **设置开关** — 设置中的布尔选项与导入选择统一为右侧滑动开关，左侧展示标题及说明。
 - **窗口关闭行为** — 默认关闭窗口后隐藏到托盘；在系统设置中关闭开关后，关闭窗口直接退出并停止本地服务。设置重启后保留，托盘菜单中的退出操作始终完全退出；设置卡片只保留关闭行为开关。
 - **完成提醒** — 切换到其他软件、最小化或隐藏窗口后，任务完成/失败会播放短提示音、发送系统通知，并提示任务栏与托盘图标。其他会话的未读结果在最近会话、项目列表与导航中显示圆点；打开对应会话才清除，重启后仍保留。
-- **跨机器委派** — 把任务交给另一台机器；Crew 将该任务路由到那台机器的 AX，并把结果流式传回。
-- **任务编排** — 确定性的任务 DAG：依赖、重试、取消与跨设备自动恢复。
 - **自动化** — 夜间构建、错误摘要、站会简报、部署检查等周期性任务，从预设模板或自然语言聊天创建。
-- **本地优先** — Agent 留在你的硬件上；每台机器各自持有自己的凭证、会话与记忆。没有"Agent 云"。
 
 ## 截图 / 拓扑
 
 ![AX Crew 桌面端](docs/images/session.png)
 
-AX 在任务发生的地方运行；Crew 把机器连接起来，给你一个统一控制面板：
+每台机器运行自己的 AX；Crew 从一个控制平面统一编排它们：
 
 ```text
-   Laptop (AX)   Server (AX)   GPU Server (AX)   Cloud VM (AX)
-        │             │              │                │
-        └─────────────┴──────────────┴────────────────┘
-                             ▼
-                ┌──────────────────────────┐
-                │      Crew Gateway        │
-                │  pairing · routing ·     │
-                │  DAG scheduling ·        │
-                │  event streaming         │
-                └────────────┬─────────────┘
-                             │  REST / WebSocket
-                ┌────────────▼─────────────┐
-                │   Desktop client         │
-                │   (+ Android client)     │
-                └──────────────────────────┘
+   AX · machine 1   AX · machine 2   AX · machine 3   AX · machine N
+         │                │                │                │
+         └────────────────┴────────────────┴────────────────┘
+                              ▼  outbound only
+                 ┌──────────────────────────┐
+                 │  AX Crew control plane   │
+                 │  pairing · placement ·   │
+                 │  leases · task DAGs ·    │
+                 │  checkpoints · events    │
+                 └────────────┬─────────────┘
+                              │  REST / WebSocket
+                 ┌────────────▼─────────────┐
+                 │   Desktop client         │
+                 │   (+ Android client)     │
+                 └──────────────────────────┘
 ```
 
-每台设备通过经认证的 WSS 配对；桌面端与 Android 客户端通过 REST/WebSocket 与网关通信。
+每个 AX 都只主动向外连接——配对设备通过经认证的 WSS，分布式 worker 通过 HTTPS——因此 AX 无需开放入站端口，AX 实例之间也从不直接连接。桌面端与 Android 客户端通过 REST/WebSocket 与 Crew 通信。
 
 ## 什么是 AX Crew
 
@@ -61,13 +64,16 @@ AX Crew 是为 AX 打造的一个 Rust 控制平面。它与 AX 一起运行—�
 
 ## 为什么需要它
 
-在一台机器上运行 AX 很容易。在五台上运行——笔记本做交互式工作、构建服务器跑长任务、GPU 服务器跑重活、云虚拟机做 24/7 自动化——你就需要一个控制平面。
+在一台机器上运行 AX 没问题。当 AX 运行在多台机器上时，你需要一个地方来统一编排它们，并让任务在机器掉线时继续跑——这就是 AX Crew。
 
-- **让 Agent 在任务发生的地方运行。** 长构建与重负载跑在能扛得住的机器上；你留在笔记本前。
-- **跨机器委派。** 把任务发给 Crew 的另一名成员并取回结果，无需拷贝文件、会话或凭证。
+- **把多个 AX 当作一个整体编排。** 定义协作的任务与依赖关系（或由 AX 自行委派子任务），Crew 把每个任务放到合适的 AX 上，前置任务完成后自动启动后续任务，并把事件和产物回传到同一个地方。
+- **任务不因机器掉线而中断。** 某台机器掉线后，租约到期，任务回到队列，由另一台合适的 AX 从上次检查点继续执行。
+- **默认持久化。** 任务状态、执行尝试、检查点、事件和产物在 AX 断开和 Crew 重启后依然保留；工作的继续不依赖任何一个必须一直存活的协调 Agent。
 - **自动化例行工作。** 夜间构建、错误摘要、站会简报、部署检查按计划运行，汇总到同一个地方。
 - **掌控权在你手里。** 在桌面端或手机上审批工具访问；每台机器各自持有凭证。
 - **没有 Agent 云。** 仅仅为了"被协调"，你的 Agent 也无需运行在别人的基础设施上。
+
+恢复语义是 at-least-once：从检查点继续的是持久化的任务，而不是模型的完整会话。Crew 本身是一个以 SQLite 为后端的权威进程，请把它的数据库放在可靠的持久存储上。确切保证见[分布式协作](docs/distributed-collaboration.md)。
 
 ## 工作原理
 
@@ -163,9 +169,11 @@ cargo test --workspace
 
 MIT。见 [crates/server/Cargo.toml](crates/server/Cargo.toml)。
 
-## 可选的 Distributed Collaboration
+## 分布式协作
 
-AX 0.3.7 / AXCrew 0.3.3 新增侧边栏「分布式协作」与 `/api/distributed` 控制层，区分 Host、AX Instance 与 Execution；允许一台 Host 多个 AX，一个 AX 并发执行多个任务。AXCrew 结合 AX 能力和 Host 资源统一管理分配、租约、重试、取消与恢复。AX 通过 Durable Task、Event、Artifact、Workflow State 异步协作，无须高频直接通信或持续存活的 Coordinator Agent。在管理页注册实例、下载配置，在各机器运行 `ax crew worker worker.json`。普通 AX 和原有 Crew 控制方式仍可独立使用。见 [完整配置、API 与限制](docs/distributed-collaboration.md)。
+分布式协作是 AX Crew 跨多台机器编排 AX、并让工作持续运行的方式。每台机器运行一个或多个已注册的 AX worker（`ax crew worker worker.json`）；Crew 负责任务放置、租约、重试、取消和 Workflow State 检查点。当某个 worker 不再续租时，Crew 会把任务放到另一台合适的 AX 上，从上次检查点继续执行。普通单机 AX 和原有的配对设备控制方式不依赖它，仍可独立使用。
+
+AX 0.3.7 / AXCrew 0.3.3 新增侧边栏「分布式协作」与 `/api/distributed` 控制层，区分 Host、AX Instance 与 Execution；一台 Host 可以运行多个 AX，一个 AX 可在获批的执行槽位内并发执行多个任务（默认一个）。AXCrew 结合 AX 能力和 Host 资源统一管理分配、租约、重试、取消与恢复。AX 通过 Durable Task、Event、Artifact、Workflow State 异步协作，AX 实例之间不直接通信，也不需要持续存活的 Coordinator Agent。在管理页注册实例、下载配置，在各机器运行 `ax crew worker worker.json`。见 [完整配置、API 与限制](docs/distributed-collaboration.md)。
 
 
 协作创建采用“定义工作 → 组织 AX → 确认执行”，将多个工作任务和依赖一次性提交到既有 Workflow / 调度器。模型从目标 AX 实际回报的 Provider / Model 目录搜索选择，逐 Execution 生效；工作职责进入任务上下文，能力标签仅用于匹配。默认自动按 Host 容量和 AX 槽位调度，高级设置可选择最低资源需求及 Host / AX。匹配结果和待调度原因明确展示；移除成员仅撤销当前协作中的执行所有权，添加成员可一并安排实际任务。轮换后的交互路由到最新活动 Session，历史 Session 独立只读；节点保留迁移前后的参与记录。资源数值属于调度预留，系统强制限额仍未实现。见 [功能与接口说明](docs/distributed-collaboration.md)。
