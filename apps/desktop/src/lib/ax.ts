@@ -22,7 +22,7 @@ export type AxUpdateStatus = {
 }
 export type AxLocalState = {
   agent_environment?: 'native' | 'wsl'
-  terminal_shell?: 'powershell' | 'cmd' | 'git_bash' | 'wsl'
+  terminal_shell?: 'powershell' | 'cmd' | 'git_bash' | 'wsl' | 'default' | 'sh' | 'bash' | 'zsh' | 'fish'
   windows?: boolean
   installed_path: string | null
   installed_version: string | null
@@ -38,7 +38,7 @@ export type AxLocalState = {
 }
 export type CapabilityScope = 'global' | 'project'
 export type ComputerUseSettings = { enabled: boolean; include_screenshot: boolean; max_nodes: number; screenshot_width: number }
-export type ComputerUseState = { settings: ComputerUseSettings; supported: boolean; limits: { max_nodes: number; min_screenshot_width: number; max_screenshot_width: number } }
+export type ComputerUseState = { settings: ComputerUseSettings; supported: boolean; backend?: string; requirements?: string; limits: { max_nodes: number; min_screenshot_width: number; max_screenshot_width: number } }
 export const axComputerUse = (settings?: Partial<ComputerUseSettings>) => invoke<ComputerUseState>('ax_computer_use', { settings: settings ?? null })
 export type HostDecision = 'allow' | 'ask' | 'deny'
 export type HostPermissions = { browser_enabled: boolean; apps: Record<string, HostDecision>; sites: Record<string, HostDecision> }
@@ -84,6 +84,7 @@ export const axSelectExecution = (environment?: AxLocalState['agent_environment'
 export function axTuiCommand(path: string, shell: AxLocalState['terminal_shell'] = 'powershell'): string {
   if (shell === 'cmd') return `"${path}" tui`
   if (shell === 'git_bash') return `'${path.replaceAll('\\', '/').replaceAll("'", "'\\''")}' tui`
+  if (['default', 'sh', 'bash', 'zsh', 'fish'].includes(shell)) return `'${path.replaceAll("'", "'\\''")}' tui`
   if (shell === 'wsl') return `"$(wslpath '${path.replaceAll("'", "'\\''")}')" tui`
   return `& '${path.replaceAll("'", "''")}' tui`
 }

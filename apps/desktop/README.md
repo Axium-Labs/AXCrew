@@ -9,14 +9,21 @@ keeps their credentials, tools, skills, memory, and session history.
 - **Interactive questions** — main and side chats show compact floating questions
   above the composer, with numbered choices, an optional text reply and collapse. Pending questions survive reopening;
   answering continues the same task/session, and failures retain drafts.
-- **Native desktop** — a Windows app with a system tray and integrated terminal.
+- **Native desktop** — shared Windows/Linux/macOS desktop code with native
+  packaging, system tray and integrated terminal. See
+  [platform build requirements and limits](../../docs/platforms.md).
 - **Project terminals** — local projects use the selected local shell; SSH
   projects open interactive OpenSSH in the remote project directory, reusing
   saved host/port/key settings and normal SSH authentication/host-key prompts.
   Switching projects selects the matching terminal and retains existing
-  connections, with explicit host/directory labels and an eight-terminal limit.
+  connections, with directory-only tab labels and an eight-terminal limit.
+  Both local and SSH terminals omit the duplicate location row above the shell
+  prompt; hovering a tab shows its full initial path.
   Paired AX devices need an SSH connection for interactive terminals.
 - **AX runtime** — use the AX installed on your machine or a workspace build.
+- **Computer Use** — the same settings and app permissions route to AX's Windows,
+  Linux AT-SPI and macOS Accessibility backends. Unix dependency/TCC requirements
+  and Wayland restrictions are explained in [AX Computer Use](../../../ax/docs/computer-use.md).
 - **Goal settings** — global/project defaults and an opt-in switch that lets
   ordinary new tasks automatically use AX Goal policies, with configurable
   Command/HTTP/host/MCP acceptance, progress policies and Runtime execution caps.
@@ -405,3 +412,17 @@ Started inputs remain historical; send Session guidance or add replacement work.
 Dependency checks protect removal, execution history is retained in Activity, and
 failed/stale saves preserve drafts. See [distributed collaboration](../../docs/distributed-collaboration.md)
 for persistence, fencing and editing limits.
+
+
+Distributed lifecycle controls include confirmed removal of empty Hosts and entire
+collaborations, including cancelled/empty ones. Removing a collaboration stops its
+unfinished task graph atomically while retaining execution history in Activity;
+external dependencies block removal. Cancel keeps the collaboration visible.
+Administrators can add new work to a cancelled retained collaboration. Task removal
+is directly available in task details, with links to dependency blockers. Polling
+preserves the selected collaboration and metadata drafts across runtime-only
+updates. See [distributed lifecycle contract](../../docs/distributed-collaboration.md).
+
+The collaboration member picker excludes deleted AX instances, including old
+membership references and instances removed during editing. Saving clears obsolete
+member/model/new-work references; execution history remains separately accessible.

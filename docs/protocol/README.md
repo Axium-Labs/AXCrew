@@ -98,3 +98,11 @@ existing revision CAS. Admin-only `POST /api/distributed/tasks/{id}/edit` compar
 generation and original title/input before editing or soft removal. Started task
 input is immutable; removal fences ownership and preserves history. See the
 [editing contract](../distributed-collaboration.md#editing-an-existing-collaboration).
+
+
+Distributed admin lifecycle endpoints add `DELETE /api/distributed/hosts/{id}`
+(no body) and `DELETE /api/distributed/workflows/{id}` (`expected_revision`).
+They return `accepted: true` only after transactional reference/CAS validation.
+Host inventory is retained in `removed_hosts`; soft-removed Workflows expose
+`removed: true` and cannot execute or accept edits/new work. Both fields default
+on older persisted state. See [lifecycle details](../distributed-collaboration.md).

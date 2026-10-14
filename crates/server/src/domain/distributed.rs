@@ -241,6 +241,9 @@ pub struct Cluster {
     pub server_time: i64,
     pub revision: u64,
     pub hosts: BTreeMap<String, Host>,
+    /// Removed inventory remains available to historical execution views.
+    #[serde(default)]
+    pub removed_hosts: BTreeMap<String, Host>,
     pub instances: BTreeMap<String, Instance>,
     /// Deregistered metadata for execution history; never eligible for authentication.
     #[serde(default)]
@@ -344,6 +347,8 @@ pub struct Assignment {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Workflow {
+    #[serde(default)]
+    pub removed: bool,
     #[serde(default)]
     pub objective: Option<String>,
     pub id: String,

@@ -36,6 +36,10 @@ A non-loopback `--listen` requires `AX_CREW_ADMIN_TOKEN`.
 
 ## Desktop
 
+Windows/Linux/macOS build dependencies, native bundle configurations, matching
+backend staging and optional target selection are in [platforms.md](../platforms.md).
+The native desktop now requires Rust 1.92+, matching the workspace requirement.
+
 ```powershell
 cd apps\desktop
 npm ci

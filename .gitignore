@@ -60,3 +60,4 @@ Desktop.ini
 *.bak
 *.log
 **/androidTest/
+/dist-platform/

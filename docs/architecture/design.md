@@ -119,3 +119,15 @@ removal retains task records, dependencies, attempts, artifacts and checkpoints;
 it cancels unfinished work and clears lease ownership. Retained dependents/children
 block removal. Removed tasks cannot execute again and are excluded from workflow
 completion aggregation. See the distributed collaboration edit contract.
+
+
+Distributed lifecycle removal uses the existing aggregate transaction in
+`orchestration/collaboration_edit.rs`. Serde-defaulted `Cluster.removed_hosts`
+archives disabled inventory; serde-defaulted `Workflow.removed` separates retained
+history from visible collaborations. Workflow removal marks its tasks removed,
+fences unfinished attempts, releases owners/leases and reconciles command failures.
+Cross-workflow dependencies block the entire transaction; Host removal requires no
+active enrollment or unfinished Host pin. No SQL table or worker protocol changes.
+Removed workflows reject edits/control/checkpoints/new submissions. Explicit admin
+submission may reopen a cancelled retained workflow, without restarting old tasks.
+A terminal workflow is completed only if all its retained tasks completed.

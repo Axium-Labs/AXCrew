@@ -13,12 +13,17 @@ import { dirname, resolve } from 'node:path'
 // 它的 target/release/），`desktop` 是 Tauri 应用所在目录。
 const crew = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const desktop = resolve(crew, 'apps', 'desktop')
-const ext = process.platform === 'win32' ? '.exe' : ''
+const target = process.env.AX_CREW_TARGET || process.env.CARGO_BUILD_TARGET
+if (target && !/^[a-z0-9_-]+$/.test(target)) throw new Error('Invalid AX_CREW_TARGET')
+const ext = (target ? target.includes('windows') : process.platform === 'win32') ? '.exe' : ''
 {
-  const result = spawnSync('cargo', ['build', '--release'], { cwd: crew, stdio: 'inherit', shell: false })
+  const args = ['build', '--release', '--locked']
+  if (target) args.push('--target', target)
+  const result = spawnSync('cargo', args, { cwd: crew, stdio: 'inherit', shell: false })
   if (result.status !== 0) process.exit(result.status ?? 1)
 }
 const output = resolve(desktop, 'src-tauri', 'bin')
 mkdirSync(output, { recursive: true })
-copyFileSync(resolve(crew, 'target', 'release', `ax-crew${ext}`), resolve(output, `ax-crew${ext}`))
+const buildDir = resolve(crew, process.env.CARGO_TARGET_DIR || 'target', ...(target ? [target] : []), 'release')
+copyFileSync(resolve(buildDir, `ax-crew${ext}`), resolve(output, `ax-crew${ext}`))
 

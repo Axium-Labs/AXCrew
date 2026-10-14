@@ -51,7 +51,9 @@ export function AxDesktopControl() {
         description={zh ? '同时截取目标窗口并传递它的文件路径。辅助功能树仍是主要通道；检测到密码字段或无法完成检查时，不会截取窗口。' : 'Capture the target window and return its file path. Accessibility remains the primary channel; windows with password fields or an incomplete privacy scan are not captured.'}
         checked={settings.include_screenshot} disabled={busy} onChange={event => save.mutate({ include_screenshot: event.target.checked })}/>
     </section>
-    {!supported && <p className="computer-use-notice">{zh ? 'Computer Use 目前需要 Windows 原生环境。' : 'Computer Use currently requires native Windows.'}</p>}
+    {!supported && <p className="computer-use-notice">{zh ? '当前执行环境没有可用的原生图形桌面，请在本机桌面会话中使用。' : 'No supported native graphical desktop is available in this execution environment.'}</p>}
+    {state.data.backend === 'macos' && <p className="computer-use-notice">{zh ? 'macOS 需要安装桌面驱动依赖，并在系统设置中授予辅助功能与屏幕录制权限。' : 'macOS requires the desktop driver dependencies and Accessibility/Screen Recording permission in System Settings.'}</p>}
+    {state.data.backend === 'linux' && <p className="computer-use-notice">{zh ? 'Linux 需要 AT-SPI 桌面驱动依赖。X11 支持鼠标、键盘与窗口截图；Wayland 当前提供辅助功能读取与控件操作。' : 'Linux requires the AT-SPI driver dependencies. X11 supports mouse, keyboard and window capture; Wayland currently provides accessibility reads and control actions.'}</p>}
     {save.error && <div className="settings-error" role="alert">{String(save.error)}</div>}
     <div className="computer-use-heading"><h2>{zh ? '上限' : 'Limits'}</h2></div>
     <section className="settings-card computer-use-limits">

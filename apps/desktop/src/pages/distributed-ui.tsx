@@ -21,12 +21,12 @@ export function QuietEmpty({ title, description, icon, action }: { title: string
 }
 
 export function ClusterOverview({ state, label, loading }: { state?: Cluster; label: Label; loading: boolean }) {
-  const instances = Object.values(state?.instances ?? {}), tasks = Object.values(state?.tasks ?? {}).filter(t => !t.removed), workflows = Object.values(state?.workflows ?? {})
-  const online = instances.filter(i => isOnline(i.last_seen, i.enabled, state?.server_time ?? 0)).length
+  const instances = Object.values(state?.instances ?? {}), tasks = Object.values(state?.tasks ?? {}).filter(t => !t.removed), workflows = Object.values(state?.workflows ?? {}).filter(w => !w.removed)
+  const online = instances.filter(i => isOnline(i.last_seen, i.enabled, state?.server_time ?? 0) && !!state?.hosts[i.host_id]?.enabled).length
   const running = tasks.filter(t => t.status === 'running').length
   const active = workflows.filter(w => w.status === 'active').length
   const failed = tasks.filter(t => t.status === 'failed').length
-  const offline = instances.filter(i => i.enabled && !isOnline(i.last_seen, i.enabled, state?.server_time ?? 0)).length
+  const offline = instances.filter(i => i.enabled && !!state?.hosts[i.host_id]?.enabled && !isOnline(i.last_seen, i.enabled, state?.server_time ?? 0)).length
   const pending = tasks.filter(t => t.status === 'pending').length
   const items = [
     { icon: Cpu, title: label('在线 AX', 'Online AX'), value: online, detail: `${instances.length} ${label('个实例 ·', 'instances ·')} ${Object.keys(state?.hosts ?? {}).length} Host`, tone: online ? 'success' : '' },

@@ -125,7 +125,10 @@ WebSockets, popups, uploads and downloads, so some websites cannot work fully.
 Application/site access, file/terminal sandbox mode and action approvals are
 independent. ACP access prompts offer once, this session, always and deny through
 the existing dynamic permission dialog. Generic action approval does not grant a
-new app/site. Native desktop control remains Windows-only; native Windows/macOS
+new app/site. Desktop control delegates to AX's Windows UIA, Linux AT-SPI or
+macOS Accessibility backend; Unix requires driver dependencies, macOS requires
+OS privacy permissions, and Wayland restricts raw input/capture. See
+[AX Computer Use](../../../ax/docs/computer-use.md). Native Windows/macOS
 OS workspace isolation is not implemented and explicit confined modes still fail
 closed. See [AX host access](../../../ax/docs/host-permissions.md).
 
@@ -149,8 +152,9 @@ distinct; failures offer retry and suppress stale readings. Missing/failed
 readings are `null`, never fallback capacities or fictitious zero usage.
 
 `get_system_info` is a local Tauri command; the browser preview does not poll
-it. CPU, memory, disk and uptime collectors are currently Windows-only; other
-platforms return unavailable readings for these collectors. GPU collection
+it. Windows uses native CPU, memory, disk and uptime collectors; Linux/macOS use
+sysinfo and show the filesystem containing HOME instead of a Windows volume.
+GPU collection
 uses the installed NVIDIA NVML driver through `nvml-wrapper`, loaded lazily
 and reused. Each supported NVIDIA GPU has its own name, usage and used/total
 dedicated VRAM row in GiB; driver/permission/unsupported-field failures remain
@@ -643,8 +647,11 @@ from the noninteractive authentication used by the agent's SSH tools.
 
 Switching host or directory selects an existing matching terminal or opens a new
 one when the dock is visible. Hiding keeps processes running; reopening selects
-the current project. Tabs retain their original host/directory, show local/SSH
-labels and remain manually selectable. Remote directory matching is case-sensitive.
+the current project. Tabs retain their original host/directory and remain manually
+selectable. Tab labels show only the directory name, with the full initial path
+in the tooltip; local/SSH prefixes and the duplicate location row are omitted.
+The shell prompt displays its working directory normally for both local and SSH
+terminals. Remote directory matching is case-sensitive.
 There are at most eight total terminals; reaching this limit leaves the new
 project without an active terminal until a tab is closed and + is used. Failed
 SSH startup or remote `cd` never opens a fallback local shell. Closing a tab kills
@@ -713,3 +720,21 @@ Started inputs remain historical; send Session guidance or add replacement work.
 Dependency checks protect removal, execution history is retained in Activity, and
 failed/stale saves preserve drafts. See [distributed collaboration](../distributed-collaboration.md)
 for persistence, fencing and editing limits.
+
+
+Distributed lifecycle controls include confirmed removal of empty Hosts and entire
+collaborations, including cancelled/empty ones. Removing a collaboration stops its
+unfinished task graph atomically while retaining execution history in Activity;
+external dependencies block removal. Cancel keeps the collaboration visible.
+Administrators can add new work to a cancelled retained collaboration. Task removal
+is directly available in task details, with links to dependency blockers. Polling
+preserves the selected collaboration and metadata drafts across runtime-only
+updates. See [distributed lifecycle contract](../distributed-collaboration.md).
+
+The collaboration member picker excludes deleted AX instances, including old
+membership references and instances removed during editing. Saving clears obsolete
+member/model/new-work references; execution history remains separately accessible.
+The editor and the workbench history both name archived members, including ones
+that never ran a task, so a stale participant reference that would still constrain
+placement stays diagnosable. A pin to a removed Host is labelled as removed in the
+reassign picker instead of showing a raw identifier.

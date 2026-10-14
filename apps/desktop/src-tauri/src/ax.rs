@@ -52,7 +52,7 @@ pub fn install_dir() -> PathBuf {
 
 pub fn installed_ax() -> Option<PathBuf> {
     let filename = executable_name();
-    let on_path = std::env::var_os("PATH").and_then(|path| std::env::split_paths(&path).map(|part| part.join(filename)).find(|candidate| candidate.is_file()));
+    let on_path = crate::desktop_platform::search_path().and_then(|path| std::env::split_paths(&path).map(|part| part.join(filename)).find(|candidate| candidate.is_file()));
     // 安装脚本会把 AX 装进固定目录并写进用户 PATH，但当前进程继承的是启动时的
     // PATH：刚装好时在标准目录兜一手，设置页不用重启就能看到它。
     Some(install_dir().join(filename)).filter(|candidate| candidate.is_file()).or(on_path)
@@ -273,7 +273,7 @@ fn state(active: &Path) -> Result<AxLocalState, String> {
         home: home.to_string_lossy().into_owned(), selected_model: selected, providers, discovery: None, runtime_warning,
         inference_mode: config.pointer("/inference/mode").and_then(Value::as_str).unwrap_or("standard").to_owned(),
         agent_environment: config.pointer("/execution/environment").and_then(Value::as_str).unwrap_or("native").to_owned(),
-        terminal_shell: config.pointer("/execution/terminal_shell").and_then(Value::as_str).unwrap_or("powershell").to_owned(),
+        terminal_shell: crate::desktop_platform::effective_terminal_shell(config.pointer("/execution/terminal_shell").and_then(Value::as_str)).to_owned(),
         windows: cfg!(windows),
     })
 }
@@ -322,8 +322,7 @@ pub async fn ax_select_execution(desktop: State<'_, DesktopState>, environment: 
             if value == "wsl" && !cfg!(windows) { return Err("WSL is available only on Windows".into()); }
         }
         if let Some(value) = terminal_shell.as_deref() {
-            if !matches!(value, "powershell" | "cmd" | "git_bash" | "wsl") { return Err("Invalid terminal shell".into()); }
-            if !cfg!(windows) { return Err("Windows terminal choices are available only on Windows".into()); }
+            if !crate::desktop_platform::shell_supported(value) { return Err("This terminal shell is unavailable on this platform".into()); }
             crate::terminal::validate_shell(value)?;
         }
         // AX owns validation and persistence. Older binaries reject this command

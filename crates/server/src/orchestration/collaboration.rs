@@ -136,7 +136,7 @@ pub fn settings(db: &Db, id: &str, body: Settings) -> Result<Workflow> {
             .get(id)
             .ok_or_else(|| anyhow::anyhow!("workflow missing"))?;
         ensure!(
-            w.revision == body.expected_revision,
+            !w.removed && w.revision == body.expected_revision,
             "workflow revision conflict; refresh before saving"
         );
         ensure!(body.new_tasks.len() <= 64, "too many new work tasks");
@@ -206,6 +206,7 @@ pub fn control(db: &Db, id: &str, action: &str) -> Result<()> {
             .workflows
             .get_mut(id)
             .ok_or_else(|| anyhow::anyhow!("workflow missing"))?;
+        ensure!(!w.removed, "removed collaboration cannot be controlled");
         match action {
             "pause" => {
                 ensure!(

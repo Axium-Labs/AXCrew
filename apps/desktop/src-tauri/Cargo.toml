@@ -1,12 +1,12 @@
 [package]
 name = "ax-crew-desktop"
-version = "0.3.5"
+version = "0.3.6"
 description = "AX Crew desktop control plane"
 authors = ["AX Crew contributors"]
 license = "MIT"
 repository = ""
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.92"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -37,3 +37,6 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 sha2 = "0.10"
 futures-util = "0.3"
 tokio = { version = "1", features = ["time", "rt-multi-thread", "macros"] }
+
+[target.'cfg(unix)'.dependencies]
+sysinfo = { version = "0.37.2", default-features = false, features = ["system", "disk"] }

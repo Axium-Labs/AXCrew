@@ -25,6 +25,9 @@ const crew = resolve(scriptDir, '..')
 const desktop = resolve(crew, 'apps', 'desktop')
 const srcTauri = resolve(desktop, 'src-tauri')
 const isWin = process.platform === 'win32'
+const target = process.env.AX_CREW_TARGET || process.env.CARGO_BUILD_TARGET
+if (target && !/^[a-z0-9_-]+$/.test(target)) throw new Error('Invalid build target')
+const targetArgs = target ? ['--target', target] : []
 const ext = isWin ? '.exe' : ''
 
 const version = JSON.parse(readFileSync(resolve(srcTauri, 'tauri.conf.json'), 'utf8')).version
@@ -32,7 +35,7 @@ const stamp = new Date().toISOString().slice(0, 10)
 const folder = `AX-Crew-${version}-${isWin ? 'win-x64' : `${process.platform}-${process.arch}`}`
 const outDir = resolve(crew, 'dist-pack', folder)
 const zipPath = resolve(crew, 'dist-pack', `${folder}-portable.zip`)
-const exePath = resolve(srcTauri, 'target', 'release', `ax-crew-desktop${ext}`)
+const exePath = resolve(srcTauri, process.env.CARGO_TARGET_DIR || 'target', ...(target ? [target] : []), 'release', `ax-crew-desktop${ext}`)
 
 function run(command, args, cwd) {
   console.log(`\n$ ${command} ${args.join(' ')}\n  (cwd=${cwd})`)
@@ -48,6 +51,34 @@ console.log(`\n=== 打包 AX Crew ${version} → ${folder} ===`)
 // --pack-only：跳过两步编译，只重新组装/压缩（改说明文字时用）
 const packOnly = process.argv.includes('--pack-only')
 
+if (!isWin) {
+  if (!['linux', 'darwin'].includes(process.platform)) throw new Error('Unsupported desktop platform')
+  if (!packOnly) {
+    run('node', [resolve(scriptDir, 'prepare-binaries.mjs')], scriptDir)
+    run('cargo', ['tauri', 'build', ...targetArgs, '--bundles', process.platform === 'linux' ? 'appimage' : 'app'], srcTauri)
+  }
+  const output = resolve(crew, 'dist-pack')
+  mkdirSync(output, { recursive: true })
+  const bundleDir = resolve(srcTauri, process.env.CARGO_TARGET_DIR || 'target', ...(target ? [target] : []), 'release/bundle')
+  if (process.platform === 'linux') {
+    const { readdirSync, chmodSync } = await import('node:fs')
+    const directory = resolve(bundleDir, 'appimage')
+    const images = readdirSync(directory).filter(name => name.endsWith('.AppImage'))
+    if (images.length !== 1) throw new Error('Expected exactly one AppImage')
+    const destination = resolve(output, `AX-Crew-${version}-linux-${process.arch}.AppImage`)
+    copyFileSync(resolve(directory, images[0]), destination)
+    chmodSync(destination, 0o755)
+    console.log(`Portable AppImage: ${destination}`)
+  } else {
+    const app = resolve(bundleDir, 'macos', 'AX Crew.app')
+    if (!existsSync(app)) throw new Error('AX Crew.app bundle is missing')
+    const destination = resolve(output, `AX-Crew-${version}-macos-${process.arch}-portable.zip`)
+    run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', app, destination], srcTauri)
+    console.log(`Portable app bundle: ${destination}`)
+  }
+  process.exit(0)
+}
+
 if (packOnly) {
   console.log('（--pack-only：跳过编译，直接重新组装）')
 } else {
@@ -55,7 +86,7 @@ if (packOnly) {
   run('node', [resolve(scriptDir, 'prepare-binaries.mjs')], scriptDir)
 
   // 2. Tauri 壳。必须走 CLI：它才会带上 tauri/custom-protocol。
-  run('cargo', ['tauri', 'build', '--no-bundle'], srcTauri)
+  run('cargo', ['tauri', 'build', ...targetArgs, '--no-bundle'], srcTauri)
 }
 
 // 3. 校验：exe 里必须内嵌前端资源（dev 构建没有，打包出去就是一片 ERR_CONNECTION_REFUSED）

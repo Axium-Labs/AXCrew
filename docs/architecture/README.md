@@ -190,6 +190,11 @@ NVIDIA name, usage and VRAM in `gpus`; individual failed fields remain null.
 The driver handle is reused, missing drivers are retried on later reads, and
 unsupported vendors remain unavailable. These local shell commands do not
 change server or remote-host telemetry or depend on AX's `/system` panel.
+Linux/macOS use sysinfo for local CPU/RAM/uptime and the filesystem containing
+HOME. `desktop_platform.rs` owns Unix GUI process PATH supplementation, platform
+terminal choices and default shell resolution; `proc.rs` and `terminal.rs`
+apply it to subprocesses/PTYs. Platform-specific Tauri configs bundle the matching
+gateway executable. See [desktop platforms](../platforms.md).
 
 ### Unified desktop workspace layout
 

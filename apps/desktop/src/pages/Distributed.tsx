@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, LayoutDashboard, Server, Activity as ActivityIcon } from 'lucide-react'
 import { useLang } from '../lib/i18n'
@@ -17,7 +17,8 @@ export function Distributed(){
   const client=useQueryClient(),query=useQuery({queryKey:['distributed'],queryFn:distributed.state,refetchInterval:2000,retry:false})
   const [tab,setTab]=useState('workbench'),[enrolling,setEnrolling]=useState(false),[creating,setCreating]=useState(false)
   const [workflow,setWorkflow]=useState<string|null>(null),[task,setTask]=useState<string|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false)
-  const run=async(action:()=>Promise<unknown>)=>{setBusy(true);setError('');try{await action();await client.invalidateQueries({queryKey:['distributed']})}catch(e){setError(e instanceof Error?e.message:String(e))}finally{setBusy(false)}}
+  const mutation=useRef(false)
+  const run=async(action:()=>Promise<unknown>)=>{if(mutation.current)return;mutation.current=true;setBusy(true);setError('');try{await action();await client.invalidateQueries({queryKey:['distributed']})}catch(e){setError(e instanceof Error?e.message:String(e))}finally{mutation.current=false;setBusy(false)}}
   const state=query.data,props=state?{state,label,busy,error,run,onTask:setTask}:null
   return <div className="page distributed-page">
     <ClusterOverview state={state} label={label} loading={query.isPending}/>

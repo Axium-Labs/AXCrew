@@ -58,6 +58,14 @@ pub fn router(state: App) -> Router {
         .route("/api/distributed/events", get(distributed::events))
         .route("/api/distributed/enroll", post(distributed::enroll))
         .route(
+            "/api/distributed/hosts/{id}",
+            delete(distributed::remove_host),
+        )
+        .route(
+            "/api/distributed/workflows/{id}",
+            delete(distributed::remove_workflow),
+        )
+        .route(
             "/api/distributed/instances/{id}",
             axum::routing::delete(distributed::remove_instance),
         )

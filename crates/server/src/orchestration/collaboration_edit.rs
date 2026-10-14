@@ -4,6 +4,118 @@ use crate::{domain::unix_now, storage::Db};
 use anyhow::{Result, ensure};
 use serde::Deserialize;
 
+/// Remove inventory only after all enrollment and live placement references are gone.
+pub fn remove_host(db: &Db, id: &str) -> Result<()> {
+    db.cluster_update(|state| {
+        if !state.hosts.contains_key(id) && state.removed_hosts.contains_key(id) {
+            return Ok(());
+        }
+        ensure!(state.hosts.contains_key(id), "host missing");
+        ensure!(
+            !state.instances.values().any(|i| i.host_id == id),
+            "Host still has AX instances; delete their connections first"
+        );
+        ensure!(
+            !state.tasks.values().any(|t| !t.removed
+                && !t.terminal()
+                && t.spec.requirements.host_id.as_deref() == Some(id)),
+            "Host has unfinished pinned tasks; reassign or cancel them first"
+        );
+        let mut host = state.hosts.remove(id).expect("checked host");
+        host.enabled = false;
+        let name = host.name.clone();
+        state.removed_hosts.insert(id.to_owned(), host);
+        state.event(
+            unix_now(),
+            "host.removed",
+            None,
+            None,
+            &format!("{id}: {name}"),
+        );
+        Ok(())
+    })
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkflowRemoval {
+    pub expected_revision: u64,
+}
+
+/// One transaction removes a whole task graph, fences execution and keeps history.
+pub fn remove_workflow(db: &Db, id: &str, body: WorkflowRemoval) -> Result<()> {
+    db.cluster_update(|state| {
+        let w = state
+            .workflows
+            .get(id)
+            .ok_or_else(|| anyhow::anyhow!("workflow missing"))?;
+        if w.removed {
+            return Ok(());
+        }
+        ensure!(
+            w.revision == body.expected_revision,
+            "collaboration changed; review before removing"
+        );
+        let ids: std::collections::BTreeSet<_> = state
+            .tasks
+            .values()
+            .filter(|t| t.spec.workflow_id.as_deref() == Some(id) || t.id == w.root_task_id)
+            .map(|t| t.id.clone())
+            .collect();
+        let blockers: Vec<_> = state
+            .tasks
+            .values()
+            .filter(|t| {
+                !t.removed
+                    && !ids.contains(&t.id)
+                    && (t.spec.dependencies.iter().any(|dep| ids.contains(dep))
+                        || t.spec
+                            .parent_id
+                            .as_ref()
+                            .is_some_and(|parent| ids.contains(parent)))
+            })
+            .map(|t| t.spec.title.clone())
+            .collect();
+        ensure!(
+            blockers.is_empty(),
+            "other collaborations depend on this work: {}",
+            blockers.join(", ")
+        );
+        let now = unix_now();
+        for t in state.tasks.values_mut().filter(|t| ids.contains(&t.id)) {
+            if !t.terminal() {
+                if t.status == "running"
+                    && let Some(attempt) = t.attempts.last_mut()
+                {
+                    attempt.ended_at = Some(now);
+                    attempt.error = Some("collaboration removed by operator".into());
+                }
+                t.status = "cancelled".into();
+            }
+            t.removed = true;
+            t.owner = None;
+            t.incarnation = None;
+            t.lease_until = 0;
+        }
+        let w = state.workflows.get_mut(id).unwrap();
+        w.removed = true;
+        w.status = "cancelled".into();
+        w.collaboration.paused = false;
+        w.revision += 1;
+        w.updated_at = now;
+        let root = w.root_task_id.clone();
+        state.event(
+            now,
+            "workflow.removed",
+            Some(&root),
+            None,
+            "collaboration removed; execution history and checkpoints retained",
+        );
+        reconcile(state, now);
+        Ok(())
+    })
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TaskEdit {
@@ -43,12 +155,23 @@ pub fn edit_task(db: &Db, id: &str, body: TaskEdit) -> Result<()> {
             "execution already started; send guidance to the AX Session or add a replacement task"
         );
         if body.remove {
+            let blockers: Vec<_> = state
+                .tasks
+                .values()
+                .filter(|other| {
+                    !other.removed
+                        && other.id != id
+                        && (other.spec.dependencies.iter().any(|dep| dep == id)
+                            || other.spec.parent_id.as_deref() == Some(id))
+                })
+                .map(|other| other.spec.title.clone())
+                .collect();
             ensure!(
-                !state.tasks.values().any(|other| !other.removed
-                    && other.id != id
-                    && (other.spec.dependencies.iter().any(|dep| dep == id)
-                        || other.spec.parent_id.as_deref() == Some(id))),
-                "remove dependent tasks or change their dependencies first"
+                blockers.is_empty(),
+                format!(
+                    "dependent tasks must be removed first: {}",
+                    blockers.join(", ")
+                )
             );
         }
         let t = state.tasks.get_mut(id).unwrap();

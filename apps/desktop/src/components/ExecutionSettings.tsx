@@ -39,10 +39,10 @@ export function ExecutionSettings({ value, disabled, onChange }: Props) {
       ]}/>
     </div>
     <div className="execution-row"><div><h2>{shellLabel}</h2><p>{zh ? '选择要在集成终端中打开的 Shell' : 'Choose the shell opened in the integrated terminal'}</p></div>
-      <Choice label={shellLabel} value={windows ? value?.terminal_shell ?? 'powershell' : 'sh'} disabled={disabled || !windows} onChange={choice => onChange(undefined, choice as AxLocalState['terminal_shell'])} options={windows ? [
+      <Choice label={shellLabel} value={value?.terminal_shell ?? (windows ? 'powershell' : 'default')} disabled={disabled || !value} onChange={choice => onChange(undefined, choice as AxLocalState['terminal_shell'])} options={windows ? [
         { value: 'powershell', label: 'PowerShell' }, { value: 'cmd', label: 'Command Prompt' }, { value: 'git_bash', label: 'Git Bash' }, { value: 'wsl', label: 'WSL' },
-      ] : [{ value: 'sh', label: '/bin/sh' }]}/>
+      ] : [{ value: 'default', label: zh ? '系统默认 Shell' : 'Default login shell' }, { value: 'sh', label: 'POSIX sh' }, { value: 'bash', label: 'Bash' }, { value: 'zsh', label: 'Zsh' }, { value: 'fish', label: 'Fish' }]}/>
     </div>
-    <p className="execution-help">{zh ? '更改对新启动的 AX 和新终端生效。WSL 需要在默认发行版的 ~/.local/bin/ax 安装 Linux 版 AX。' : 'Changes apply to new AX processes and terminals. WSL requires Linux AX at ~/.local/bin/ax in the default distribution.'}</p>
+    <p className="execution-help">{windows ? (zh ? '更改对新启动的 AX 和新终端生效。WSL 需要在默认发行版的 ~/.local/bin/ax 安装 Linux 版 AX。' : 'Changes apply to new AX processes and terminals. WSL requires Linux AX at ~/.local/bin/ax in the default distribution.') : (zh ? '更改对新终端生效。默认使用登录 Shell；选择其他 Shell 前请先安装。' : 'Changes apply to new terminals. The default uses your login shell; install other shells before selecting them.')}</p>
   </section>
 }

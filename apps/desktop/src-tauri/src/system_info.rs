@@ -29,6 +29,7 @@ pub struct SystemInfo {
     pub gpus: Option<Vec<GpuInfo>>,
 }
 
+#[cfg(windows)]
 #[derive(Clone, Copy)]
 struct CpuTimes {
     idle: u64,
@@ -36,6 +37,7 @@ struct CpuTimes {
     user: u64,
 }
 
+#[cfg(windows)]
 impl CpuTimes {
     fn usage_since(self, previous: Self) -> Option<f64> {
         // Windows kernel ticks include idle ticks. Use deltas across samples.
@@ -71,7 +73,9 @@ pub fn get_system_info() -> SystemInfo {
         windows::disk(),
         Some(windows::uptime()),
     );
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(unix)]
+    let (cpu_usage, memory, disk, uptime) = unix::snapshot();
+    #[cfg(not(any(windows, unix)))]
     let (cpu_usage, memory, disk, uptime): (
         Option<f64>,
         Option<(u64, u64, f64)>,
@@ -137,6 +141,71 @@ fn collect_gpus() -> Option<Vec<GpuInfo>> {
             })
             .collect(),
     )
+}
+
+#[cfg(unix)]
+mod unix {
+    use super::capacity;
+    use std::{
+        sync::{Mutex, OnceLock},
+        time::Instant,
+    };
+    use sysinfo::{Disks, System};
+
+    type Snapshot = (
+        Option<f64>,
+        Option<(u64, u64, f64)>,
+        Option<(String, (u64, u64, f64))>,
+        Option<u64>,
+    );
+
+    pub(super) fn snapshot() -> Snapshot {
+        static CPU: OnceLock<Mutex<(System, Option<Instant>)>> = OnceLock::new();
+        let Ok(mut state) = CPU.get_or_init(|| Mutex::new((System::new(), None))).lock() else {
+            return (None, None, None, None);
+        };
+        let needs_sample = state.1.is_none_or(|last| last.elapsed().as_secs() > 10);
+        state.0.refresh_cpu_usage();
+        if needs_sample {
+            std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+            state.0.refresh_cpu_usage();
+        }
+        state.1 = Some(Instant::now());
+        state.0.refresh_memory();
+        let cpu = state.0.global_cpu_usage();
+        let cpu = (!state.0.cpus().is_empty() && cpu.is_finite()).then_some(f64::from(cpu));
+        let memory = capacity(
+            state.0.total_memory(),
+            state.0.total_memory().saturating_sub(state.0.used_memory()),
+        );
+        // Pick the filesystem containing HOME (the APFS data volume on macOS),
+        // falling back to root. Never add unrelated mounted volumes together.
+        let home = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| "/".into());
+        let home = home.canonicalize().unwrap_or(home);
+        let disks = Disks::new_with_refreshed_list();
+        let selected = disks
+            .iter()
+            .filter(|disk| home.starts_with(disk.mount_point()))
+            .max_by_key(|disk| disk.mount_point().components().count());
+        // APFS exposes /Users through a firmlink; the data filesystem's mount
+        // point is not a textual prefix of that logical home path.
+        #[cfg(target_os = "macos")]
+        let selected = if home.starts_with("/Users") {
+            disks
+                .iter()
+                .find(|disk| disk.mount_point() == std::path::Path::new("/System/Volumes/Data"))
+                .or(selected)
+        } else {
+            selected
+        };
+        let disk = selected.and_then(|disk| {
+            capacity(disk.total_space(), disk.available_space())
+                .map(|value| (disk.mount_point().to_string_lossy().into_owned(), value))
+        });
+        (cpu, memory, disk, Some(System::uptime()))
+    }
 }
 
 #[cfg(target_os = "windows")]

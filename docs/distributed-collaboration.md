@@ -104,8 +104,8 @@ includes the checkpoint, known workflow tasks/results and observations. Children
 continue when the planning AX fails, and a replacement can replan from durable
 state. Workflow is active while tasks are pending/running, and paused while its
 collaboration policy suspends placement. Failed peers block completion even if
-the root succeeded; terminal workflows otherwise resolve completed/cancelled. This does
-not migrate full AX sessions or automatically serialize a model's hidden state.
+the root succeeded. A terminal workflow is completed only when every retained task
+completed; cancelled peers prevent a false success. This does not migrate full AX sessions or automatically serialize a model's hidden state.
 
 ## Instance deregistration
 
@@ -128,7 +128,46 @@ Host → AX names; Goal/member history marks them deleted. Historical fixed plac
 and participant policy are retained as history: before retrying such work, replace
 its removed member/AX assignment. Other AX on the same Host remain unaffected.
 Repeated deletion is idempotent; unknown IDs are rejected. Hosts without active AX
-retain their inventory and display a compact no-instance message.
+show a no-instance message and a separate confirmed **Remove host** action.
+Removal requires no enrolled AX and no unfinished task pinned to the Host, checked
+atomically. `removed_hosts` retains disabled inventory for Activity; `hosts` remains
+the active inventory used by counts, enrollment choices and scheduling. No local
+machine files are deleted. New explicit enrollment can reuse the Host ID with fresh
+inventory detection; old instance credentials remain revoked.
+
+## Removing and cancelling collaborations
+
+**Cancel collaboration** confirms stopping all unfinished work and retains the
+collaboration in Workspace. **Remove collaboration** is available for every status,
+including cancelled or empty collaborations. It confirms the current work count,
+then removes the entire internal task graph in one transaction: unfinished tasks
+are cancelled, owners/leases are cleared and pending/executing Session commands
+fail through normal reconciliation. Late worker writes remain fenced. Retained
+cross-workflow dependents block removal with task names and links to their details.
+
+`Workflow.removed` defaults false on existing data. Removed workflows and their
+tasks disappear from Workspace and active counts, but remain in Activity with
+execution receipts, Sessions, artifacts and checkpoints. They reject configuration,
+control, checkpoint writes and new work. Repeated removal is idempotent. An admin
+may explicitly add new tasks to a cancelled but retained workflow; only new work
+starts, while cancelled tasks retain their outcomes. Workers cannot reopen a
+cancelled workflow themselves. Empty descriptions remain valid for metadata edits.
+
+Workspace keeps its selected collaboration during polling and selects another
+available collaboration after removal. Task details expose removal directly, and
+single-task dependency blockers link to the affected task. Runtime-only checkpoint
+and status revisions do not invalidate a metadata draft; changes to editable fields
+do, and the final request still uses the latest revision CAS. Cancelled/finished
+work is not described as waiting for placement. Disabled Hosts do not contribute
+online AX counts. Whole-workflow completion requires all retained tasks to succeed.
+
+Admin API additions (under `/api/distributed`):
+
+- `DELETE /hosts/{id}`: remove unreferenced Host inventory; no request body.
+- `DELETE /workflows/{id}`: `{expected_revision}` for confirmed atomic removal.
+
+Both return `{accepted: true}` on success, require administrator authentication,
+and reject unknown identities or current blockers without partial removal.
 
 ## Placement and policy
 
@@ -516,7 +555,21 @@ The description organizes work; it does not rewrite a running AX Goal or broadca
 a prompt. The portaled dialog uses responsive member cards, one scrolling body
 and a fixed save footer. Adding a member does not require creating another task;
 users can explicitly opt into a new task, saved atomically with the member policy.
-Deselecting a member also excludes it from automatic placement in this workflow.
+The member picker only lists currently enrolled AX instances approved for the
+project. Deleted instances never appear as candidates or count as current members;
+their execution history remains in Activity and the collapsed historical-members
+section. Archived members that never entered a task attempt are also named there,
+so a stale participant reference is always traceable to an AX name. The editor
+names the archived members it will clear, because a retained participant whose
+instance is gone still constrains scheduling (`AX is outside Goal participants`)
+and would otherwise block new work with no visible cause. Because such a policy
+still constrains placement, the workbench keeps reporting a manual member scope
+while any policy entry remains, even when every member is gone; it never degrades
+to "automatic placement". Saving filters obsolete
+membership, model defaults and new-work drafts
+against the current enrollment snapshot, including deletions while the editor is
+open. Other draft edits are retained; backend validation still rejects a deletion
+racing the final save. Deselecting a member also excludes it from automatic placement in this workflow.
 An empty selection retains the existing automatic-placement semantics. Existing
 policy/title/description changes during editing block stale drafts; API revision
 CAS rejects writes racing the final save. Failed saves retain the draft.

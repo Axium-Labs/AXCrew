@@ -28,7 +28,6 @@
 .terminal-tool{width:28px;height:28px;flex:none;display:grid;place-items:center;border:0;border-radius:7px;background:transparent;color:var(--shell-muted);cursor:pointer}
 .terminal-tool:disabled{opacity:.4;cursor:default}
 .terminal-views{position:relative;flex:1;min-height:0;overflow:hidden}
-.terminal-location{flex:none;padding:0 12px 6px;font-size:11px;color:var(--shell-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .terminal-empty{padding:15px;color:var(--shell-muted);font-size:12px}
 .terminal-view{position:absolute;inset:0;padding:4px 10px 8px}
 .terminal-view[hidden]{display:none}

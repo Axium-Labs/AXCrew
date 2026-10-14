@@ -11,6 +11,7 @@ pub struct Status {
     current_version: &'static str,
     latest_version: String,
     available: bool,
+    manual_install: bool,
 }
 
 fn client() -> Result<reqwest::Client, String> {
@@ -33,7 +34,15 @@ fn installer_name(tag: &str) -> Result<String, String> {
     {
         return Err("Release 版本号无效".into());
     }
-    Ok(format!("AX-Crew-{version}-windows-x64-setup.exe"))
+    let platform = match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("windows", "x86_64") => "windows-x64-setup.exe",
+        ("linux", "x86_64") => "linux-x64.deb",
+        ("linux", "aarch64") => "linux-arm64.deb",
+        ("macos", "x86_64") => "macos-x64.dmg",
+        ("macos", "aarch64") => "macos-arm64.dmg",
+        _ => return Err("No installer is available for this platform".into()),
+    };
+    Ok(format!("AX-Crew-{version}-{platform}"))
 }
 fn asset_url<'a>(release: &'a Release, name: &str) -> Result<&'a str, String> {
     let url = &release
@@ -202,14 +211,12 @@ pub async fn crew_check_update() -> Result<Status, String> {
         current_version: env!("CARGO_PKG_VERSION"),
         latest_version: release.tag_name.clone(),
         available,
+        manual_install: !cfg!(windows),
     })
 }
 
 #[tauri::command]
 pub async fn crew_apply_update(app: tauri::AppHandle) -> Result<(), String> {
-    if !cfg!(all(windows, target_arch = "x86_64")) {
-        return Err("此安装更新入口仅支持 Windows x64".into());
-    }
     let client = client()?;
     let sources = releases(&client).await?;
     let release = &sources[0].1;
@@ -230,11 +237,11 @@ pub async fn crew_apply_update(app: tauri::AppHandle) -> Result<(), String> {
         fs::remove_file(&installer).map_err(|e| e.to_string())?;
     }
     fs::rename(&temporary, &installer).map_err(|e| e.to_string())?;
-    crate::shutdown_runtime(&app)?;
-    let mut launch = crate::proc::command(installer);
-    launch.arg("/UPDATE");
     #[cfg(windows)]
     {
+        crate::shutdown_runtime(&app)?;
+        let mut launch = crate::proc::command(installer);
+        launch.arg("/UPDATE");
         use std::os::windows::process::CommandExt;
         let executable = std::env::current_exe().map_err(|e| e.to_string())?;
         let directory = executable
@@ -247,11 +254,30 @@ pub async fn crew_apply_update(app: tauri::AppHandle) -> Result<(), String> {
             })
             .ok_or("无法确定 AX Crew 安装目录")?;
         launch.raw_arg(format!("/D={}", directory.display()));
+        launch
+            .spawn()
+            .map_err(|e| format!("无法启动安装向导：{e}"))?;
+        app.exit(0);
     }
-    launch
-        .spawn()
-        .map_err(|e| format!("无法启动安装向导：{e}"))?;
-    app.exit(0);
+    #[cfg(unix)]
+    {
+        let opener = if cfg!(target_os = "macos") {
+            "open"
+        } else {
+            "xdg-open"
+        };
+        let output = crate::proc::command(opener)
+            .arg(&installer)
+            .output()
+            .map_err(|error| format!("Cannot open installer {}: {error}", installer.display()))?;
+        if !output.status.success() {
+            return Err(format!(
+                "Installer saved to {}. Open it to complete installation: {}",
+                installer.display(),
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -260,10 +286,11 @@ mod tests {
     use super::*;
     #[test]
     fn installer_is_versioned_and_cannot_escape_download_directory() {
-        assert_eq!(
-            installer_name("v0.2.1").unwrap(),
-            "AX-Crew-0.2.1-windows-x64-setup.exe"
-        );
+        let name = installer_name("v0.2.1").unwrap();
+        assert!(name.starts_with("AX-Crew-0.2.1-"));
+        assert_eq!(name.ends_with(".exe"), cfg!(windows));
+        assert_eq!(name.ends_with(".deb"), cfg!(target_os = "linux"));
+        assert_eq!(name.ends_with(".dmg"), cfg!(target_os = "macos"));
         assert!(installer_name("../evil").is_err());
     }
     #[test]

@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": ["bin/ax-crew"],
+    "targets": ["app", "dmg"],
+    "category": "DeveloperTool",
+    "macOS": { "minimumSystemVersion": "12.0" }
+  }
+}

@@ -253,7 +253,9 @@ pub(super) fn submit_in_cluster(
             .get(workflow_id)
             .ok_or_else(|| anyhow::anyhow!("workflow missing"))?;
         ensure!(
-            workflow.project_id == spec.project_id && workflow.status != "cancelled",
+            !workflow.removed
+                && workflow.project_id == spec.project_id
+                && (workflow.status != "cancelled" || creator == "admin"),
             "workflow policy denied"
         );
     }
@@ -277,6 +279,7 @@ pub(super) fn submit_in_cluster(
         state.workflows.insert(
             workflow_id.clone(),
             Workflow {
+                removed: false,
                 objective: None,
                 id: workflow_id.clone(),
                 project_id: spec.project_id.clone(),
@@ -712,12 +715,7 @@ pub fn reconcile(state: &mut Cluster, now: i64) {
             "active"
         } else if tasks.iter().any(|t| t.status == "failed") {
             "blocked"
-        } else if state
-            .tasks
-            .get(&workflow.root_task_id)
-            .is_some_and(|t| !t.removed && t.status == "completed")
-            || tasks.iter().all(|t| t.status == "completed")
-        {
+        } else if tasks.iter().all(|t| t.status == "completed") {
             "completed"
         } else if tasks.iter().any(|t| t.status == "cancelled") {
             "cancelled"
@@ -1227,6 +1225,7 @@ pub fn checkpoint(
             .workflows
             .get_mut(workflow_id)
             .ok_or_else(|| anyhow::anyhow!("workflow missing"))?;
+        ensure!(!workflow.removed, "removed collaboration cannot be changed");
         ensure!(
             workflow.revision == expected_revision,
             "workflow revision conflict; read latest state before replanning"

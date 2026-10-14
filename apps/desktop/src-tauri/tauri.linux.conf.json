@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": ["bin/ax-crew"],
+    "targets": ["deb", "appimage"],
+    "category": "DeveloperTool",
+    "shortDescription": "AX Crew agent workspace"
+  }
+}

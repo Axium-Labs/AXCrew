@@ -42,6 +42,11 @@ fn size(cols: u16, rows: u16) -> PtySize {
 }
 
 fn shell_program(shell: &str) -> Result<PathBuf, String> {
+    #[cfg(unix)]
+    {
+        crate::desktop_platform::unix_shell(shell)
+    }
+    #[cfg(not(unix))]
     match shell {
         "powershell" => Ok("powershell.exe".into()),
         "cmd" => Ok("cmd.exe".into()),
@@ -75,6 +80,7 @@ fn shell_program(shell: &str) -> Result<PathBuf, String> {
 pub(crate) fn validate_shell(shell: &str) -> Result<(), String> {
     let program = shell_program(shell)?;
     let args: &[&str] = match shell {
+        "default" | "sh" | "bash" | "zsh" | "fish" => &["-c", "exit 0"],
         "powershell" => &["-NoProfile", "-Command", "exit 0"],
         "cmd" => &["/D", "/C", "exit 0"],
         "wsl" => &["--exec", "sh", "-c", "exit 0"],
@@ -134,15 +140,12 @@ pub fn terminal_create(
         crate::terminal_ssh::command(&ssh, cwd.as_deref())?
     } else {
         let config = crate::ax::read_json(&crate::ax::ax_home().join("config.json"))?;
-        let shell = config
-            .pointer("/execution/terminal_shell")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or("powershell");
-        let mut command = CommandBuilder::new(if cfg!(windows) {
-            shell_program(shell)?
-        } else {
-            PathBuf::from("/bin/sh")
-        });
+        let shell = crate::desktop_platform::effective_terminal_shell(
+            config
+                .pointer("/execution/terminal_shell")
+                .and_then(serde_json::Value::as_str),
+        );
+        let mut command = CommandBuilder::new(shell_program(shell)?);
         if cfg!(windows) {
             match shell {
                 "powershell" => command.arg("-NoLogo"),
@@ -152,6 +155,8 @@ pub fn terminal_create(
                 _ => return Err("Invalid terminal shell".into()),
             }
         }
+        #[cfg(unix)]
+        command.args(["-l", "-i"]);
         command.env("AX_HOME", crate::ax::ax_home());
         if cfg!(windows) && shell == "wsl" {
             let existing = std::env::var("WSLENV").unwrap_or_default();
@@ -172,6 +177,15 @@ pub fn terminal_create(
         }
         command
     };
+    #[cfg(unix)]
+    {
+        if let Some(path) = crate::desktop_platform::search_path() {
+            command.env("PATH", path);
+        }
+        if std::env::var("TERM").map_or(true, |term| term.is_empty() || term == "dumb") {
+            command.env("TERM", "xterm-256color");
+        }
+    }
     command.cwd(directory);
     let child = pair
         .slave

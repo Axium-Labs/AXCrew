@@ -7,7 +7,7 @@ import { Terminal } from '@xterm/xterm'
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus, SquareTerminal, X } from 'lucide-react'
 import { Menu } from './ui/menu'
 import { useTerminalDock, type TerminalContext, type TerminalPosition, type TerminalTab } from '../store/terminal'
-import { useLang, useT, translate } from '../lib/i18n'
+import { useT, translate } from '../lib/i18n'
 import { connections } from '../lib/connections'
 import '@xterm/xterm/css/xterm.css'
 import './terminal.css'
@@ -117,9 +117,7 @@ export function TerminalDock({ context, theme }: { context: TerminalContext; the
   const [draggedTab, setDraggedTab] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const t = useT()
-  const lang = useLang(state => state.lang)
-  const activeTab = tabs.find(tab => tab.id === activeId)
-  const tabLabel = (tab: TerminalTab) => `${tab.context.deviceId === 'local' ? t('terminal.local') : `SSH · ${tab.context.name ?? tab.context.deviceId}`} · ${tab.cwd?.replace(/\\/g, '/').split('/').filter(Boolean).at(-1) ?? t('terminal.title')}`
+  const tabLabel = (tab: TerminalTab) => tab.cwd?.replace(/\\/g, '/').split('/').filter(Boolean).at(-1) ?? tab.cwd ?? t('terminal.title')
   const emptyMessage = context.blocked === 'loading' ? t('terminal.loading') : context.blocked === 'select' ? t('terminal.selectEnvironment') : context.blocked === 'paired' ? t('terminal.pairedUnsupported') : tabs.length >= 8 ? t('terminal.limit') : t('terminal.newHint')
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
@@ -195,7 +193,6 @@ export function TerminalDock({ context, theme }: { context: TerminalContext; the
           <Menu trigger={<button className="terminal-tool" title={t('terminal.layout')} aria-label={t('terminal.layout')}><MoreHorizontal size={17}/></button>} items={[{ label: position === 'bottom' ? t('terminal.moveRight') : t('terminal.moveBottom'), action: () => setPosition(position === 'bottom' ? 'right' : 'bottom') }]}/>
           <button className="terminal-tool" title={t('terminal.hide')} aria-label={t('terminal.hide')} onClick={() => setOpen(false)}>{position === 'bottom' ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}</button>
         </div>
-        {activeTab && <div className="terminal-location" lang={lang} title={activeTab.cwd}>{activeTab.context.deviceId === 'local' ? t('terminal.local') : `SSH · ${activeTab.context.name ?? activeTab.context.deviceId}`} · {activeTab.cwd}</div>}
         <div className="terminal-views">{tabs.map(tab => <TerminalView key={tab.id} tab={tab} visible={activeId === tab.id} theme={theme}/>)}{!activeId && <div className="terminal-empty" role="status">{emptyMessage}</div>}</div>
       </div>
     </div>

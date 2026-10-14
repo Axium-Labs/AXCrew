@@ -17,6 +17,7 @@ mod desktop_behavior;
 mod completion_attention;
 mod workspace_edit;
 mod proc;
+mod desktop_platform;
 
 use std::{fs, path::{Component, Path, PathBuf}, process::{Child, Stdio}, sync::{Mutex, atomic::{AtomicBool, Ordering}}};
 use tauri::{Manager, menu::{Menu, MenuItem}, tray::TrayIconBuilder};
@@ -495,6 +496,14 @@ pub fn run() {
         })
         .build(tauri::generate_context!()).expect("failed to build AX Crew desktop");
     app.run(|app,event| {
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen { .. } = event {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }
         if let tauri::RunEvent::Exit=event {
             let _ = shutdown_runtime(app);
         }

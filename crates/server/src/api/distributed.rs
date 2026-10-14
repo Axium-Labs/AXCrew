@@ -234,6 +234,25 @@ pub async fn remove_instance(
     service::remove_instance(&app.db, &id)?;
     Ok(Json(json!({"accepted":true})))
 }
+pub async fn remove_host(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Api<Value> {
+    app.authorize(&headers)?;
+    crate::orchestration::collaboration_edit::remove_host(&app.db, &id)?;
+    Ok(Json(json!({"accepted":true})))
+}
+pub async fn remove_workflow(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<crate::orchestration::collaboration_edit::WorkflowRemoval>,
+) -> Api<Value> {
+    app.authorize(&headers)?;
+    crate::orchestration::collaboration_edit::remove_workflow(&app.db, &id, body)?;
+    Ok(Json(json!({"accepted":true})))
+}
 pub async fn heartbeat(
     State(app): State<App>,
     headers: HeaderMap,

@@ -3,6 +3,11 @@
 A Rust control plane that connects, controls and orchestrates AX agents across
 your machines.
 
+The shared desktop client has Windows, Linux and macOS build/packaging adapters.
+See [platform support](docs/platforms.md) for prerequisites, native shell settings,
+updates and capability limits. New platform installers require native validation
+and a release containing those assets before download.
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](crates/server/Cargo.toml)
 [![Rust 1.92+](https://img.shields.io/badge/rust-1.92+-orange)](https://www.rust-lang.org)
 [![Release](https://img.shields.io/github/v/release/Axium-Labs/AXCrew)](https://github.com/Axium-Labs/AXCrew/releases/latest)
@@ -22,6 +27,11 @@ agent runtime and the control plane that coordinates it.
   retain their drafts.
 - **One control surface** — drive AX on your laptop, server, GPU server and
   cloud VMs from a single desktop app, or from your phone.
+- **Native Computer Use** — the local AX desktop tool has Windows UIA, Linux
+  AT-SPI and macOS Accessibility adapters. Unix requires installed runtime
+  dependencies; macOS requires system privacy grants. Linux Wayland currently
+  supports accessibility reads/actions with limits on raw input and screenshots.
+  See [platform requirements and validation status](docs/platforms.md).
 - **Settings → Goals** — configure AX-owned global/project acceptance validators,
   conservative progress observations and cumulative Runtime caps. An opt-in
   switch applies them automatically to ordinary new tasks; advanced forms start
@@ -185,7 +195,9 @@ The desktop terminal follows the current project: local projects open the config
 local shell, and SSH projects open an interactive OpenSSH session in the remote
 project directory using the saved host, port and identity file. Switching projects
 selects or creates the matching terminal while keeping existing terminals attached
-to their original hosts. Tabs show their host and directory. Paired AX devices
+to their original hosts. Tabs show only the directory name, with the full initial
+path on hover. Local and SSH terminals use the shell prompt's normal location
+display without an extra location row. Paired AX devices
 currently need a separate SSH connection for interactive terminals.
 
 ### Add another machine
@@ -318,3 +330,17 @@ Started inputs remain historical; send Session guidance or add replacement work.
 Dependency checks protect removal, execution history is retained in Activity, and
 failed/stale saves preserve drafts. See [distributed collaboration](docs/distributed-collaboration.md)
 for persistence, fencing and editing limits.
+
+
+Distributed lifecycle controls include confirmed removal of empty Hosts and entire
+collaborations, including cancelled/empty ones. Removing a collaboration stops its
+unfinished task graph atomically while retaining execution history in Activity;
+external dependencies block removal. Cancel keeps the collaboration visible.
+Administrators can add new work to a cancelled retained collaboration. Task removal
+is directly available in task details, with links to dependency blockers. Polling
+preserves the selected collaboration and metadata drafts across runtime-only
+updates. See [distributed lifecycle contract](docs/distributed-collaboration.md).
+
+The collaboration member picker excludes deleted AX instances, including old
+membership references and instances removed during editing. Saving clears obsolete
+member/model/new-work references; execution history remains separately accessible.

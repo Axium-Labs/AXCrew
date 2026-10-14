@@ -5,6 +5,9 @@ focused document; this page is the map.
 
 ## Documentation map
 
+See [platforms.md](platforms.md) for Windows/Linux/macOS builds, packaging,
+terminal defaults, telemetry, installer updates and capability limits.
+
 | Document | Topic |
 |---|---|
 | [distributed-collaboration.md](distributed-collaboration.md) | Distributed control plane, scoped worker API, recovery and desktop management |

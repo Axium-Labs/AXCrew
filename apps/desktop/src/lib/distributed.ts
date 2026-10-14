@@ -15,10 +15,11 @@ export type ClusterArtifact = { id:string;task_id:string;generation:number;proje
 export type ClusterEvent = { sequence:number;timestamp:number;kind:string;task_id:string|null;instance_id:string|null;detail:string }
 export type Collaboration = {kind:string;paused:boolean;participants:Record<string,string>;requirements:Partial<Capabilities>;member_models?:Record<string,ExecutionModel>;excluded_instances?:string[]}
 export type ExecutionCommand = {id:string;task_id:string;generation:number;session_id:string;kind:string;request_id?:string|null;text:string;status:string;result:string|null;created_at:number}
-export type Workflow = {objective?:string|null;id:string;title:string;project_id:string;root_task_id:string;status:string;revision:number;state:Record<string,unknown>;updated_at:number;collaboration?:Collaboration}
+export type Workflow = {removed?:boolean;objective?:string|null;id:string;title:string;project_id:string;root_task_id:string;status:string;revision:number;state:Record<string,unknown>;updated_at:number;collaboration?:Collaboration}
 export type InstanceCommand = {id:string;instance_id:string;incarnation:string;action:string;scope:string;project_id:string|null;input:unknown;status:string;result:unknown}
-export type Cluster = {revision:number;server_time:number;hosts:Record<string,ClusterHost>;instances:Record<string,AxInstance>;removed_instances?:Record<string,AxInstance>;tasks:Record<string,DistributedTask>;artifacts:Record<string,ClusterArtifact>;events:ClusterEvent[];workflows:Record<string,Workflow>;commands?:Record<string,ExecutionCommand>;instance_commands?:Record<string,InstanceCommand>}
+export type Cluster = {revision:number;server_time:number;hosts:Record<string,ClusterHost>;removed_hosts?:Record<string,ClusterHost>;instances:Record<string,AxInstance>;removed_instances?:Record<string,AxInstance>;tasks:Record<string,DistributedTask>;artifacts:Record<string,ClusterArtifact>;events:ClusterEvent[];workflows:Record<string,Workflow>;commands?:Record<string,ExecutionCommand>;instance_commands?:Record<string,InstanceCommand>}
 export const workflowTasks=(state:Cluster,w:Workflow)=>Object.values(state.tasks).filter(t=>!t.removed&&(t.spec.workflow_id===w.id||t.id===w.root_task_id))
+export const historyHost=(state:Cluster,id:string)=>state.hosts[id]??state.removed_hosts?.[id]
 export const historyInstance=(state:Cluster,id:string)=>state.instances[id]??state.removed_instances?.[id]
 export function instanceRemovalBlockers(state:Cluster,id:string,label:(cn:string,en:string)=>string):string[]{
   const reasons:string[]=[]
@@ -32,6 +33,8 @@ export function instanceRemovalBlockers(state:Cluster,id:string,label:(cn:string
 export const distributed = {
   state:()=>api<Cluster>('/api/distributed'),
   enroll:(body:unknown)=>api<{instance:AxInstance;token:string}>('/api/distributed/enroll','POST',body),
+  removeHost:(id:string)=>api(`/api/distributed/hosts/${encodeURIComponent(id)}`,'DELETE'),
+  removeWorkflow:(w:Workflow)=>api(`/api/distributed/workflows/${encodeURIComponent(w.id)}`,'DELETE',{expected_revision:w.revision}),
   removeInstance:(id:string)=>api(`/api/distributed/instances/${encodeURIComponent(id)}`,'DELETE'),
   configure:(id:string,body:Capabilities)=>api(`/api/distributed/instances/${encodeURIComponent(id)}/capabilities`,'POST',body),
   plan:(body:unknown)=>api<DistributedTask[]>('/api/distributed/plans','POST',body),
