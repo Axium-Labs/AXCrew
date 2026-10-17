@@ -131,3 +131,7 @@ active enrollment or unfinished Host pin. No SQL table or worker protocol change
 Removed workflows reject edits/control/checkpoints/new submissions. Explicit admin
 submission may reopen a cancelled retained workflow, without restarting old tasks.
 A terminal workflow is completed only if all its retained tasks completed.
+
+Chat platform configuration, peer bindings, cursors and bounded admission state are stored in the protected `chat-channels.dat` sidecar, independent of task/session schema. Each platform has an opt-in connection and dispatcher. Binding requires a one-time command plus local approval; replacement credentials clear account grants. See [state and reliability limits](../chat-channels.md).
+
+Chat channel sidecars also retain optional Slack App Tokens, Teams tenant/public-origin fields, bridge paths and WhatsApp authentication state. These fields have backward-compatible defaults; secrets and WhatsApp keys remain protected by the existing sidecar encryption. A per-configuration generation rejects stale receiver writes after settings replacement.

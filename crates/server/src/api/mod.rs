@@ -6,6 +6,7 @@
 //! call into `crate::orchestration` or the `Db` facade and map the result.
 
 pub mod automations;
+pub mod channels;
 pub mod composer;
 pub mod connections;
 pub mod crews;
@@ -34,6 +35,33 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 /// routes, then the state is attached, then CORS wraps everything.
 pub fn router(state: App) -> Router {
     Router::new()
+        .route(
+            "/api/channels/whatsapp/install",
+            post(channels::install_whatsapp),
+        )
+        .route(
+            "/api/messaging/teams",
+            post(channels::teams_webhook).layer(DefaultBodyLimit::max(256 * 1024)),
+        )
+        .route("/api/channels", get(channels::status))
+        .route(
+            "/api/channels/{platform}",
+            axum::routing::put(channels::update).delete(channels::disconnect),
+        )
+        .route("/api/channels/{platform}/pairing", post(channels::pairing))
+        .route(
+            "/api/channels/{platform}/peers/{id}/approve",
+            post(channels::approve),
+        )
+        .route(
+            "/api/channels/{platform}/peers/{id}",
+            axum::routing::delete(channels::revoke),
+        )
+        .route("/api/channels/weixin/login", post(channels::weixin_login))
+        .route(
+            "/api/channels/weixin/login/status",
+            post(channels::weixin_poll),
+        )
         .route(
             "/api/environments/{id}/model",
             post(connections::select_model),
@@ -252,6 +280,10 @@ pub fn router(state: App) -> Router {
         .route("/api/xfy", get(system::xfy_get).post(system::xfy_set))
         .route("/api/gateway/ws", get(events::gateway_ws))
         .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            phone_permissions,
+        ))
         .with_state(state)
         .layer(
             CorsLayer::new()
@@ -264,4 +296,21 @@ pub fn router(state: App) -> Router {
                 .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
                 .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE]),
         )
+}
+
+/// Enforce phone capabilities even when a phone uses the LAN HTTP surface.
+async fn phone_permissions(
+    axum::extract::State(app): axum::extract::State<App>,
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    if let Some(token) = crate::auth::header_bearer(request.headers())
+        && app.db.credential_device(&token).is_some()
+        && !(request.method() == axum::http::Method::GET && request.uri().path() == "/api/ws")
+        && !crate::auth::phone::allowed(request.method().as_str(), request.uri().path())
+    {
+        return (axum::http::StatusCode::FORBIDDEN, "Phone permission denied").into_response();
+    }
+    next.run(request).await
 }

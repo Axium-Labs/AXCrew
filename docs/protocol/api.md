@@ -202,3 +202,9 @@ and native management requires incarnation identity. All are additive under
 owned/pinned Tasks, explicit membership in unfinished Workflows and executing native
 management. Credential-free metadata moves to snapshot `removed_instances`; Host,
 Task, Attempt, Session, Event, checkpoint and artifact histories remain intact.
+
+## Chat channel management
+
+The desktop-admin `/api/channels` configuration, account binding and Weixin QR flow are specified in [chat channels](../chat-channels.md). Management responses never contain platform credentials. Native LAN phone credentials cannot manage trust/channels/SSH/distributed settings or retrieve provider secrets; administrator/issued-token authority remains unchanged. Revocation and expiry terminate existing event streams. Experimental `/api/direct` and `/api/remote` routes are removed.
+
+`POST /api/channels/whatsapp/install` installs the optional companion dependency for a desktop administrator. `POST /api/messaging/teams` is the separate 256 KiB Microsoft-JWT-verified ingress; Crew admin/phone tokens do not authorize it. Expanded platform fields and restrictions are defined in the chat channel contract.

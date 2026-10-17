@@ -1,3 +1,4 @@
+import { applyTheme } from './lib/themes'
 import { usePanelDrawer } from './lib/usePanelDrawer'
 import { WorkspaceLayoutContext, useWorkspaceLayoutManager } from './lib/workspaceLayoutContext'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -37,7 +38,7 @@ const primaryNav=[['/sessions','nav.sessions',MessagesSquare],['/schedule','nav.
 const utilityNav=[['/connect','nav.connect',Globe],['/settings','nav.settings',Settings2]] as const
 const nav=[...primaryNav,...utilityNav,['/overview','nav.overview',House],['/crews','nav.crews',Users],['/tasks','nav.tasks',ListTodo],['/devices','nav.devices',Monitor],['/activity','nav.activity',Activity]] as const
 function Shell(){
-  const {setSidebar:saveSidebar,palette,setPalette,theme,focus,setFocus}=useUi()
+  const {setSidebar:saveSidebar,palette,setPalette,theme,themePreset,focus,setFocus}=useUi()
   const navigationRef=useRef<HTMLElement>(null),workspaceRef=useRef<HTMLDivElement>(null),[compactNavOpen,setCompactNavOpen]=useState(false)
   const t=useT()
   const lang=useLang(state=>state.lang)
@@ -72,7 +73,10 @@ function Shell(){
   useEffect(()=>startCompletionNotifications(),[])
   useEffect(()=>startWindowScale(),[])
   useEffect(()=>{const handler=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setPalette(true)}if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='b'){e.preventDefault();setSidebar(!sidebar)}if((e.ctrlKey||e.metaKey)&&e.code==='Backquote'){e.preventDefault();useTerminalDock.getState().setOpen(!useTerminalDock.getState().open,terminalCwd??backend.data?.default_cwd,terminalContext)}if(e.altKey&&e.key.toLowerCase()==='c'){e.preventDefault();navigate('/sessions')}};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler)},[setPalette,navigate,backend.data?.default_cwd,terminalCwd,terminalContext,sidebar,layout.navigation])
-  useEffect(()=>{const media=window.matchMedia('(prefers-color-scheme: dark)');const apply=()=>{document.documentElement.dataset.theme=(theme==='system'?media.matches:theme==='dark')?'dark':'light'};apply();media.addEventListener('change',apply);return()=>media.removeEventListener('change',apply)},[theme])
+  const [systemDark,setSystemDark]=useState(()=>window.matchMedia('(prefers-color-scheme: dark)').matches)
+  useEffect(()=>{const media=window.matchMedia('(prefers-color-scheme: dark)');const update=()=>setSystemDark(media.matches);update();media.addEventListener('change',update);return()=>media.removeEventListener('change',update)},[])
+  const resolvedTheme=theme==='system'?(systemDark?'dark':'light'):theme
+  useLayoutEffect(()=>applyTheme(document.documentElement,resolvedTheme,themePreset),[resolvedTheme,themePreset])
   const [search,setSearch]=useState(''),[commandIndex,setCommandIndex]=useState(0),[focusReveal,setFocusReveal]=useState(false)
   useEffect(()=>{
     if(!focus){setFocusReveal(false);return}
@@ -107,7 +111,7 @@ function Shell(){
     </aside>
     <div className={`main ${terminalDockClass(terminal.position)}`}>
       <main className={`content ${sessionView?'content-session':''}`}><Routes><Route path="/" element={<Navigate to="/sessions" replace/>}/><Route path="/overview" element={<Home/>}/><Route path="/crews" element={<Crews/>}/><Route path="/crews/:id" element={<CrewDetail/>}/><Route path="/crews/:id/members/:memberId" element={<MemberWorkspace/>}/><Route path="/tasks" element={<Tasks/>}/><Route path="/tasks/:id" element={<TaskDetail/>}/><Route path="/devices" element={<Devices/>}/><Route path="/devices/:id" element={<DeviceDetail/>}/><Route path="/connect" element={<ConnectPhone/>}/><Route path="/sessions/:id?" element={<SessionsWorkspace/>}/><Route path="/schedule" element={<Schedule/>}/><Route path="/artifacts" element={<Artifacts/>}/><Route path="/distributed" element={<Distributed/>}/><Route path="/activity" element={<ActivityPage/>}/><Route path="/settings/:section?" element={<Settings/>}/></Routes></main>
-      <TerminalDock context={terminalContext} theme={theme==='light'||theme==='system'&&!window.matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'}/>
+      <TerminalDock context={terminalContext} theme={resolvedTheme} preset={themePreset}/>
     </div>
     </div>
     <Dialog open={palette} onOpenChange={setPalette} title={t('titlebar.runCommand')}><Input autoFocus aria-label={t('shell.searchCommands')} placeholder={t('shell.searchPlaceholder')} value={search} onChange={e=>{setSearch(e.target.value);setCommandIndex(0)}} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();setCommandIndex(index=>Math.max(0,Math.min(filteredCommands.length-1,index+(e.key==='ArrowDown'?1:-1))))}if(e.key==='Enter'){e.preventDefault();runCommand(commandIndex)}}}/><div className="mt-3 max-h-[52vh] overflow-auto" role="listbox" aria-label={t('shell.commandList')}>{filteredCommands.map(({path,label,icon:Icon},index)=><button role="option" aria-selected={index===commandIndex} key={`${path}${label}`} className={`row w-full text-left command-option ${index===commandIndex?'is-selected':''}`} onMouseEnter={()=>setCommandIndex(index)} onClick={()=>runCommand(index)}><Icon size={15} className="text-muted"/>{label}</button>)}{!filteredCommands.length&&<p className="p-4 text-sm text-muted">{t('shell.noCommands')}</p>}</div></Dialog>

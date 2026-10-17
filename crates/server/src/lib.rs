@@ -23,6 +23,7 @@ pub mod api;
 pub mod app;
 pub mod auth;
 pub mod ax;
+pub mod channels;
 pub mod config;
 pub mod domain;
 pub mod error;

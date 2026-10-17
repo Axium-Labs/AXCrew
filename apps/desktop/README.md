@@ -1,5 +1,9 @@
 # AX Crew Desktop
 
+Stop retains submitted messages and received output while saved history reloads.
+Matching AX builds save ordinary messages before workspace preparation and bound
+automatic file snapshots; unavailable change previews are indicated in the chat.
+
 A native desktop control client for [AX](../../ax), built with Tauri 2 and React.
 
 AX Crew brings conversations, tasks, devices, and model settings into one
@@ -233,10 +237,11 @@ in existing chats. Failed first sends restore it; a new chat shows it again.
 
 The desktop app uses the React frontend in `src/`. Its Windows window uses a custom titlebar without system decorations. Window size and position are persisted, while titlebar decorations always follow `src-tauri/tauri.conf.json`.
 
-The native Android client can control this same backend through an HTTPS reverse
-proxy. In Connections → Control this computer, use “显示 Android 连接信息” to reveal the current
-loopback upstream and token for 60 seconds. The gateway configuration persists across restarts. See [Android connection instructions](../android/README.md). Device pairing
-codes are for AX runtimes, not Android control-client login.
+The Android client pairs from Connections → Control this computer using a one-time
+QR and local desktop approval, then retains its own revocable phone credential.
+Phone pairing uses the LAN address and local desktop approval.
+See [Android connection instructions](../android/README.md).
+
 
 Navigation, the conversation list, main Chat and the right panel have independent persisted visibility. Use the brand collapse button or `Ctrl+B` for navigation, `Ctrl+Shift+B` for the conversation list, and `Esc` to dismiss the active picker or right panel. `Ctrl+K` opens command search; `Alt+C` opens conversations. A single workspace budget reserves a 560px chat target (520px minimum),
 automatically collapses navigation then Sessions, and uses a preview drawer when
@@ -426,3 +431,22 @@ updates. See [distributed lifecycle contract](../../docs/distributed-collaborati
 The collaboration member picker excludes deleted AX instances, including old
 membership references and instances removed during editing. Saving clears obsolete
 member/model/new-work references; execution history remains separately accessible.
+
+## Display color themes
+
+Settings → Display keeps Dark, Light and Follow system as independent appearance modes.
+The Color theme selector includes the original AXCrew palette and 28 additional app-adapted
+styles: ChatGPT, Absolutely, Ayu, Catppuccin, Dracula, Everforest, GitHub, Gruvbox, Linear,
+Lobster, Material, Matrix, Monokai, Night Owl, Nord, Notion, OG, One, Oscurange, Raycast,
+Rose Pine, Sentry, Solarized, Temple, Tokyo Night, Vercel, VS Code Plus and Xcode.
+Each menu item shows a color sample and supports keyboard selection. Both light and
+dark variants update the shell, conversation surfaces, settings popups and terminal.
+Mode and palette are saved separately on this desktop; existing preferences retain
+the AXCrew palette. Selecting AXCrew restores the original colors. These palettes are
+AXCrew adaptations, not imports of the reference application's theme definitions.
+
+会话列表与右侧面板展开/收起时提供滑动与淡入淡出过渡，并遵循系统减少动画设置。展开时使用面板内的收起入口，关闭后使用聊天栏的展开入口，避免重复按钮；收起后的面板不参与键盘焦点。
+
+Android 客户端允许正常截图和录屏。手机扫码连接使用局域网；账号授权、接口权限限制和撤销仍然生效。
+
+设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](../../docs/chat-channels.md)。

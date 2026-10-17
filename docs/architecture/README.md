@@ -268,3 +268,9 @@ Collaboration metadata/member editing and task editors live in the desktop's
 content, preserves submission identity and retains removed tasks as history.
 It uses the existing cluster transaction and reconciliation; no additional store
 or scheduler is introduced.
+
+## Chat channels
+
+`channels/` owns ten chat adapters: Slack/Discord/WeCom/Feishu WebSockets, Telegram/Weixin/Webex HTTPS polling, authenticated Teams HTTPS ingress and supervised iMessage/WhatsApp stdio companions, per-platform dispatch and peer-isolated sessions. `domain/channel.rs` describes configuration/inbox state; `storage/channels.rs` persists its protected sidecar. `api/channels.rs` is a desktop-admin management surface. The dispatcher reuses session APIs and ApprovalBroker. Native Android LAN phone permissions live in `auth/phone.rs`, independent of messaging. The removed IPv6/relay phone transport has no module, listener or endpoint. See [chat channels](../chat-channels.md).
+
+`channels/live.rs` correlates bounded outgoing requests with socket/child acknowledgements. `apps/channel-bridge/` holds the embedded WhatsApp companion and pinned optional dependency manifest/lockfile. Configuration generations isolate reconnections; desktop management remains admin-only while `/api/messaging/teams` verifies Microsoft JWTs.

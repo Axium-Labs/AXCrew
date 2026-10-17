@@ -2,7 +2,7 @@ import { translate, useLang } from '../lib/i18n'
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import {
-  ChevronRight, Copy, Globe, Monitor, QrCode, RefreshCw, ShieldAlert, ShieldCheck, Smartphone, Trash2, Wifi,
+  ChevronRight, Copy, Monitor, QrCode, RefreshCw, ShieldAlert, ShieldCheck, Smartphone, Trash2,
 } from 'lucide-react'
 import { endpoints, getConnection, type AuthorizedClient } from '../lib/api'
 
@@ -27,7 +27,6 @@ export function AndroidConnection() {
 
   const [connection, setConnection] = useState<Connection | null>(null)
   const [error, setError] = useState('')
-  const [mode, setMode] = useState<'lan' | 'remote'>('lan')
   const [pairing, setPairing] = useState<Pairing | null>(null)
   const [qr, setQr] = useState('')
   const [now, setNow] = useState(Date.now())
@@ -121,13 +120,6 @@ export function AndroidConnection() {
   const deviceTypeIcon = (platform: string) => /android|ios|phone/i.test(platform) ? <Smartphone size={14} /> : <Monitor size={14} />
 
   return <section className="settings-card connect-card">
-    {/* 连接方式切换 */}
-    <div className="connect-mode-tabs" role="tablist" aria-label={translate("copy.415")}>
-      <button type="button" role="tab" aria-selected={mode === 'lan'} className={mode === 'lan' ? 'active' : ''} onClick={() => setMode('lan')}><Wifi size={14} /> {translate("copy.416")}</button>
-      <button type="button" role="tab" aria-selected={mode === 'remote'} className={mode === 'remote' ? 'active' : ''} onClick={() => setMode('remote')}><Globe size={14} /> {translate("copy.417")}</button>
-    </div>
-
-    {mode === 'lan' ? (
       <div className="connect-lan">
         {/* 左：二维码（主连接方式） */}
         <div className="connect-qr">
@@ -146,7 +138,7 @@ export function AndroidConnection() {
           <h3>{translate("copy.423")}</h3>
           <p className="connect-desc">{translate("copy.424")}</p>
 
-          <button type="button" className="settings-primary connect-main-btn" onClick={() => void issue()} disabled={refreshing}>
+          <button type="button" className="settings-primary connect-main-btn" onClick={() => void issue()} disabled={refreshing||!url}>
             <RefreshCw size={15} className={refreshing ? 'spin' : ''} /> {pairing && !pairingExpired ? translate("copy.425") : translate("copy.426")}
           </button>
 
@@ -176,11 +168,6 @@ export function AndroidConnection() {
           {pairingExpired && pairing && <p className="connect-note">{translate("copy.432")}</p>}
         </div>
       </div>
-    ) : (
-      <div className="connect-remote-coming">
-        <Globe size={16} /> {translate("copy.433")}</div>
-    )}
-
     {/* 已授权设备：折叠管理 */}
     <details className="connect-issued" open={authorizedCount + pendingCount > 0}>
       <summary>

@@ -27,6 +27,8 @@ use tokio::sync::broadcast;
 
 #[derive(Clone)]
 pub struct App {
+    pub channels: Arc<crate::channels::Channels>,
+    pub authorization_changes: tokio::sync::watch::Sender<u64>,
     pub db: Db,
     pub scheduler: Scheduler,
     pub gateway: Gateway,
@@ -84,6 +86,8 @@ impl App {
         }
         let tokens = Arc::new(Mutex::new(token_store));
         Ok(Self {
+            channels: crate::channels::Channels::load(args)?,
+            authorization_changes: tokio::sync::watch::channel(0).0,
             db,
             scheduler,
             gateway,
@@ -109,7 +113,7 @@ impl App {
                 .records
                 .is_empty()
             || self.db.has_client_authorization();
-        if configured {
+        if configured || header_bearer(headers).is_some() {
             if header_bearer(headers).is_some_and(|given| self.token_matches(&given)) {
                 return Ok(());
             }
@@ -120,8 +124,7 @@ impl App {
 
     /// The WebSocket variant: the token may also arrive as `?token=`.
     ///
-    /// Authentication happens once during the handshake; a long-lived socket is
-    /// not re-checked, so a token expiring mid-connection does not drop it.
+    /// Event streams revalidate on revocation, before delivery and once per second.
     pub fn authorize_ws(
         &self,
         headers: &HeaderMap,
@@ -133,7 +136,9 @@ impl App {
         {
             return Ok(());
         }
-        if self.admin_token.is_none()
+        if header_bearer(headers).is_none()
+            && !query.contains_key("token")
+            && self.admin_token.is_none()
             && self
                 .tokens
                 .lock()

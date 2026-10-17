@@ -212,7 +212,7 @@ impl Db {
     }
     pub fn touch_client(&self, device_id: &str) {
         let _ = self.0.lock().unwrap().execute(
-            "UPDATE client_authorizations SET last_active=unixepoch() WHERE device_id=?1",
+            "UPDATE client_authorizations SET last_active=unixepoch() WHERE device_id=?1 AND last_active < unixepoch()-30",
             [device_id],
         );
     }

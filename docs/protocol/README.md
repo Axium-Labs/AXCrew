@@ -106,3 +106,5 @@ They return `accepted: true` only after transactional reference/CAS validation.
 Host inventory is retained in `removed_hosts`; soft-removed Workflows expose
 `removed: true` and cannot execute or accept edits/new work. Both fields default
 on older persisted state. See [lifecycle details](../distributed-collaboration.md).
+
+Chat platforms use outbound provider protocols, local stdio companions or Microsoft-authenticated Teams HTTPS ingress and reuse existing session/approval payloads; desktop-only management is under `/api/channels`. Native phone credentials retain their LAN capability restrictions and revoked/expired credentials close event streams. The experimental `/api/direct` and `/api/remote` surfaces have been removed. See [chat channel contract](../chat-channels.md).

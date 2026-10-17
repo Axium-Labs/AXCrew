@@ -10,6 +10,7 @@
 //! stays a single façade on purpose: it keeps the storage boundary in one place
 //! instead of scattering thin per-aggregate handles through every caller.
 
+pub mod channels;
 mod migrations;
 pub mod repositories;
 mod sqlite;

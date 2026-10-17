@@ -73,3 +73,5 @@ Then the desktop (`apps/desktop`: `npm run build`) and Android build.
 When the local-only test harness is present, also run its desktop interaction
 tests (`npm run test:ui`) and process-level tests in `tests/`. Standalone tests,
 test-runner configuration and work logs are not distributed in this repository.
+
+Chat platform integrations live in `crates/server/src/channels/`; pure models are in `domain/channel.rs`, protected sidecar persistence in `storage/channels.rs`, and desktop-admin management in `api/channels.rs`. See [chat channels](docs/chat-channels.md).

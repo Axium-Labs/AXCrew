@@ -1,3 +1,4 @@
+import { themeColors } from '../lib/themes'
 import { useEffect, useRef, useState } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { call as invoke } from '../lib/errors'
@@ -18,11 +19,11 @@ type Exit = { id: string }
 // xterm paints rows on a canvas, so it needs literal colours; they mirror the
 // --shell-bg / --shell-text / accent tokens so the canvas and the
 // surrounding viewport (var(--shell-bg)) never show a different-coloured gutter.
-const terminalTheme = (theme: 'dark' | 'light') => theme === 'dark'
+const terminalTheme = (theme: 'dark' | 'light', preset: string) => preset !== 'default' ? (()=>{const c=themeColors(preset,theme);return {background:c.background,foreground:c.foreground,cursor:c.accent}})() : theme === 'dark'
   ? { background: '#171a20', foreground: '#e7e9ef', cursor: '#b3a4f7' }
   : { background: '#f6f5f9', foreground: '#2c2935', cursor: '#6f56d6' }
 
-function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: boolean; theme: 'dark' | 'light' }) {
+function TerminalView({ tab, visible, theme, preset }: { tab: TerminalTab; visible: boolean; theme: 'dark' | 'light'; preset: string }) {
   const host = useRef<HTMLDivElement>(null)
   const terminal = useRef<Terminal | null>(null)
   const fit = useRef<FitAddon | null>(null)
@@ -31,7 +32,7 @@ function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: bool
 
   useEffect(() => {
     if (!host.current || !isTauri()) return
-    const term = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: 'Cascadia Mono, Consolas, monospace', fontSize: 13, scrollback: 4000, theme: terminalTheme(theme) })
+    const term = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: 'Cascadia Mono, Consolas, monospace', fontSize: 13, scrollback: 4000, theme: terminalTheme(theme,preset) })
     const addon = new FitAddon()
     term.loadAddon(addon)
     term.open(host.current)
@@ -92,13 +93,13 @@ function TerminalView({ tab, visible, theme }: { tab: TerminalTab; visible: bool
   }, [tab.id, tab.cwd, tab.initialCommand])
 
   useEffect(() => {
-    if (terminal.current) terminal.current.options.theme = terminalTheme(theme)
-  }, [theme])
+    if (terminal.current) terminal.current.options.theme = terminalTheme(theme,preset)
+  }, [theme,preset])
   useEffect(() => { if (visible) { const frame = requestAnimationFrame(() => { fit.current?.fit(); terminal.current?.focus() }); return () => cancelAnimationFrame(frame) } }, [visible])
   return <div className="terminal-view" hidden={!visible}><div ref={host} className="terminal-screen"/>{error&&<div className="terminal-error" role="alert">{error}</div>}{!isTauri()&&<div className="terminal-error">{t('terminal.desktopOnly')}</div>}</div>
 }
 
-export function TerminalDock({ context, theme }: { context: TerminalContext; theme: 'dark' | 'light' }) {
+export function TerminalDock({ context, theme, preset = 'default' }: { context: TerminalContext; theme: 'dark' | 'light'; preset: string }) {
   const { open, position, height, width, tabs, activeId, addTab, closeTab, reorderTab, setOpen, setActive, setPosition, setHeight, setWidth } = useTerminalDock()
   const [viewport,setViewport]=useState({width:window.innerWidth,height:window.innerHeight})
   useEffect(()=>{const resize=()=>setViewport({width:window.innerWidth,height:window.innerHeight});window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)},[])
@@ -193,7 +194,7 @@ export function TerminalDock({ context, theme }: { context: TerminalContext; the
           <Menu trigger={<button className="terminal-tool" title={t('terminal.layout')} aria-label={t('terminal.layout')}><MoreHorizontal size={17}/></button>} items={[{ label: position === 'bottom' ? t('terminal.moveRight') : t('terminal.moveBottom'), action: () => setPosition(position === 'bottom' ? 'right' : 'bottom') }]}/>
           <button className="terminal-tool" title={t('terminal.hide')} aria-label={t('terminal.hide')} onClick={() => setOpen(false)}>{position === 'bottom' ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}</button>
         </div>
-        <div className="terminal-views">{tabs.map(tab => <TerminalView key={tab.id} tab={tab} visible={activeId === tab.id} theme={theme}/>)}{!activeId && <div className="terminal-empty" role="status">{emptyMessage}</div>}</div>
+        <div className="terminal-views">{tabs.map(tab => <TerminalView key={tab.id} tab={tab} visible={activeId === tab.id} theme={theme} preset={preset}/>)}{!activeId && <div className="terminal-empty" role="status">{emptyMessage}</div>}</div>
       </div>
     </div>
   </section>

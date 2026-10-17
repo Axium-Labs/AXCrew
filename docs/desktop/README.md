@@ -7,6 +7,20 @@ the settings surfaces and their behaviour.
 
 ## Settings pages
 
+Stopping a conversation retains its submitted message, earlier turns and already
+received partial output while history reloads, including when AX has not yet
+checkpointed the current turn. Cancelled and failed tasks reconcile their live
+output with saved history instead of replacing the transcript with an empty
+result. The matching AX runtime saves ordinary messages before preparing its
+file baseline, so those submissions also survive reopening the session. Partial
+output that AX has not checkpointed remains available in the current desktop's
+live conversation cache; an application restart can only replay saved output.
+
+With a matching AX runtime, large or slow workspaces cannot indefinitely block
+chat while preparing automatic file change previews. AX bounds and cancels the
+snapshot worker; the transcript shows when a complete file change preview is
+unavailable. Tool execution remains available. See [AX ACP limits](../../../ax/docs/acp-crew.md).
+
 ### Goal policies
 
 Settings → Goal (`/settings/goal`) edits AX's global defaults or the selected
@@ -738,3 +752,22 @@ The editor and the workbench history both name archived members, including ones
 that never ran a task, so a stale participant reference that would still constrain
 placement stays diagnosable. A pin to a removed Host is labelled as removed in the
 reassign picker instead of showing a raw identifier.
+
+## Display color themes
+
+Settings → Display keeps Dark, Light and Follow system as independent appearance modes.
+The Color theme selector includes the original AXCrew palette and 28 additional app-adapted
+styles: ChatGPT, Absolutely, Ayu, Catppuccin, Dracula, Everforest, GitHub, Gruvbox, Linear,
+Lobster, Material, Matrix, Monokai, Night Owl, Nord, Notion, OG, One, Oscurange, Raycast,
+Rose Pine, Sentry, Solarized, Temple, Tokyo Night, Vercel, VS Code Plus and Xcode.
+Each menu item shows a color sample and supports keyboard selection. Both light and
+dark variants update the shell, conversation surfaces, settings popups and terminal.
+Mode and palette are saved separately on this desktop; existing preferences retain
+the AXCrew palette. Selecting AXCrew restores the original colors. These palettes are
+AXCrew adaptations, not imports of the reference application's theme definitions.
+
+会话列表与右侧面板展开/收起时提供滑动与淡入淡出过渡，并遵循系统减少动画设置。展开时使用面板内的收起入口，关闭后使用聊天栏的展开入口，避免重复按钮；收起后的面板不参与键盘焦点。
+
+Android 客户端允许正常截图和录屏。手机扫码连接使用局域网；账号授权、接口权限限制和撤销仍然生效。
+
+设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](../chat-channels.md)。

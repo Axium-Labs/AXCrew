@@ -53,7 +53,11 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
         return true
     }
     init {
-        try { secure.load()?.let { install(it) } }
+        try { secure.load()?.let { saved ->
+            if (saved.endpoint.startsWith("axcrew-direct:") || saved.endpoint.startsWith("axcrew-relay:")) {
+                mutable.update { it.copy(error = "旧的异地连接方式已移除，请在同一局域网重新扫码连接电脑") }
+            } else install(saved)
+        } }
         catch (_: Exception) { mutable.update { it.copy(error = "无法解密已保存的凭据，请重新连接") } }
     }
     private fun install(connection: Connection) {

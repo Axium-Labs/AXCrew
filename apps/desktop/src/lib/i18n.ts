@@ -8,6 +8,7 @@ export type Lang = 'zh' | 'en'
 // Missing keys fall back to Chinese so a new string can never render as a raw
 // identifier in the UI; `en` only needs the entries that differ.
 const zh: Record<string, string> = {
+  'session.changePreviewUnavailable': '本轮文件变更预览暂不可用，聊天和工具执行可以继续。',
   // ---------- shell / titlebar ----------
   'titlebar.expandNav': '展开主导航',
   'titlebar.collapseNav': '收起主导航',
@@ -314,6 +315,7 @@ const zh: Record<string, string> = {
 }
 
 const en: Record<string, string> = {
+  'session.changePreviewUnavailable': 'File change preview is unavailable for this turn. Chat and tools can continue.',
   // ---------- shell / titlebar ----------
   'titlebar.expandNav': 'Expand main navigation',
   'titlebar.collapseNav': 'Collapse main navigation',

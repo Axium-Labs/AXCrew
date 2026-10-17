@@ -335,9 +335,6 @@
 .session-right-toggle{width:47px;height:53px;flex:none;display:grid;place-items:center;margin-left:auto;border:0;border-radius:12px;background:transparent;color:var(--session-muted)}
 .session-right-toggle:hover{background:var(--session-hover);color:var(--session-text)}
 /* Collapsed: the card dissolves and only the toggle stays on the canvas. */
-.session-right-panel.is-closed{background:transparent;border-color:transparent;border-radius:0;pointer-events:none}
-.session-right-panel.is-closed .session-right-tabs{width:48px;height:54px;padding:0;border:0;background:transparent}
-.session-right-panel.is-closed .session-right-toggle{width:46px;height:52px;pointer-events:auto}
 .session-right-path{min-height:43px;display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .session-right-path>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .session-right-path button{margin-left:auto;flex:none;border:0;background:transparent;color:var(--session-muted)}
@@ -372,9 +369,26 @@
 /* Collapsed: the card dissolves and only the toggle stays on the canvas. */
 .sessions-workspace{position:relative}
 .session-list-panel.is-closed,.session-right-panel.is-closed,.session-right-panel[hidden],.session-chat-panel[hidden]{display:none}
-.sessions-workspace[data-list-mode=drawer] .session-list-panel{position:absolute;z-index:30;inset:0 auto 0 0;width:min(280px,90%);margin:0;box-shadow:12px 0 28px #0002}
-.sessions-workspace[data-right-mode=drawer] .session-right-panel{position:absolute;z-index:30;inset:0 0 0 auto;width:var(--preview-width);box-shadow:-12px 0 28px #0002}
-.sessions-workspace[data-right-mode=full] .session-right-panel{flex:1;width:auto}
+.session-list-panel[data-motion-mode=drawer]{position:absolute;z-index:30;inset:0 auto 0 0;width:min(280px,90%);margin:0;box-shadow:12px 0 28px #0002}
+.session-right-panel[data-motion-mode=drawer]{position:absolute;z-index:30;inset:0 0 0 auto;width:var(--preview-width);box-shadow:-12px 0 28px #0002}
+.session-right-panel[data-motion-mode=full]{flex:1;width:auto}
+/* Discrete display transitions keep closing panels painted until the slide ends. */
+.session-list-panel,.session-right-panel{
+  opacity:1;translate:0;max-width:280px;
+  transition:max-width .24s cubic-bezier(.22,1,.36,1),margin-right .24s ease,opacity .18s ease,translate .24s ease,display .24s allow-discrete;
+}
+.session-right-panel{width:var(--panel-width);max-width:var(--panel-width)}
+.session-list-panel.is-closed,.session-right-panel.is-closed{max-width:0;opacity:0;margin-right:0;border-width:0;pointer-events:none}
+.session-list-panel[data-motion-mode=drawer]{max-width:280px}
+.session-right-panel[data-motion-mode=drawer]{width:var(--panel-width);max-width:var(--panel-width)}
+.session-list-panel[data-motion-mode=drawer].is-closed{translate:-100%}
+.session-right-panel[data-motion-mode=drawer].is-closed{translate:100%}
+@starting-style{
+  .session-list-panel,.session-right-panel{max-width:0;opacity:0;margin-right:0}
+  .session-list-panel[data-motion-mode=drawer]{max-width:280px;translate:-100%}
+  .session-right-panel[data-motion-mode=drawer]{max-width:var(--panel-width);translate:100%}
+}
+.sessions-workspace:has(.workspace-splitter.is-dragging) .session-right-panel{transition:none}
 .session-list-backdrop,.session-right-backdrop{display:block;position:absolute;inset:0;z-index:29;border:0;background:#0003}
 .session-layout-menu{display:grid;place-items:center;flex:none;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--session-muted)}
 .session-preview-gap{width:10px;flex:none}

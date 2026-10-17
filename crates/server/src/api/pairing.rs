@@ -130,5 +130,6 @@ pub async fn revoke_client_authorization(
 ) -> Api<Value> {
     app.authorize(&headers)?;
     app.db.revoke_client_authorization(&id)?;
+    app.authorization_changes.send_modify(|n| *n += 1);
     Ok(Json(json!({"revoked": true, "device_id": id})))
 }

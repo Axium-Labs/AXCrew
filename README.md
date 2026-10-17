@@ -1,5 +1,9 @@
 # AX Crew
 
+Stopping a chat keeps its accepted message and received output visible during
+history reloads. Matching AX builds bound automatic file snapshots so large
+workspaces can continue chatting when a complete change preview is unavailable.
+
 A Rust control plane that orchestrates and controls AX agents across multiple
 machines — and keeps their work running when a machine goes away.
 
@@ -373,3 +377,11 @@ updates. See [distributed lifecycle contract](docs/distributed-collaboration.md)
 The collaboration member picker excludes deleted AX instances, including old
 membership references and instances removed during editing. Saving clears obsolete
 member/model/new-work references; execution history remains separately accessible.
+
+Desktop Settings → Display offers 28 additional color themes alongside AXCrew, with independent dark/light/system mode, color samples and persistent selection. See [desktop display themes](docs/desktop/README.md#display-color-themes).
+
+会话列表与右侧面板展开/收起时提供滑动与淡入淡出过渡，并遵循系统减少动画设置。展开时使用面板内的收起入口，关闭后使用聊天栏的展开入口，避免重复按钮；收起后的面板不参与键盘焦点。
+
+Android 客户端允许正常截图和录屏。手机扫码连接使用局域网；账号授权、接口权限限制和撤销仍然生效。
+
+设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](docs/chat-channels.md)。

@@ -48,15 +48,25 @@ pub async fn ws(
         return e.into_response();
     }
     upgrade
-        .on_upgrade(move |socket| stream_events(socket, app.events.subscribe()))
+        .on_upgrade(move |socket| stream_events(socket, app, headers, query))
         .into_response()
 }
 
-async fn stream_events(mut socket: WebSocket, mut rx: broadcast::Receiver<Value>) {
+async fn stream_events(
+    mut socket: WebSocket,
+    app: App,
+    headers: HeaderMap,
+    query: HashMap<String, String>,
+) {
+    let mut rx = app.events.subscribe();
+    let mut changes = app.authorization_changes.subscribe();
+    let mut check = tokio::time::interval(std::time::Duration::from_secs(1));
     loop {
         // Poll inbound control frames even while idle. OkHttp and other native
         // clients use Ping/Pong to detect dead connections; browser clients do not.
         tokio::select! {
+            _=changes.changed()=>{if app.authorize_ws(&headers,&query).is_err(){break}},
+            _=check.tick()=>{if app.authorize_ws(&headers,&query).is_err(){break}},
             incoming = socket.recv() => match incoming {
                 Some(Ok(Message::Ping(data))) => {
                     if socket.send(Message::Pong(data)).await.is_err() { break; }
@@ -66,6 +76,7 @@ async fn stream_events(mut socket: WebSocket, mut rx: broadcast::Receiver<Value>
             },
             event = rx.recv() => match event {
                 Ok(event) => {
+                    if app.authorize_ws(&headers,&query).is_err(){break}
                     if socket.send(Message::Text(event.to_string().into())).await.is_err() { break; }
                 }
                 // Force a resync instead of silently losing a permission or delta.

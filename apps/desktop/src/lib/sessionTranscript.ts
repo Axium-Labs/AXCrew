@@ -1,4 +1,5 @@
 import type { CrewEvent, SessionHistory, Task } from './types'
+import { translate } from './i18n'
 
 export function transcriptTurns(lines: SessionLine[]) {
   const turns: SessionLine[][] = []
@@ -149,6 +150,10 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
   const lines:SessionLine[]=[]
   for(const {update,at} of entries){
     const kind=String(update.sessionUpdate??'')
+    if(kind==='workspace_changes_unavailable'){
+      if(!lines.some(line=>line.key==='workspace-changes-unavailable'))lines.push({type:'thought',text:translate('session.changePreviewUnavailable'),key:'workspace-changes-unavailable',at})
+      continue
+    }
     if(kind==='turn_changes'){
       const key=`changes-${lines.findLast(line=>line.type==='user'&&!line.steering)?.key??'current'}`
       const previous=lines.find(line=>line.key===key)
@@ -194,13 +199,14 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
   const hasCurrent=lastUser>=0&&saved[lastUser].text===prompt&&(!history?.task_id||history.task_id===task.id)
   // Settled history can omit child tools or race with cancellation checkpoints.
   // Keep those rows by call ID, while saved message prose remains authoritative.
-  if(!includeCurrent&&!events.some(event=>['tool_call','tool_call_update'].includes(String(event.payload.sessionUpdate))))return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
+  const retainStream=includeCurrent||task.status==='cancelled'||task.status==='failed'
+  if(!retainStream&&!events.some(event=>['tool_call','tool_call_update','workspace_changes_unavailable'].includes(String(event.payload.sessionUpdate))))return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
   const before=hasCurrent?saved.slice(0,lastUser):saved.length?saved:contextLines(prompt)
   const previous=hasCurrent?saved.slice(lastUser+1):[]
-  const streamed=transcript(undefined,events).filter(line=>includeCurrent?line.type!=='user'||line.steering:line.type==='tool')
+  const streamed=transcript(undefined,events).filter(line=>retainStream?line.type!=='user'||line.steering:line.type==='tool'||line.key==='workspace-changes-unavailable')
   const body=previous.map(line=>({...line}))
   const offsets=new Map<string,number>()
-  const category=(line:SessionLine)=>line.changedFiles&&!line.text&&line.type==='agent'?'changes':line.type
+  const category=(line:SessionLine)=>line.key==='workspace-changes-unavailable'?'notice':line.changedFiles&&!line.text&&line.type==='agent'?'changes':line.type
   for(const line of streamed){
     const kind=category(line)
     const occurrence=offsets.get(kind)??0;offsets.set(kind,occurrence+1)

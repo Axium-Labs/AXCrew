@@ -167,3 +167,9 @@ loads its own stylesheet. Its shared Button provides Enter/Space, `aria-expanded
 `aria-controls`, a rotating Lucide chevron and keyboard focus styling. Collapsing
 hides rather than unmounts children, preserving form drafts. Distributed views and
 all related dialogs use it instead of browser-native details/summary controls.
+
+The server workspace also compiles outbound chat adapters using reqwest, tokio-tungstenite and prost. Windows channel sidecars use current-user DPAPI through windows-sys; no external Node/OpenClaw runtime or inbound relay is required. See [configuration and platform prerequisites](../chat-channels.md).
+
+### Optional WhatsApp companion
+
+The server embeds `apps/channel-bridge/whatsapp.mjs`, `package.json` and `package-lock.json` at compile time. Keep all three in source distributions. No Node build step is required for Rust compilation. At runtime, WhatsApp requires Node.js 20+ and the user-triggered dependency installation in Settings. `npm ci --omit=dev` in `apps/channel-bridge` installs dependencies for local development; `node_modules` is excluded from source control. iMessage uses the separately installed `imsg` binary on macOS.

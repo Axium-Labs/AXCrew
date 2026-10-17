@@ -23,31 +23,19 @@ macOS/Linux 使用 `./gradlew`。也可以在本地（不提交）的 `local.pro
 & "$env:ANDROID_HOME\platform-tools\adb.exe" install -r .\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-Release APK 需要使用自己的发布签名；本仓库不包含发布私钥。Debug 也强制 HTTPS/WSS，不提供明文或跳过证书校验开关。
+Release APK 需要使用自己的发布签名；本仓库不包含发布私钥。公网 API 使用 HTTPS/WSS；局域网私网地址兼容 HTTP，不提供跳过证书校验开关。
 
 ## 连接正在运行的电脑端 Crew
 
 启动直接进入会话首页，不强制先登录。左上角打开侧栏，包含 Gateway 连接、设备切换、新建会话与历史会话。未连接时可以先写草稿，点击发送会打开连接面板并保留草稿。连接后，底部输入框使用所选 Agent 创建并开始真实 AX 任务；已有会话可以继续发送消息。
 
-1. 使用包含本次修改的桌面端和后端版本。在桌面端 **设置 → 连接与系统 → Android 控制客户端** 点击「显示 Android 连接信息」。
-2. 面板显示本次桌面启动的本机 Gateway 上游地址及 Token。Token 只保留在组件内存，60 秒后或页面隐藏时收起。原有后台 `backend_connection` Tauri 命令供本地 UI 使用，不新增公开凭据接口。
-3. 使用 HTTPS 反向代理，把手机能访问的域名映射到这个本机上游。必须原样传递 `Authorization`，支持 WebSocket Upgrade，并将空闲超时设为大于 60 秒。使用 Android 系统信任的有效证书；App 不接受自签名证书或关闭验证。这里不自动更改防火墙、公开端口或部署代理。
-4. 手机点击左上角侧栏 →「连接电脑 / Gateway」，输入 HTTPS 根地址（例如 `https://crew.example.com`，不带 `/api`）以及面板中的 Token。App 验证受认证保护的 `/api/settings`、协议版本与 `/api/devices` 后加密保存。
-5. 手机上的 `local` 设备指 **Gateway 所在电脑的 AX**，不是手机。配对的其他 AX 电脑也会显示在设备列表中。
+1. 在桌面端 **连接 → 控制此电脑** 打开添加设备。局域网模式提供本机地址和一次性配对二维码。
+2. 手机侧栏打开连接电脑，扫码后在电脑端确认授权。配对码五分钟有效；手机领取独立设备凭证并通过 Android Keystore 加密保存，可在电脑端撤销。
+3. 手机的 `local` 设备指 Gateway 所在电脑的 AX。电脑需保持开机并运行 AXCrew；退出电脑端会断开连接。
 
-例如已有 Caddy 和可签发证书的域名时，代理配置可为（端口替换成桌面面板的真实上游端口）：
+已移除 IPv6 专用直连和共用中转。旧测试版保存的异地地址不会自动重连，请在同一局域网重新扫码；原有会话和局域网凭据不删除。通过飞书、微信或 Telegram 发任务使用电脑端的 [聊天渠道](../../docs/chat-channels.md)，无需安装此手机 App。
 
-```caddyfile
-crew.example.com {
-    reverse_proxy 127.0.0.1:12345
-}
-```
-
-桌面端首次启动会生成端口和 Token，并保存到应用数据目录的 `gateway.json`；后续重启沿用连接配置。只有主动更换端口或 Token 后才需要更新代理和 Android 连接。关闭桌面窗口只会隐藏到托盘，Gateway 继续运行；退出桌面进程则断开。不要将手机连接到另一个空数据库的服务后误认为这是同一个桌面工作区。
-
-如果需要固定地址，可以按根 README 单独运行 Crew，设置稳定的 `AX_CREW_ADMIN_TOKEN`、数据库路径和监听端口，再通过 HTTPS 代理连接。不要让两个后端同时打开同一数据库；独立服务的任务不会自动合并到桌面端自带服务。
-
-**手机登录 Token 与 AX 设备配对码不同。** `/api/pairing` 用于把 AX Runtime 电脑注册到 Gateway；Android Control Client 不兑换配对码，也不注册成 AX 执行设备。
+手机登录设备凭证、手机一次性配对码和 AX Runtime 设备配对码用途不同，不混用。
 
 ## 会话、计划与附件
 
@@ -64,9 +52,9 @@ crew.example.com {
 
 ## 同步、存储与权限边界
 
-- HTTP 和 WebSocket 都用 `Authorization: Bearer`，Token 不放进 URL。HTTPS 强制校验；拒绝 URL 内凭据、查询、片段和子路径；不自动跟随重定向，也不自动重试修改请求。
-- Token 和地址使用 Android Keystore AES-GCM 加密，密钥不可导出，SharedPreferences 只保存密文和随机 IV；关闭 App 备份。截图及最近任务预览受 `FLAG_SECURE` 保护。登出删除本地密文，**不代表服务端撤销 Token**；遗失设备需在 Gateway 端轮换 Token。
-- 现有 Gateway 只有管理员 Bearer Token，没有用户登录或细粒度客户端角色。此版本沿用该权限模型，不声称实现服务端手机专属最小权限 Token。App 不提供 AllowAll/YOLO 配置：新 Agent 仅 Ask/Deny；对已有 Allow Agent 的手机提交增加 Ask 覆盖；Deny 保持不变。所有审批仍经过 `ApprovalBroker` 和 AX PermissionStore。
+- HTTP/WebSocket 使用 `Authorization: Bearer`。HTTPS 校验证书，不跟随重定向，不自动重试修改请求。
+- Token 和地址使用 Android Keystore AES-GCM 加密，密钥不可导出，SharedPreferences 只保存密文和随机 IV；关闭 App 备份。允许正常截图、录屏和最近任务预览，不再全局设置 `FLAG_SECURE`。登出删除本地密文，**不代表服务端撤销凭证**；遗失手机应在电脑端撤销该设备。
+- 手机独立设备凭证受手机接口白名单约束，不能管理配对授权、聊天渠道配置、SSH、分布式管理或获取 `/api/xfy` 密钥；使用手机凭证的直连也应用同一规则。需要 `/api/xfy` 的共享语音服务配置不向手机下发。权限是配对电脑的工作区级信任，尚无逐项目/会话隔离。撤销使后续请求失效并关闭事件流；已经受理的任务继续。旧的管理员 Token 直连仍为管理员权限。
 - WebSocket 以 20 秒 Ping 检查连接，异常时指数退避加抖动，最大约 30 秒重试；事件按 `event_id` 去重。缓冲溢出会重连，不静默丢弃。
 - `ProcessLifecycleOwner` 控制前后台连接。后台不保活、不启动前台服务，不保证后台通知；远程任务继续，五分钟审批超时仍按原协议拒绝。回到前台恢复 socket，并重新获取设备、任务、成员、会话绑定和待审批列表。
 - 活跃前台每 8 秒校准 REST 状态，补偿现有创建/编辑接口未发事件的情况。打开的活跃会话每 15 秒读取 AX 历史，重连和结束后再读取。事件索引已脱敏，不能当作完整输出回放。当前协议无增量游标，断线期间的输出依靠 AX 历史恢复；无法确认的片段不盲目拼接，可能等下一次历史同步后才完整显示。
