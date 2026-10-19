@@ -1,4 +1,5 @@
 mod terminal;
+mod preview_browser;
 mod terminal_ssh;
 mod capability_sources;
 mod ax;
@@ -393,7 +394,7 @@ pub fn run() {
             .build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![chat_setup::open_chat_setup, backend_connection, validate_workspace, list_workspace_files, read_workspace_file, workspace_edit::write_workspace_file, read_workspace_image, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax_login::ax_begin_login, ax_login::ax_cancel_login, ax_login::ax_open_login_url, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_select_inference_mode, ax::ax_select_execution, ax_personalize::ax_tui_command, computer_use::ax_computer_use, host_permissions::ax_host_permissions, subagent_settings::ax_subagent_settings, goal_settings::ax_goal_settings, ax::ax_export, ax::ax_import, ax::ax_import_capability, ax::ax_manage_capability, capability_sources::ax_scan_capability_sources, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, completion_attention::completion_attention, desktop_restart, desktop_quit, get_minimize_on_close, set_minimize_on_close, write_file, get_system_info, ax_catalog::ax_catalog])
+        .invoke_handler(tauri::generate_handler![preview_browser::preview_browser, chat_setup::open_chat_setup, backend_connection, validate_workspace, list_workspace_files, read_workspace_file, workspace_edit::write_workspace_file, read_workspace_image, workspace_file_exists, search_workspace_files, terminal::terminal_create, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_close, ax_login::ax_begin_login, ax_login::ax_cancel_login, ax_login::ax_open_login_url, ax::ax_local_state, ax::ax_store_api_key, ax::ax_refresh_models, ax::ax_remove_credential, ax::ax_select_model, ax::ax_select_inference_mode, ax::ax_select_execution, ax_personalize::ax_tui_command, computer_use::ax_computer_use, host_permissions::ax_host_permissions, subagent_settings::ax_subagent_settings, goal_settings::ax_goal_settings, ax::ax_export, ax::ax_import, ax::ax_import_capability, ax::ax_manage_capability, capability_sources::ax_scan_capability_sources, ax_update::ax_check_update, ax_update::ax_apply_update, crew_update::crew_check_update, crew_update::crew_apply_update, completion_attention::completion_attention, desktop_restart, desktop_quit, get_minimize_on_close, set_minimize_on_close, write_file, get_system_info, ax_catalog::ax_catalog])
         .setup(|app| {
             // `CARGO_MANIFEST_DIR` is `apps/desktop/src-tauri`, so the workspace
             // root (and the AX checkout next to it) are three and four levels up.

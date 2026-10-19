@@ -460,18 +460,32 @@ AXCrew adaptations, not imports of the reference application's theme definitions
 
 Android 客户端允许正常截图和录屏。手机扫码连接使用局域网；账号授权、接口权限限制和撤销仍然生效。
 
-设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](../../docs/chat-channels.md)。
+设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。默认项目目录可留空；在聊天中用 `/projects`、`/project 项目ID` 选择本机项目，`/new [项目ID]` 新建会话，`/sessions`、`/session 会话ID` 查看及切换本账号历史。每个会话保留原目录，执行中需先结束或取消才能切换。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](../../docs/chat-channels.md)。
 
 
 ### Web preview and compact change review
 
 The desktop conversation sidebar has a resizable Preview tab with an HTTP(S)
-address field and reload. Local dev-server URLs found in the current conversation
+search/address field, reload and a start-page button. Bare domains use HTTPS;
+localhost and loopback addresses use HTTP. Keywords open Bing search on submit.
+The desktop uses a native child webview, so websites and search results load as
+top-level pages instead of iframes. Rounded navigation controls provide back,
+forward and reload; the pill-shaped address field uses a quiet focus border.
+The address placeholder is left-aligned and disappears on focus. The browser tab
+strip adds, switches and closes pages independently; inactive native pages are
+hidden while retaining page state and history. Page titles label native tabs.
+The themed start page offers local server shortcuts. Browser development mode
+retains an iframe and offers a new-tab link for websites that block embedding.
+Local dev-server URLs found in the current conversation
 are offered as buttons and load only after a click. Interactive embedded pages can
 receive their dev server's live updates. URLs with credentials, privileged schemes
-and the application origin are rejected. Pages may prohibit embedding; remote
+and the application origin are rejected, including native navigations. Remote
 projects need a reachable URL or an already forwarded port. Switching conversations
-clears the preview. The panel does not start servers or forward ports automatically.
+clears the browser tabs and closes their native views. Each child follows the
+panel's clipped bounds in physical pixels, accounting for UI zoom and display
+scaling, and hides beneath app dialogs/menus. New-window links create new tabs;
+downloads are disabled. Remote pages receive no app capabilities. The panel
+does not start servers or forward ports automatically.
 
 Ask AX to inspect inserts the preview URL into the composer for the user to send.
 AX uses its existing separate browser tool; embedded page cookies, clicks and DOM

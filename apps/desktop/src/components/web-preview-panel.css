@@ -1,12 +1,41 @@
-.web-preview-panel{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;color:var(--session-text);font-size:12px}
-.web-preview-toolbar{display:flex;align-items:center;gap:6px;padding:10px;border-bottom:1px solid var(--session-border)}
-.web-preview-toolbar input{flex:1;min-width:0;padding:7px 9px;border:1px solid var(--session-border);border-radius:7px;background:var(--session-bg);color:inherit;font:12px ui-monospace,monospace}
-.web-preview-panel button{border:0;border-radius:6px;padding:6px;background:transparent;color:inherit;cursor:pointer}
-.web-preview-panel button:hover{background:var(--session-hover)}.web-preview-panel button:disabled{opacity:.4;cursor:default}
-.web-preview-suggestions{display:flex;gap:4px;padding:4px 10px;overflow:auto;flex-shrink:0}.web-preview-suggestions button{white-space:nowrap;color:var(--session-muted);font-size:11px}
-.web-preview-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 10px;color:var(--session-muted);font-size:11px}
-.web-preview-actions button{flex-shrink:0;color:var(--session-text)}
-.web-preview-panel iframe{flex:1;min-height:200px;width:100%;border:0;background:white}
-.web-preview-empty{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;color:var(--session-muted)}.web-preview-empty h3{font-size:16px;color:var(--session-text);font-weight:500}.web-preview-empty p{max-width:300px;line-height:1.8}
+.web-preview-panel{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;color:var(--session-text);font:13px/1.5 var(--font-sans,system-ui,sans-serif);background:var(--session-bg)}
+.web-preview-panel button,.web-preview-panel input{font:inherit}
+.web-preview-panel button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:7px;background:transparent;color:inherit;cursor:pointer}
+.web-preview-panel button:hover{background:var(--session-hover)}
+.web-preview-panel button:focus-visible{outline:1px solid var(--session-muted);outline-offset:2px;box-shadow:none}
+.web-preview-panel button:disabled{opacity:.35;cursor:default}
+.web-preview-panel svg{flex-shrink:0}
+.web-preview-tabbar{display:flex;align-items:center;gap:5px;padding:8px 10px 0;flex-shrink:0;min-width:0}
+.web-preview-tabs{display:flex;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.web-preview-tab{display:flex;align-items:center;flex-shrink:0;min-width:85px;max-width:180px;border:1px solid transparent;border-radius:10px;color:var(--session-muted)}
+.web-preview-tab.is-active{border-color:var(--session-border);background:var(--session-hover);color:var(--session-text)}
+.web-preview-tab [role=tab]{min-width:0;padding:7px 6px 7px 9px;font-size:11px}
+.web-preview-tab [role=tab] span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.web-preview-panel .web-preview-tab-close{width:22px;height:22px;padding:0;margin-right:4px;flex-shrink:0;border-radius:50%}
+.web-preview-panel .web-preview-new-tab{width:28px;height:28px;padding:0;flex-shrink:0;border-radius:50%}
+.web-preview-toolbar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--session-border);flex-shrink:0}
+.web-preview-navigation{display:flex;align-items:center;gap:1px;padding:3px;background:var(--session-hover);border-radius:999px}
+.web-preview-toolbar button{width:30px;height:30px;padding:0;flex-shrink:0;border-radius:50%}
+.web-preview-address{display:flex;align-items:center;flex:1;min-width:0;height:40px;box-sizing:border-box;padding:3px 5px 3px 14px;border:1px solid var(--session-border);border-radius:999px;gap:9px;background:color-mix(in srgb,var(--session-text) 10%,var(--session-bg));color:var(--session-muted)}
+.web-preview-address:focus-within{border-color:color-mix(in srgb,var(--session-text) 30%,transparent);box-shadow:none}
+.web-preview-panel .web-preview-address input,.web-preview-panel .web-preview-address input:focus,.web-preview-panel .web-preview-address input:focus-visible{flex:1;min-width:0;width:100%;padding:5px 0;border:0!important;outline:none!important;box-shadow:none!important;border-radius:0;background:transparent;color:var(--session-text);font-size:12px;text-align:left}
+.web-preview-address input::placeholder{color:var(--session-muted)}
+.web-preview-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 12px;color:var(--session-muted);font-size:11px;flex-shrink:0}
+.web-preview-actions button{color:var(--session-text);font-size:11px}
+.web-preview-page{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;overflow:hidden}
+.web-preview-page[hidden]{display:none}
+.web-preview-panel iframe{flex:1;min-height:0;width:100%;border:0;background:white}
+.web-preview-native{flex:1;min-height:0;position:relative;background:var(--session-bg)}
+.web-preview-start{flex:1;min-height:0;overflow:auto;padding:clamp(24px,8vh,80px) 24px 24px}
+.web-preview-empty{display:flex;flex-direction:column;align-items:center;width:100%;max-width:420px;margin:0 auto;text-align:center;color:var(--session-muted)}
+.web-preview-emblem{display:grid;place-items:center;width:52px;height:52px;border:1px solid var(--session-border);border-radius:50%;background:var(--session-hover);color:var(--session-muted)}
+.web-preview-empty h3{margin:20px 0 8px;font-size:20px;letter-spacing:-.4px;color:var(--session-text);font-weight:600}
+.web-preview-empty p{margin:0;max-width:310px;font-size:12px;line-height:1.8}
+.web-preview-suggestions{max-width:420px;margin:32px auto 0}
+.web-preview-suggestions h4{margin:0 0 10px;font-size:11px;font-weight:500;color:var(--session-muted)}
+.web-preview-suggestions button{width:100%;justify-content:flex-start;padding:10px;text-align:left;font-size:12px}
+.web-preview-suggestions button span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .web-preview-note{margin:0;padding:8px 12px;color:var(--session-muted);font-size:11px;line-height:1.6;border-top:1px solid var(--session-border)}
+.web-preview-note a{color:inherit;text-decoration:underline}
 .web-preview-panel [role=alert]{padding:0 12px;color:var(--color-danger)}
+@media(max-width:600px){.web-preview-toolbar{gap:5px;padding:8px}.web-preview-navigation button{width:26px}}

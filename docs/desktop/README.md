@@ -810,12 +810,26 @@ Android 客户端允许正常截图和录屏。手机扫码连接使用局域网
 ### Web preview and compact change review
 
 The desktop conversation sidebar has a resizable Preview tab with an HTTP(S)
-address field and reload. Local dev-server URLs found in the current conversation
+search/address field, reload and a start-page button. Bare domains use HTTPS;
+localhost and loopback addresses use HTTP. Keywords open Bing search on submit.
+The desktop uses a native child webview, so websites and search results load as
+top-level pages instead of iframes. Rounded navigation controls provide back,
+forward and reload; the pill-shaped address field uses a quiet focus border.
+The address placeholder is left-aligned and disappears on focus. The browser tab
+strip adds, switches and closes pages independently; inactive native pages are
+hidden while retaining page state and history. Page titles label native tabs.
+The themed start page offers local server shortcuts. Browser development mode
+retains an iframe and offers a new-tab link for websites that block embedding.
+Local dev-server URLs found in the current conversation
 are offered as buttons and load only after a click. Interactive embedded pages can
 receive their dev server's live updates. URLs with credentials, privileged schemes
-and the application origin are rejected. Pages may prohibit embedding; remote
+and the application origin are rejected, including native navigations. Remote
 projects need a reachable URL or an already forwarded port. Switching conversations
-clears the preview. The panel does not start servers or forward ports automatically.
+clears the browser tabs and closes their native views. Each child follows the
+panel's clipped bounds in physical pixels, accounting for UI zoom and display
+scaling, and hides beneath app dialogs/menus. New-window links create new tabs;
+downloads are disabled. Remote pages receive no app capabilities. The panel
+does not start servers or forward ports automatically.
 
 Ask AX to inspect inserts the preview URL into the composer for the user to send.
 AX uses its existing separate browser tool; embedded page cookies, clicks and DOM
@@ -825,3 +839,8 @@ File change summaries use compact rows, aligned counts, truncated paths with ful
 path tooltips, and the existing sidebar diff viewer. Unavailable undo is omitted.
 Allowed Computer Use applications no longer trigger generic per-action prompts;
 explicit task Ask/Deny and capability Deny still apply. Website rules are unchanged.
+
+Chat platform settings use an optional default project directory. Project and
+conversation selection is available directly in an approved private chat through
+`/projects`, `/project`, `/new`, `/sessions` and `/session`; the default does not
+move existing conversations. See [chat channels](../chat-channels.md).

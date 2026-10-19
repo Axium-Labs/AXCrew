@@ -20,8 +20,11 @@ model are needed to execute tasks. Native Android LAN pairing is unchanged.
 
 ## Configure and authorize
 
-Choose an existing **workspace for new conversations**. Existing conversations
-retain their original workspace; `/new` uses the newly selected workspace.
+The **default project directory** is optional. It is used for a peer that has not
+selected a project. With no default, connect/pair normally, then choose a project
+in chat before sending a task. A configured nonempty default must be an existing
+absolute directory. Changing the default never moves an existing conversation or
+overrides a peer's selected project.
 
 - Slack: create/install a Slack app, enable Socket Mode and subscribe to
   `message.im`. Bot Token needs `chat:write` and `im:history`; App Token needs
@@ -100,15 +103,40 @@ These actions do not delete conversations or cancel work already accepted.
 Only approved private text chats are accepted. Groups, bot-originated messages and
 media are ignored. Each platform/sender/chat binding owns an independent current
 conversation. Plain text starts a local AX session or continues that conversation.
-Authorization grants access to the selected workspace through AX permissions;
+Project selection is independent for each platform/sender/chat binding.
+Authorization permits selecting existing local projects/directories through AX permissions;
 separate conversations are not per-account filesystem sandboxes.
 
 - `/help`, `/start`: command help.
-- `/new`: a new conversation after current work ends or is cancelled.
-- `/status`: current task, terminal text and pending questions/approvals.
+- `/projects [page]`: list available local Crew projects, registered local AX
+  workspaces, the default and the peer's selected directory. Lists use eight
+  entries per page and include copyable selection commands; remote projects and
+  missing directories are omitted.
+- `/project`: show the current project. `/project <project ID, exact name or
+  existing absolute directory>` selects a project and prepares a fresh conversation.
+  IDs in the list are stable; ambiguous names require an ID. Quoted paths with
+  spaces are accepted. `default` selects the configured default directory.
+- `/new [project ID, exact name or existing absolute directory]`: prepare a new
+  conversation in the current project, or select the supplied project. The first
+  ordinary text creates its first task. Existing conversations remain available.
+- `/sessions [page]`: list only conversations created by this peer through this
+  channel, across its projects, eight per page. Existing pre-upgrade current
+  bindings are retained lazily; discarded pre-upgrade history cannot be recovered.
+- `/session <conversation ID>`: switch to an entry from this peer's history and
+  restore its original workspace. The stable conversation ID is its first stored
+  task ID; subsequent turns update its latest task without adding duplicate entries.
+  Desktop-only conversations and another peer's IDs cannot be selected.
+- `/status`: current project/directory, task, terminal text and pending questions/approvals.
 - `/cancel`: cancel this peer's current task.
 - `/allow <request_id>`: allow one pending tool action in this conversation.
 - `/deny <request_id>`: reject one pending tool action in this conversation.
+
+New/project/history switches require current work, including pending questions or
+approvals, to finish or be cancelled first. Active desktop turns in the same bound
+conversation also prevent leaving it. Switching does not cancel or move work.
+Deleted history tasks are omitted from the list; selecting one or a missing
+workspace returns an error. Project and history commands are handled directly by
+Crew rather than passed to the model.
 
 Session/question APIs and ApprovalBroker remain authoritative. Channel turns
 narrow Allow environments to Ask and retain Deny environments. There is no chat
@@ -140,7 +168,9 @@ This is not transactional exactly-once delivery across a chat platform and Crew.
 ## Storage and management API
 
 `chat-channels.dat` beside the Crew database contains configuration, credentials,
-bindings, cursors and the bounded inbox. Writes persist before memory changes.
+bindings, each peer's selected directory and conversation bookmarks, cursors and
+the bounded inbox. Older sidecars load with empty project/history fields.
+Writes persist before memory changes.
 Windows uses current-user DPAPI for the entire file. On Unix the JSON sidecar is
 created with owner-only mode 0600; protect its directory/backups. Never upload it.
 Status returns no app secrets, bot tokens or Weixin context/login tokens.
@@ -151,7 +181,7 @@ Only the desktop administrator token can manage channels:
 - `PUT /api/channels/{platform}`: `{enabled,cwd,app_id?,secret?,app_token?,tenant_id?,public_url?,bridge_path?,database_path?}`; an omitted/empty
   secret/App Token retains the stored credential. Status additionally exposes
   `available`, `app_token_configured`, non-secret bridge/tenant/public URL fields,
-  and the current WhatsApp QR challenge for the desktop only. Enabling requires a workspace/credential.
+  and the current WhatsApp QR challenge for the desktop only. Enabling requires credentials; `cwd` may be empty. A nonempty default must be an existing absolute directory.
 - `POST /api/channels/whatsapp/install`: desktop-admin installation/repair of the
   pinned optional companion dependency. Requires Node.js/npm and network access.
 - `POST /api/messaging/teams`: Microsoft-authenticated public Bot Framework

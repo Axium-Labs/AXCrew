@@ -19,7 +19,7 @@ fn headers(app: &App) -> Result<HeaderMap> {
     );
     Ok(headers)
 }
-fn active(task: &Task) -> bool {
+pub(super) fn active(task: &Task) -> bool {
     matches!(
         task.status.as_str(),
         "pending" | "ready" | "running" | "waiting_permission" | "waiting_user"
@@ -89,16 +89,20 @@ async fn command(
         .transpose()?
         .flatten();
     if text == "/help" || text == "/start" {
-        return Ok("直接发送文字开始或继续会话。\n/new 新建会话\n/status 查看状态和结果\n/cancel 取消当前任务\n/allow 编号 允许一次工具操作\n/deny 编号 拒绝操作\n每个账号的会话独立，权限仍由 AX 控制。".into());
+        return Ok("直接发送文字开始或继续会话。\n/projects [页码] 查看本机项目\n/project 项目ID或名称或现有绝对路径 切换项目并准备新会话\n/new [项目ID或名称或现有绝对路径] 新建会话\n/sessions [页码] 查看自己的历史会话\n/session 会话ID 切换历史会话\n/status 查看当前项目、状态和结果\n/cancel 取消当前任务\n/allow 编号 允许一次工具操作\n/deny 编号 拒绝操作\n每个账号的会话独立，权限仍由 AX 控制。".into());
     }
     if text == "/axcrew_message_too_large" {
         return Ok("消息超过 16000 字节，请缩短后重新发送；这条消息没有执行。".into());
     }
     if text == "/status" {
-        return task
+        let state = task
             .as_ref()
             .map(|t| describe(app, t))
-            .unwrap_or_else(|| Ok("还没有会话，发送文字即可开始。".into()));
+            .unwrap_or_else(|| Ok("还没有会话，发送文字即可开始。".into()))?;
+        return Ok(format!(
+            "{}\n{state}",
+            super::conversations::summary(app, cfg, peer)?
+        ));
     }
     if text == "/cancel" {
         if let Some(task) = &task {
@@ -107,23 +111,8 @@ async fn command(
         }
         return Ok("没有可取消的任务。".into());
     }
-    if text == "/new" {
-        ensure!(
-            !task.as_ref().is_some_and(active),
-            "当前任务还在执行，请先 /cancel 或等待完成"
-        );
-        app.channels.store.update(|state| {
-            if let Some(p) = state
-                .configs
-                .get_mut(platform)
-                .and_then(|c| c.peers.iter_mut().find(|p| p.id == peer.id))
-            {
-                p.task = None;
-                p.notified.clear();
-            }
-            Ok(())
-        })?;
-        return Ok("已新建会话，发送文字开始。".into());
+    if let Some(response) = super::conversations::command(app, platform, cfg, peer, text)? {
+        return Ok(response);
     }
     if let Some((allow, id)) = text
         .strip_prefix("/allow ")
@@ -150,6 +139,10 @@ async fn command(
     }
     ensure!(!text.starts_with('/'), "未知命令，请发送 /help");
     ensure!(
+        peer.task.is_none() || task.is_some(),
+        "当前会话已删除，请发送 /new 新建会话"
+    );
+    ensure!(
         task.as_ref()
             .is_none_or(|t| !active(t) || t.status == "waiting_user"),
         "任务正在执行，请等待完成，或发送 /status、/cancel"
@@ -159,7 +152,12 @@ async fn command(
             .member(&task.assigned_member)?
             .ok_or_else(|| anyhow::anyhow!("会话环境已删除，请发送 /new"))?
     } else {
-        app.db.ensure_local_session_member(&cfg.cwd, None, None)?
+        let cwd = super::conversations::workspace(app, cfg, peer)?;
+        ensure!(
+            !cwd.is_empty(),
+            "尚未选择项目，请发送 /projects，再发送 /project 项目ID"
+        );
+        app.db.ensure_local_session_member(&cwd, None, None)?
     };
     // Preserve an explicit Deny environment. An Allow environment is narrowed to Ask.
     let permission = if member.permission_profile == "deny" {
@@ -168,6 +166,7 @@ async fn command(
         Some("ask")
     };
     let body = json!({"text":text,"permission_profile":permission,"member_id":member.id});
+    let history = super::conversations::history(app, peer)?;
     let result = if let Some(task) = task {
         sessions::session_message(
             State(app.clone()),
@@ -186,15 +185,16 @@ async fn command(
     }
     .map_err(|_| anyhow::anyhow!("任务提交未确认，请在电脑端检查会话；不会自动重发"))?
     .0;
-    app.channels.store.update(|state| {
-        for channel in state.configs.values_mut() {
-            if let Some(p) = channel.peers.iter_mut().find(|p| p.id == peer.id) {
-                p.task = Some(result.id.clone());
-                p.notified.clear();
-                break;
-            }
-        }
+    super::conversations::update_peer(app, platform, cfg, peer, |p| {
+        p.conversations = history;
+        super::conversations::remember(p, &result, &member.cwd);
         Ok(())
+    })
+    .map_err(|_| {
+        anyhow::anyhow!(
+            "任务已接收，但会话记录保存未确认，请在电脑端检查任务 {}；不要重复发送",
+            result.id
+        )
     })?;
     Ok(format!("已接收，任务 {}。", result.id))
 }

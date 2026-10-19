@@ -37,6 +37,17 @@ pub struct Peer {
     pub task: Option<String>,
     pub context: String,
     pub notified: String,
+    /// Empty means use the channel default until a project is selected.
+    pub cwd: String,
+    pub conversations: Vec<ChannelConversation>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ChannelConversation {
+    /// Stable first-turn ID; `task` advances as the conversation continues.
+    pub id: String,
+    pub task: String,
+    pub cwd: String,
+    pub title: String,
 }
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Inbound {

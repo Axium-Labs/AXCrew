@@ -1,4 +1,5 @@
 //! Opt-in chat connections. Teams uses a signed callback; other adapters are outbound/local.
+mod conversations;
 pub mod discord;
 mod dispatch;
 pub mod feishu;
@@ -53,6 +54,14 @@ pub struct Update {
     pub bridge_path: Option<String>,
     pub database_path: Option<String>,
 }
+fn validate_default_workspace(cwd: &str) -> Result<()> {
+    let path = std::path::Path::new(cwd);
+    ensure!(
+        cwd.is_empty() || (path.is_absolute() && path.is_dir()),
+        "默认项目目录不存在，请选择现有绝对路径或留空后在聊天中选择项目"
+    );
+    Ok(())
+}
 impl Channels {
     pub fn load(args: &Args) -> Result<Arc<Self>> {
         Ok(Arc::new(Self {
@@ -98,10 +107,7 @@ impl Channels {
                 platform != "imessage" || cfg!(target_os = "macos"),
                 "iMessage 需要 macOS 与已登录的 Messages"
             );
-            ensure!(
-                std::path::Path::new(&body.cwd).is_dir(),
-                "请选择存在的工作目录"
-            );
+            validate_default_workspace(&body.cwd)?;
         }
         // Serialize Weixin configuration changes with QR completion.
         let mut login_guard = if platform == "weixin" {

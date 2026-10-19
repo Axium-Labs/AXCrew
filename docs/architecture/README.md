@@ -23,6 +23,18 @@ store or scheduling loop. Event history redacts question/answer content.
 
 ## Documents
 
+Desktop website browsing uses `WebPreviewPanel.tsx` to own independent tabs and
+`NativeWebPreview.tsx` to synchronize each child webview with the active panel.
+`src-tauri/src/preview_browser.rs` owns
+creation, URL validation, bounds, navigation and closure through a main-webview-only
+command. DOM bounds are clipped to the panel/viewport and converted from CSS to
+physical pixels using the main webview size, including UI zoom/display scaling.
+Inactive tabs hide their child while retaining page state; closing a tab or
+conversation destroys its view. Native title and new-window events target the
+main view; popups create new tabs. Children receive no remote capabilities and
+downloads are rejected. This uses Tauri's `unstable` multiwebview
+feature. Browser-only development retains the sandboxed iframe fallback.
+
 | Document | Contents |
 |---|---|
 | [../distributed-collaboration.md](../distributed-collaboration.md) | Additive distributed models, storage, orchestration and API modules. |
@@ -271,6 +283,6 @@ or scheduler is introduced.
 
 ## Chat channels
 
-`channels/` owns ten chat adapters: Slack/Discord/WeCom/Feishu WebSockets, Telegram/Weixin/Webex HTTPS polling, authenticated Teams HTTPS ingress and supervised iMessage/WhatsApp stdio companions, per-platform dispatch and peer-isolated sessions. `domain/channel.rs` describes configuration/inbox state; `storage/channels.rs` persists its protected sidecar. `api/channels.rs` is a desktop-admin management surface. The dispatcher reuses session APIs and ApprovalBroker. Native Android LAN phone permissions live in `auth/phone.rs`, independent of messaging. The removed IPv6/relay phone transport has no module, listener or endpoint. See [chat channels](../chat-channels.md).
+`channels/` owns ten chat adapters: Slack/Discord/WeCom/Feishu WebSockets, Telegram/Weixin/Webex HTTPS polling, authenticated Teams HTTPS ingress and supervised iMessage/WhatsApp stdio companions, per-platform dispatch and peer-isolated sessions. `domain/channel.rs` describes configuration/inbox state; `storage/channels.rs` persists its protected sidecar. `api/channels.rs` is a desktop-admin management surface. The dispatcher reuses session APIs and ApprovalBroker. `channels/conversations.rs` resolves existing local projects and maintains per-peer selected directories and stable conversation bookmarks in the protected sidecar. Project/history switches preserve workspace bindings and reject leaving active work. Optional channel defaults do not override peer selection; history lookup never adopts arbitrary desktop or other-peer tasks. Native Android LAN phone permissions live in `auth/phone.rs`, independent of messaging. The removed IPv6/relay phone transport has no module, listener or endpoint. See [chat channels](../chat-channels.md).
 
 `channels/live.rs` correlates bounded outgoing requests with socket/child acknowledgements. `apps/channel-bridge/` holds the embedded WhatsApp companion and pinned optional dependency manifest/lockfile. Configuration generations isolate reconnections; desktop management remains admin-only while `/api/messaging/teams` verifies Microsoft JWTs.

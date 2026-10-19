@@ -75,10 +75,7 @@ pub async fn begin(channels: &Channels) -> Result<Value> {
         .get("weixin")
         .cloned()
         .unwrap_or_default();
-    ensure!(
-        std::path::Path::new(&cfg.cwd).is_dir(),
-        "请先保存存在的工作目录"
-    );
+    super::validate_default_workspace(&cfg.cwd)?;
     let id = uuid::Uuid::new_v4().to_string();
     {
         let mut login = channels.login.lock().unwrap();
@@ -176,7 +173,7 @@ pub async fn poll(channels: &Channels, id: &str, verify: Option<&str>) -> Result
                 .ok_or_else(|| anyhow::anyhow!("微信未返回账号"))?;
             channels.store.update(|state| {
                 let cfg = state.configs.entry("weixin".into()).or_default();
-                ensure!(std::path::Path::new(&cfg.cwd).is_dir(), "工作目录不可用");
+                super::validate_default_workspace(&cfg.cwd)?;
                 cfg.secret = token.into();
                 cfg.account = account.into();
                 cfg.origin = host;
