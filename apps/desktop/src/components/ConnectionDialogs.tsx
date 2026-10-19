@@ -56,6 +56,8 @@ export function FolderDialog({device,onClose,onSelect}:{device:string|null;onClo
 export function ProjectDialog({open,onClose,onCreated}:{open:boolean;onClose:()=>void;onCreated:(project:Project)=>void}){
   const text=useConnectionText(),query=useQueryClient(),devices=useDevices()
   const [name,setName]=useState(''),[device,setDevice]=useState('local'),[cwd,setCwd]=useState(''),[folder,setFolder]=useState<string|null>(null),[ssh,setSsh]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('')
+  const folderName=cwd.replace(/[\\/]+$/,'').split(/[\\/]/).at(-1)||cwd
+  const projectName=name.trim()||folderName
   const choose=async()=>{setError('');if(device==='local'&&isTauri()){try{const selected=await pickDirectory({directory:true,multiple:false});if(typeof selected==='string')setCwd(selected)}catch(e){setError(String(e))}}else setFolder(device)}
   const change=(id:string)=>{setDevice(id);setCwd('');setError('')}
   const selectDevice=async(id:string,status:string)=>{
@@ -65,8 +67,8 @@ export function ProjectDialog({open,onClose,onCreated}:{open:boolean;onClose:()=
     }else change(id)
   }
   return <><Dialog open={open} onOpenChange={value=>{if(!value&&!busy)onClose()}} title={text('创建项目','Create project')} className="connection-dialog project-dialog">
-    <form onSubmit={async event=>{event.preventDefault();setBusy(true);setError('');try{const project=await connections.createProject({name:name.trim(),device_id:device,cwd});await query.invalidateQueries({queryKey:['named-projects']});await query.invalidateQueries({queryKey:['allMembers']});await query.invalidateQueries({queryKey:['members']});await query.invalidateQueries({queryKey:['crews']});onCreated(project);setName('');setCwd('');onClose()}catch(e){setError(String(e))}finally{setBusy(false)}}}>
-      <div className="connection-name"><Folder size={21}/><input aria-label={text('项目名称','Project name')} placeholder={text('项目名称','Project name')} required value={name} onChange={e=>setName(e.target.value)}/></div>
+    <form onSubmit={async event=>{event.preventDefault();if(busy||!projectName||!cwd)return;setBusy(true);setError('');try{const project=await connections.createProject({name:projectName,device_id:device,cwd});await query.invalidateQueries({queryKey:['named-projects']});await query.invalidateQueries({queryKey:['allMembers']});await query.invalidateQueries({queryKey:['members']});await query.invalidateQueries({queryKey:['crews']});onCreated(project);setName('');setCwd('');onClose()}catch(e){setError(String(e))}finally{setBusy(false)}}}>
+      <div className="connection-name"><Folder size={21}/><input aria-label={text('项目名称','Project name')} placeholder={folderName||text('项目名称（可选）','Project name (optional)')} value={name} onChange={e=>setName(e.target.value)}/></div>
       <h3>{text('源文件夹','Source folder')}</h3><div className="project-source">
         <Menu className="project-host-menu" trigger={<button type="button">{device==='local'?text('在此电脑上添加文件夹','Add folders on this computer'):devices.data?.find(d=>d.id===device)?.name??device}<ChevronDown size={18}/></button>} items={[
           {label:<><Laptop size={18}/>{text('此电脑','This computer')}{device==='local'&&<Check size={16}/>}</>,action:()=>change('local')},
@@ -77,7 +79,7 @@ export function ProjectDialog({open,onClose,onCreated}:{open:boolean;onClose:()=
         ]}/>
         {cwd?<div className="project-source-path"><Folder size={18}/><span title={cwd}>{cwd}</span><button type="button" onClick={()=>setCwd('')}>×</button></div>:<button className="project-folder-add" type="button" onClick={()=>void choose()}><FolderPlus size={19}/>{text('添加','Add')}</button>}
       </div>{error&&<p className="connection-error" role="alert">{error}</p>}
-      <footer className="connection-footer"><button type="button" disabled={busy} onClick={onClose}>{text('取消','Cancel')}</button><button className="connection-primary" disabled={busy||!name.trim()||!cwd}>{busy?text('创建中…','Creating…'):text('创建项目','Create project')}</button></footer>
+      <footer className="connection-footer"><button type="button" disabled={busy} onClick={onClose}>{text('取消','Cancel')}</button><button className="connection-primary" disabled={busy||!projectName||!cwd}>{busy?text('创建中…','Creating…'):text('创建项目','Create project')}</button></footer>
     </form>
   </Dialog><FolderDialog key={folder??'none'} device={folder} onClose={()=>setFolder(null)} onSelect={setCwd}/><SshDialog open={ssh} onClose={()=>setSsh(false)}/></>
 }

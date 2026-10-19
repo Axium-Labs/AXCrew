@@ -34,6 +34,13 @@ These are treated as contracts, not implementation details:
   is stable. The `payload.sessionUpdate` values (`agent_message_chunk`,
   `agent_thought_chunk`, `agent_question`, `tool_call`, `tool_call_update`, `turn_changes`) are
   shared with the ACP adapter.
+- **Model connection updates**: additive `payload.sessionUpdate: "model_connection"`
+  carries `status` (`connecting`, `retrying`, `connected`, `failed`), 1-based
+  `attempt`, `maxAttempts` (at most 5) and optional `error`. These frames remain
+  live status rather than assistant messages. A terminal failed frame is retained
+  as optional `output.model_connection` on the failed task and its final event,
+  so clients can restore the specific failure after reconnecting. The task state
+  machine and REST routes are unchanged.
 - **ACP**: line-delimited JSON-RPC 2.0 with `initialize`, `session/new`,
   `session/load`, `session/resume`, `session/prompt`, `session/cancel`, the
   permission response, the read-only `_ax/*` catalogue extensions and additive

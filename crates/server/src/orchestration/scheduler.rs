@@ -422,11 +422,15 @@ impl Scheduler {
                 .await
         });
         tokio::pin!(handle);
+        let mut model_connection = None;
         let result = loop {
             tokio::select! {
                 event=rx.recv()=>if let Some(event)=event {match event {
                     TransportEvent::Bound(session)=>{if let Err(e)=self.db.bind(&task,&session){eprintln!("binding: {e}");}else{self.emit("session.bound",Some(&task),json!({"ax_session_id":session}));}},
-                    TransportEvent::Update(value)=>self.map_update(&task,value),
+                    TransportEvent::Update(value)=>{
+                        if value["sessionUpdate"] == "model_connection" { model_connection = Some(value.clone()); }
+                        self.map_update(&task,value);
+                    },
                 }},
                 outcome=&mut handle=>break outcome.map_err(|e|anyhow!(e)).and_then(|r|r),
             }
@@ -442,7 +446,12 @@ impl Scheduler {
                         );
                     }
                 }
-                TransportEvent::Update(value) => self.map_update(&task, value),
+                TransportEvent::Update(value) => {
+                    if value["sessionUpdate"] == "model_connection" {
+                        model_connection = Some(value.clone());
+                    }
+                    self.map_update(&task, value);
+                }
             }
         }
         // A cancel or revoke wins over a late completion from the transport.
@@ -478,7 +487,9 @@ impl Scheduler {
                 self.emit("task.completed", Some(&task), output);
             }
             Err(e) => {
-                if task.assigned_device != "local"
+                let model_failure = model_connection.filter(|value| value["status"] == "failed");
+                if model_failure.is_none()
+                    && task.assigned_device != "local"
                     && (e.to_string().contains("disconnected") || e.to_string().contains("offline"))
                 {
                     let _ = self.db.set_device_status(&task.assigned_device, "offline");
@@ -492,7 +503,10 @@ impl Scheduler {
                         json!({"resume_session":true}),
                     );
                 } else {
-                    let value = json!({"error":e.to_string()});
+                    let mut value = json!({"error":e.to_string()});
+                    if let Some(connection) = model_failure {
+                        value["model_connection"] = connection;
+                    }
                     let _ = self.db.set_status(&task.id, "failed", Some(value.clone()));
                     let _ = self.db.finish_run(&task.id, "failed", Some(&e.to_string()));
                     self.emit("task.failed", Some(&task), value);

@@ -7,7 +7,7 @@ const RESTORE_MARGIN = 24
 
 export type LayoutInput = {
   width: number; navigation: boolean; list: boolean; right: boolean
-  rightTab: 'files' | 'chat' | 'details'; chat: boolean; ratio: number
+  rightTab: 'files' | 'chat' | 'details' | 'preview'; chat: boolean; ratio: number
 }
 export type WorkspaceLayout = {
   navigation: 'expanded' | 'compact' | 'hidden'
@@ -23,7 +23,7 @@ export function clampSplit(ratio: number, width: number, rightMin: number) {
 
 /** One budget, measured outside the panels. Automatic decisions never write preferences. */
 export function resolveWorkspaceLayout(input: LayoutInput, previous?: WorkspaceLayout): WorkspaceLayout {
-  const width = Math.max(0, input.width), rightMin = input.rightTab === 'files' ? 420 : 320
+  const width = Math.max(0, input.width), rightMin = (input.rightTab === 'files' || input.rightTab === 'preview') ? 420 : 320
   const chatVisible = input.chat || !input.right
   const rightNeeded = input.right && chatVisible ? rightMin + PANEL_GAP : 0
   const listNeeded = input.list ? LIST_WIDTH + PANEL_GAP : 0
@@ -39,8 +39,8 @@ export function resolveWorkspaceLayout(input: LayoutInput, previous?: WorkspaceL
   const rightDocked = input.right && chatVisible && splitWidth >= CHAT_MIN + rightMin + (previous?.rightMode === 'drawer' ? RESTORE_MARGIN : 0)
   const rightMode = !input.right ? 'closed' : !chatVisible ? 'full' : rightDocked ? 'docked' : 'drawer'
   const rightWidth = rightMode === 'docked'
-    ? input.rightTab === 'files' ? clampSplit(input.ratio, splitWidth, rightMin) : Math.min(380, splitWidth - CHAT_MIN)
-    : rightMode === 'full' ? available : Math.min(input.rightTab === 'files' ? 900 : 380, workspaceWidth * .94)
+    ? (input.rightTab === 'files' || input.rightTab === 'preview') ? clampSplit(input.ratio, splitWidth, rightMin) : Math.min(380, splitWidth - CHAT_MIN)
+    : rightMode === 'full' ? available : Math.min((input.rightTab === 'files' || input.rightTab === 'preview') ? 900 : 380, workspaceWidth * .94)
   return {
     navigation: navigationExpanded ? 'expanded' : navigationWidth ? 'compact' : 'hidden', navigationWidth,
     listDocked, rightMode, workspaceWidth, splitWidth, rightWidth, rightMin,

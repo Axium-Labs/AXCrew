@@ -1,8 +1,19 @@
 # AX Crew
 
+When adding a desktop project, leaving its name blank uses the selected folder
+name. An explicitly entered project name takes priority.
+
+Desktop progress messages, guidance and tool groups stay in chronological order
+after Stop. Thought details are collapsed individually; interrupted progress is
+not promoted to a final answer, and unfinished tool rows show Stopped.
+
 Stopping a chat keeps its accepted message and received output visible during
 history reloads. Matching AX builds bound automatic file snapshots so large
 workspaces can continue chatting when a complete change preview is unavailable.
+
+Chat displays model connection and reconnection counts (up to five requests with
+a matching AX), then shows a specific model connection error if it cannot recover.
+The final error and count remain available after reopening the conversation.
 
 A Rust control plane that orchestrates and controls AX agents across multiple
 machines — and keeps their work running when a machine goes away.
@@ -385,3 +396,23 @@ Desktop Settings → Display offers 28 additional color themes alongside AXCrew,
 Android 客户端允许正常截图和录屏。手机扫码连接使用局域网；账号授权、接口权限限制和撤销仍然生效。
 
 设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](docs/chat-channels.md)。
+
+
+### Web preview and compact change review
+
+The desktop conversation sidebar has a resizable Preview tab with an HTTP(S)
+address field and reload. Local dev-server URLs found in the current conversation
+are offered as buttons and load only after a click. Interactive embedded pages can
+receive their dev server's live updates. URLs with credentials, privileged schemes
+and the application origin are rejected. Pages may prohibit embedding; remote
+projects need a reachable URL or an already forwarded port. Switching conversations
+clears the preview. The panel does not start servers or forward ports automatically.
+
+Ask AX to inspect inserts the preview URL into the composer for the user to send.
+AX uses its existing separate browser tool; embedded page cookies, clicks and DOM
+are not shared with it. Existing browser tool restrictions still apply.
+
+File change summaries use compact rows, aligned counts, truncated paths with full
+path tooltips, and the existing sidebar diff viewer. Unavailable undo is omitted.
+Allowed Computer Use applications no longer trigger generic per-action prompts;
+explicit task Ask/Deny and capability Deny still apply. Website rules are unchanged.

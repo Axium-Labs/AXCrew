@@ -68,7 +68,7 @@ import kotlinx.coroutines.delay
     val connected = state.crew.connection == "已连接"
     val approvals = state.crew.snapshot.permissions
     val response = when (task?.status) {
-        "failed" -> "任务失败。${task.output?.str("error").orEmpty()}"
+        "failed" -> modelConnectionText(task.output?.get("model_connection").obj()) ?: "回复未完成。${task.output?.str("error").orEmpty()}"
         "cancelled" -> "任务已停止。"
         else -> task?.output?.str("text").orEmpty().ifBlank {
             transcript(state.crew.streams[call.taskId].orEmpty()).lastOrNull { it.role == "AX" }?.text.orEmpty()
@@ -127,13 +127,15 @@ import kotlinx.coroutines.delay
     val started = rememberSaveable(call.key) { SystemClock.elapsedRealtime() }
     var elapsed by remember { mutableLongStateOf(0) }
     LaunchedEffect(call.key) { while (true) { elapsed = ((SystemClock.elapsedRealtime() - started) / 1000).coerceAtLeast(0); delay(1000) } }
+    val connectionUpdate = state.crew.streams[call.taskId].orEmpty().lastOrNull { it.str("sessionUpdate") == "model_connection" }
+    val connectingLabel = connectionUpdate?.takeIf { it.str("status") in listOf("connecting", "retrying") }?.let(::modelConnectionText)
     val title = when {
         call.error != null -> "请检查提交结果"
         !connected -> "等待 Gateway 连接"
         approvals.isNotEmpty() -> "电脑正在等待审批"
         call.paused -> "通话已暂停"
         call.sending -> "正在发送给电脑"
-        waiting -> "电脑正在执行"
+        waiting -> connectingLabel ?: "电脑正在执行"
         sound.phase == "speaking" -> "AX 正在回复"
         sound.phase == "recognizing" -> "正在识别"
         sound.phase == "listening" -> "正在听，请说话"

@@ -20,7 +20,7 @@ export function HostPermissionsPanel({ surface }: { surface: 'computer' | 'brows
   return <section className="settings-card host-permissions-panel" aria-busy={save.isPending}>
     <h2>{title}</h2>
     {surface === 'browser' && <SettingsToggle label={zh ? '启用 Browser Use' : 'Enable Browser Use'} checked={query.data.browser_enabled} disabled={save.isPending} onChange={event => save.mutate({ browser_enabled: event.target.checked })} description={zh ? '使用 AX 独立管理的浏览器会话，不共享日常浏览器的登录状态。' : 'Use an AX-owned browser session, separate from your personal browser profile.'}/>}
-    <p>{zh ? '访问授权与文件、终端沙箱分别管理。首次访问会询问，可选择仅此次、本会话或始终允许；具体操作仍遵循审批。' : 'Access is separate from the file and terminal sandbox. First use asks for once, session or persistent access; action approvals still apply.'}</p>
+    <p>{surface === 'computer' ? (zh ? '已允许的应用无需在会话中重复确认。拒绝规则及任务明确要求的审批仍然生效；文件和终端沙箱独立管理。' : 'Allowed applications do not ask again in chat. Denials and explicit task approval rules still apply; file and terminal sandbox settings are separate.') : (zh ? '网站访问授权独立管理；具体浏览器操作仍遵循审批。' : 'Website access is managed separately; browser action approvals still apply.')}</p>
     {Object.entries(entries).length === 0 && <p>{zh ? '暂无保存的权限规则。' : 'No saved access rules.'}</p>}
     {Object.entries(entries).map(([id, value]) => <div className="host-permission-row" key={id}>
       <span title={id}>{id}</span>

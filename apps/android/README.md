@@ -1,5 +1,7 @@
 # AX Crew Android
 
+会话和语音通话会显示 AX 提供的模型连接/重连次数，最多 5 次请求；模型无法连接时显示具体连接失败信息。最终失败次数保存在任务输出中，重新打开会话仍可查看。需要匹配的新版 AX 和 AXCrew 后端。
+
 AX Crew 的原生 Android 控制客户端。Kotlin、Compose Material 3、Navigation Compose、ViewModel/StateFlow、Coroutines、OkHttp 和 Kotlin Serialization。最低 Android 8.0 / API 26。
 
 手机控制的是电脑端同一个 Crew Gateway，或单独部署的 Crew Gateway；不会启动 AX Runtime、执行 SSH、打开远程 shell 或保存模型提供商密钥。架构及桌面功能对应关系见 [桌面实现与 Android 对应关系](../../docs/architecture/android-migration.md)。

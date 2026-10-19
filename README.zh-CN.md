@@ -1,6 +1,13 @@
 # AX Crew
 
+桌面端添加项目时，名称留空会自动使用所选文件夹名；手动填写的项目名优先。
+
+桌面聊天在停止后按发生顺序保留进度、补充指导和工具操作；思考内容默认单独折叠，
+中断的进度不会被当成最终回答，未结束的工具显示“已停止”。
+
 用 Rust 编写的控制平面：编排并控制多台机器上的 AX Agent，并在机器掉线时保持工作持续运行。
+
+会话会显示“正在连接模型”“正在重新连接模型”和实际连接次数（匹配新版 AX 时最多 5 次请求）。无法恢复时显示“模型连接失败”和原因，重新打开会话仍能看到最终失败次数。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](crates/server/Cargo.toml)
 [![Rust 1.92+](https://img.shields.io/badge/rust-1.92+-orange)](https://www.rust-lang.org)

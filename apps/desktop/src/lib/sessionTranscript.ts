@@ -1,5 +1,6 @@
 import type { CrewEvent, SessionHistory, Task } from './types'
 import { translate } from './i18n'
+import { modelConnection, type ModelConnection } from './modelConnection'
 
 export function transcriptTurns(lines: SessionLine[]) {
   const turns: SessionLine[][] = []
@@ -17,7 +18,7 @@ export function transcriptTurns(lines: SessionLine[]) {
  */
 export type ChangedFile = { path:string; additions:number; deletions:number; diff?:string|null; binary?:boolean; change?:'created'|'modified'|'deleted' }
 export type SessionImage = {path?:string;name:string;src?:string}
-export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; steering?:boolean; text:string; images?:SessionImage[]; operation?:string; output?:string; rawOutput?:string; toolKind?:string; toolInput?:Record<string,unknown>; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
+export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; connection?:ModelConnection; steering?:boolean; text:string; images?:SessionImage[]; operation?:string; output?:string; rawOutput?:string; toolKind?:string; toolInput?:Record<string,unknown>; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
 
 /**
  * The view keeps one transcript row per message, so a tool result is capped
@@ -150,6 +151,16 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
   const lines:SessionLine[]=[]
   for(const {update,at} of entries){
     const kind=String(update.sessionUpdate??'')
+    if(kind==='model_connection'){
+      const connection=modelConnection(update)
+      if(!connection)continue
+      const key=`model-connection-${lines.findLast(line=>line.type==='user'&&!line.steering)?.key??'current'}`
+      const index=lines.findIndex(line=>line.key===key)
+      const line:SessionLine={type:'thought',text:'',key,connection,at}
+      if(index>=0)lines[index]=line
+      else lines.push(line)
+      continue
+    }
     if(kind==='workspace_changes_unavailable'){
       if(!lines.some(line=>line.key==='workspace-changes-unavailable'))lines.push({type:'thought',text:translate('session.changePreviewUnavailable'),key:'workspace-changes-unavailable',at})
       continue
@@ -169,7 +180,7 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
       const steering=type==='user'&&(update._ax as {steering?:boolean}|undefined)?.steering===true
       if(type==='user'&&!lines.length)lines.push(...contextLines(text))
       // A streamed message keeps the time of its first chunk, so the label does not drift.
-      if(lines.at(-1)?.type===type&&(!key||lines.at(-1)?.key===key)){lines[lines.length-1].text+=text;lines[lines.length-1].end=at??lines.at(-1)?.end}
+      if(lines.at(-1)?.type===type&&!lines.at(-1)?.connection&&(!key||lines.at(-1)?.key===key)){lines[lines.length-1].text+=text;lines[lines.length-1].end=at??lines.at(-1)?.end}
       else lines.push({type,text,key:key??`${lines.length}-${type}`,...(steering?{steering:true}:{}),...(at===undefined?{}:{at})})
     }else if(kind==='tool_call'||kind==='tool_call_update'){
       const call=lines.findLast(line=>line.key===update.toolCallId)
@@ -193,6 +204,10 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
 export function conversationTranscript(history:SessionHistory|undefined, events:CrewEvent[], task:Task|undefined, includeCurrent:boolean):SessionLine[]{
   const saved=transcript(history)
   if(!task)return saved.map(userLine)
+  const failedConnection=task.status==='failed'?modelConnection(task.output?.model_connection):undefined
+  if(failedConnection?.status==='failed'&&!events.some(event=>event.payload.sessionUpdate==='model_connection'&&event.payload.status==='failed')){
+    events=[...events,{event_id:`model-failure-${task.id}`,timestamp:task.finished_at??0,kind:'agent.update',crew_id:null,member_id:null,device_id:null,task_id:task.id,session_id:null,payload:{sessionUpdate:'model_connection',...failedConnection}}]
+  }
   const prompt=typeof task.input==='string'?task.input:task.input&&typeof task.input==='object'&&'prompt' in task.input?String(task.input.prompt):''
   if(!prompt)return saved.map(userLine)
   const lastUser=saved.findLastIndex(line=>line.type==='user'&&!line.steering)
@@ -200,37 +215,59 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
   // Settled history can omit child tools or race with cancellation checkpoints.
   // Keep those rows by call ID, while saved message prose remains authoritative.
   const retainStream=includeCurrent||task.status==='cancelled'||task.status==='failed'
-  if(!retainStream&&!events.some(event=>['tool_call','tool_call_update','workspace_changes_unavailable'].includes(String(event.payload.sessionUpdate))))return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
+  if(!retainStream&&!events.some(event=>['tool_call','tool_call_update','workspace_changes_unavailable','model_connection'].includes(String(event.payload.sessionUpdate))))return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
   const before=hasCurrent?saved.slice(0,lastUser):saved.length?saved:contextLines(prompt)
   const previous=hasCurrent?saved.slice(lastUser+1):[]
-  const streamed=transcript(undefined,events).filter(line=>retainStream?line.type!=='user'||line.steering:line.type==='tool'||line.key==='workspace-changes-unavailable')
+  const streamed=transcript(undefined,events).filter(line=>line.type!=='user'||line.steering)
   const body=previous.map(line=>({...line}))
-  const offsets=new Map<string,number>()
-  const category=(line:SessionLine)=>line.key==='workspace-changes-unavailable'?'notice':line.changedFiles&&!line.text&&line.type==='agent'?'changes':line.type
-  for(const line of streamed){
+  const category=(line:SessionLine)=>line.connection?'connection':line.key==='workspace-changes-unavailable'?'notice':line.changedFiles&&!line.text&&line.type==='agent'?'changes':line.type
+  const claimed=new Set<number>()
+  // Replay IDs differ from live chunk IDs. Match prose by content, never by its
+  // ordinal category: a missing thought/progress row must not consume another row.
+  const matches=streamed.map(line=>{
     const kind=category(line)
-    const occurrence=offsets.get(kind)??0;offsets.set(kind,occurrence+1)
-    const exact=body.findIndex(item=>category(item)===kind&&item.key===line.key)
-    const match=exact>=0?exact:line.type==='tool'||line.steering?-1:body.map((item,index)=>({item,index})).filter(({item})=>category(item)===kind)[occurrence]?.index??-1
-    if(match<0)body.push({...line})
-    else{
-      const previous=body[match],output=mergeOutput(previous.output,line.output)
-      const rawOutput=mergeOutput(previous.rawOutput,line.rawOutput)
-      body[match]={...previous,...line,key:previous.key,at:previous.at??line.at,status:mergeStatus(previous.status,line.status),text:previous.text.startsWith(line.text)?previous.text:line.text,...(output?{output}:{}),...(rawOutput?{rawOutput}:{})}
+    const generatedKey=/^\d+-(agent|thought|user)$/.test(line.key)
+    const compatible=(item:SessionLine)=>!!item.text&&!!line.text&&(item.text.startsWith(line.text)||line.text.startsWith(item.text))
+    let index=previous.findIndex((item,index)=>!claimed.has(index)&&category(item)===kind&&item.key===line.key&&(!generatedKey||compatible(item)))
+    if(index<0&&!['tool','connection','changes','notice'].includes(kind)&&!line.steering&&line.text){
+      index=previous.findIndex((item,index)=>!claimed.has(index)&&category(item)===kind&&!item.steering&&compatible(item))
     }
-  }
+    if(index>=0)claimed.add(index)
+    return index>=0?body[index]:undefined
+  })
+  let cursor:SessionLine|undefined
+  streamed.forEach((line,index)=>{
+    const matched=matches[index]
+    if(!retainStream&&line.type!=='tool'&&line.key!=='workspace-changes-unavailable'&&!line.connection){
+      if(matched)cursor=matched
+      return
+    }
+    if(!matched){
+      const next=matches.slice(index+1).find(item=>item!==undefined)
+      const position=next?body.indexOf(next):cursor?body.indexOf(cursor)+1:body.length
+      const added={...line}
+      body.splice(position,0,added)
+      cursor=added
+    }else{
+      // A checkpoint can emit a call before its accompanying narration.
+      // Received stream order is authoritative for rows present in both.
+      if(cursor&&body.indexOf(matched)<body.indexOf(cursor)){
+        body.splice(body.indexOf(matched),1)
+        body.splice(body.indexOf(cursor)+1,0,matched)
+      }
+      const output=mergeOutput(matched.output,line.output),rawOutput=mergeOutput(matched.rawOutput,line.rawOutput)
+      Object.assign(matched,{...line,key:matched.key,at:matched.at??line.at,status:mergeStatus(matched.status,line.status),text:matched.text.startsWith(line.text)?matched.text:line.text,...(output?{output}:{}),...(rawOutput?{rawOutput}:{})})
+      cursor=matched
+    }
+  })
   const sentAt=task.created_at?task.created_at*1000:undefined
   return [...before,{type:'user',text:prompt,key:`prompt-${task.id}`,...(sentAt===undefined?{}:{at:sentAt})} as SessionLine,...body].map(userLine)
 }
 
-/**
- * One renderable row of the transcript. Everything a turn did on the way to its
- * answer — thinking, tool calls, the narration between them — collapses into one
- * `process` block, so the answer is the only thing that stays open.
- */
+/** Legacy block projection; chronological turn rendering lives in SessionTranscript. */
 export type TranscriptBlock = { kind:'line'; key:string; line:SessionLine } | { kind:'process'; key:string; lines:SessionLine[]; end?:number }
 
-/** The turn's last answer stays open; every step before and after it folds away. */
+/** Preserve transcript order for consumers of the legacy block projection. */
 export function transcriptBlocks(lines:SessionLine[]):TranscriptBlock[]{
   return lines.map(line=>({kind:'line',key:line.key,line}))
 }

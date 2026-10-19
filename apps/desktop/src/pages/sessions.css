@@ -135,14 +135,15 @@
 .session-tool-card footer{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:8px 14px;font-size:11px}
 .session-tool-card footer button,.session-changes>button{border:0;background:transparent;color:var(--session-muted);font-size:11px}
 .session-tool-status.is-failed,.session-changes em{color:var(--color-danger)}.session-tool-status.is-success,.session-changes b{color:var(--color-success)}
-.session-changes{position:relative;border:1px solid var(--session-border);border-radius:14px;margin:18px 0;font-size:14px;background:var(--session-panel)}
-.session-changes header{display:flex;align-items:center;gap:14px;padding:16px;border-bottom:1px solid var(--session-border)}
-.session-changes-heading{display:flex;flex:1;flex-direction:column;gap:5px}.session-changes-heading strong{font-size:15px}
-.session-changes header button{border:1px solid var(--session-border);border-radius:18px;background:transparent;color:var(--session-text);padding:6px 12px;cursor:pointer}
-.session-change-file{display:flex;gap:8px;padding:13px 16px;color:var(--session-muted);width:100%;border:0;background:transparent;text-align:left;cursor:pointer;font:inherit}
+.session-changes{position:relative;min-width:0;max-width:100%;border:1px solid var(--session-border);border-radius:9px;margin:14px 0;font-size:12px;background:var(--session-panel)}
+.session-changes header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--session-border);flex-wrap:wrap}
+.session-changes-heading{display:flex;flex:1;min-width:120px;flex-direction:row;align-items:center;gap:10px}.session-changes-heading strong{font-size:12px;font-weight:500}
+.session-changes header button{border:0;border-radius:5px;background:transparent;color:var(--session-muted);padding:4px 6px;cursor:pointer;font-size:11px;white-space:nowrap}
+.session-change-file{display:flex;align-items:center;gap:8px;padding:7px 12px;color:var(--session-muted);width:100%;min-width:0;border:0;background:transparent;text-align:left;cursor:pointer;font:inherit}
 .session-change-file:hover,.session-change-file[aria-expanded=true]{background:var(--session-selected)}
-.session-change-file>span{flex:1;overflow-wrap:anywhere}.session-changes b,.session-changes em{font-weight:400;font-style:normal}
-.session-changes-icon{width:52px;height:52px;display:grid;place-items:center;background:var(--session-bg);border-radius:12px;color:var(--session-muted)}
+.session-change-file>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.session-changes b,.session-changes em{font-weight:400;font-style:normal;font-variant-numeric:tabular-nums;flex-shrink:0}
+.session-changes-icon{width:20px;height:20px;flex-shrink:0;display:grid;place-items:center;color:var(--session-muted)}
+.session-changes>button{width:100%;padding:8px 12px;text-align:left;border-top:1px solid var(--session-border);cursor:pointer}.session-changes>button:hover{color:var(--session-text);background:var(--session-hover)}
 .session-changes header .session-changes-undo{border:0;padding:6px;opacity:.5;cursor:not-allowed}
 .session-change-entry{position:relative}.session-change-entry:last-of-type .session-change-file{border-radius:0 0 14px 14px}
 .session-change-preview{position:absolute;z-index:30;bottom:calc(100% - 4px);left:4%;width:92%;border:1px solid var(--session-border);border-radius:14px;overflow:hidden;background:var(--session-bg);box-shadow:0 12px 32px #0005}
@@ -155,7 +156,7 @@
 .session-diff .is-added .session-diff-number{color:var(--color-success)}.session-diff .is-deleted .session-diff-number{color:var(--color-danger)}
 .session-diff-hunk{color:var(--session-muted);font-size:11px;padding-left:16px!important}
 .session-changes-full{padding:12px;border-top:1px solid var(--session-border)}.session-changes-full>button{float:right;border:0;background:transparent;color:var(--session-muted);cursor:pointer}.session-changes-full>section{clear:both;border:1px solid var(--session-border);border-radius:10px;overflow:hidden;margin:12px 0}.session-changes-full header span{flex:1;overflow-wrap:anywhere}
-@media(max-width:600px){.session-changes header{gap:8px;padding:12px}.session-changes-icon{width:36px;height:36px}.session-changes-heading strong{font-size:13px}.session-change-preview{left:0;width:100%}.session-changes header button{padding:5px 8px;font-size:12px}}
+@media(max-width:600px){.session-changes header{gap:8px;padding:12px}.session-changes-icon{width:20px;height:20px}.session-changes-heading strong{font-size:13px}.session-change-preview{left:0;width:100%}.session-changes header button{padding:5px 8px;font-size:12px}}
 .session-transcript-avatar{width:31px;height:31px;flex:none;display:grid;place-items:center;border-radius:10px;background:var(--session-selected);color:var(--session-accent);font-size:11px;font-weight:700}
 .session-transcript-line.is-thought .session-transcript-avatar{background:transparent;color:var(--session-muted)}
 .session-transcript-body{min-width:0;flex:1;color:var(--session-text);font-size:16px;line-height:1.7;overflow-wrap:anywhere}
@@ -579,3 +580,14 @@
 }
 @container composer (max-width:600px){.session-composer-actions{gap:4px;padding:0 8px}}
 @container composer (max-width:350px){.session-model-control small{display:none}.session-composer textarea{padding-left:12px;padding-right:12px}}
+.session-model-connection{margin:12px 0;color:var(--shell-muted);font-size:13px;line-height:1.6}
+.session-model-connection.is-failed{color:var(--color-danger,#d76b6b)}
+.session-model-connection p{margin:0}
+.session-model-connection details{margin-top:6px}
+.session-model-connection summary{cursor:pointer;width:fit-content}
+.session-model-connection pre{margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 var(--font-mono,monospace)}
+
+.session-thought{margin:12px 0;color:var(--session-muted);font-size:13px}
+.session-thought>summary{cursor:pointer;user-select:none}
+.session-thought .session-transcript-line{padding:4px 0}
+.session-tool.is-stopped,.session-tool-status.is-stopped{color:var(--session-muted)}

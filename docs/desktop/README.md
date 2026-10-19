@@ -7,6 +7,16 @@ the settings surfaces and their behaviour.
 
 ## Settings pages
 
+Chat shows AX's model connection progress with actual counts, for example
+`正在连接模型（1/5）…` and `正在重新连接模型（2/5）…`. Once the model responds,
+normal thinking/output replaces that status. A terminal model error shows
+`模型连接失败（已尝试 5/5 次）` with expandable error details outside the collapsed
+work section. The final status is retained in task output for reopening; desktop
+notifications use the same model-specific wording. Counts may end earlier for
+authentication, permission, partial-stream errors or the connection budget.
+The matching AX runtime supplies these events. Existing task lifecycle states
+are preserved for scheduling; the chat presents the model failure explicitly.
+
 Stopping a conversation retains its submitted message, earlier turns and already
 received partial output while history reloads, including when AX has not yet
 checkpointed the current turn. Cancelled and failed tasks reconcile their live
@@ -136,8 +146,9 @@ Playwright and a supported browser installed by the user; no personal browser
 profile is shared. The current driver blocks cross-origin resources, redirect hops,
 WebSockets, popups, uploads and downloads, so some websites cannot work fully.
 
-Application/site access, file/terminal sandbox mode and action approvals are
-independent. ACP access prompts offer once, this session, always and deny through
+Application/site access and file/terminal sandbox mode are independent.
+Allowed Computer Use apps cover ordinary actions; explicit task approval rules
+and capability denials still apply. Browser action approval remains separate. ACP access prompts offer once, this session, always and deny through
 the existing dynamic permission dialog. Generic action approval does not grant a
 new app/site. Desktop control delegates to AX's Windows UIA, Linux AT-SPI or
 macOS Accessibility backend; Unix requires driver dependencies, macOS requires
@@ -283,20 +294,33 @@ conversations show an untitled label. This changes the view, leaving AX's index
 and transcript intact. Already adopted placeholder titles also use this local
 index in the desktop. User-renamed titles keep priority.
 
-The chat area groups work by user turn. During work, thinking and progress prose
-appear inside one expandable process block with a static status label and elapsed
-time. Related calls remain in one group even when progress prose separates them;
-that prose stays available inside the group. A change of operation keeps its
-progress paragraph separate. When work stops, the process block automatically
-folds, including when it was manually expanded, and the last answer stays visible.
-Late replayed tools do not move that answer into the folded block.
+The chat area groups work by user turn. Progress prose, guidance and tool calls
+keep their received order during work and after Stop. Only adjacent calls share
+one collapsed tool group; intervening progress remains visible between groups.
+Thought chunks have their own closed-by-default disclosure and are never promoted
+to an answer. Answered-question receipts appear alongside their question call.
+The outer work section stays open by default, including after completion or
+cancellation; the user can fold it manually without losing individual tool state.
+A current Crew task only promotes its last assistant message to a final answer
+when its status is completed, not cancelled, failed or waiting for user input.
+Standalone AX histories without Crew task status retain the legacy last-assistant
+fallback. Late replayed child calls do not remove a completed answer.
+
+Saved checkpoints and live chunks reconcile by message/call identity or compatible
+prose prefixes, not by the ordinal count of thought/assistant rows. Stream-only
+rows are placed relative to shared rows, and received stream order resolves replay
+ordering differences. This prevents a thought omitted from a checkpoint from
+appearing at the end, or a missing progress message from overwriting another.
+On cancellation/failure, unfinished tool rows display Stopped and stop their timer;
+completed/failed results retain their actual state. This presentation does not
+fabricate a command exit code or change the stored tool result.
 
 The main and side-chat composers can send during active work. Send (or Enter)
 adds guidance to the same task and AX goal without interrupting streaming or
 restarting tools. The composer has one action button: during execution or a question wait, empty
 input shows Stop; adding guidance/answer text or attachments switches it to Send.
-Stop and Send are never displayed together in either main or side chat. Guidance stays visible when
-work details fold and survives history replay with a stable message ID. The
+Stop and Send are never displayed together in either main or side chat. Guidance keeps its chronological position inside work details and survives
+history replay with a stable message ID. The
 Gateway forwards `_ax/steer` over the existing local/SSH/device connection and
 returns the current task only after AX acknowledges acceptance. Waiting for
 permission does not block guidance or implicitly approve a tool. Active model,
@@ -646,6 +670,16 @@ dark/light themes and narrow or short windows retain accessible controls.
 
 ## Connections and named projects
 
+In **Add project**, the name is optional once a source folder is selected. Empty
+or whitespace-only names use the final folder component (Windows, UNC and POSIX
+paths, including trailing separators); filesystem roots use their drive/root
+label. The name input previews this default as its placeholder. Changing the
+folder updates the default without overwriting an explicitly entered name;
+clearing a custom name restores the folder default. This applies to local,
+SSH and paired-device folder selection. Creation still requires a source folder,
+and a failed request retains both the name draft and selected path for retry.
+The desktop sends the resolved name through the existing project API.
+
 ### Project terminals
 
 Opening the desktop terminal or using Ctrl+Backquote follows the displayed
@@ -771,3 +805,23 @@ AXCrew adaptations, not imports of the reference application's theme definitions
 Android 客户端允许正常截图和录屏。手机扫码连接使用局域网；账号授权、接口权限限制和撤销仍然生效。
 
 设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](../chat-channels.md)。
+
+
+### Web preview and compact change review
+
+The desktop conversation sidebar has a resizable Preview tab with an HTTP(S)
+address field and reload. Local dev-server URLs found in the current conversation
+are offered as buttons and load only after a click. Interactive embedded pages can
+receive their dev server's live updates. URLs with credentials, privileged schemes
+and the application origin are rejected. Pages may prohibit embedding; remote
+projects need a reachable URL or an already forwarded port. Switching conversations
+clears the preview. The panel does not start servers or forward ports automatically.
+
+Ask AX to inspect inserts the preview URL into the composer for the user to send.
+AX uses its existing separate browser tool; embedded page cookies, clicks and DOM
+are not shared with it. Existing browser tool restrictions still apply.
+
+File change summaries use compact rows, aligned counts, truncated paths with full
+path tooltips, and the existing sidebar diff viewer. Unavailable undo is omitted.
+Allowed Computer Use applications no longer trigger generic per-action prompts;
+explicit task Ask/Deny and capability Deny still apply. Website rules are unchanged.

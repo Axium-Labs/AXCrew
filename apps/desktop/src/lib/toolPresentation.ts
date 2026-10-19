@@ -34,7 +34,7 @@ export const toolLabel=(line:SessionLine,lang:'zh'|'en')=>labels[toolKind(line)]
 function shortUrl(value:string){try{return new URL(value).hostname}catch{return value}}
 export function toolTitle(line:SessionLine,lang:'zh'|'en'){
   const input=line.toolInput??{},kind=toolKind(line),zh=lang==='zh'
-  const running=!['completed','success','failed','error'].includes(line.status??'')
+  const running=!['completed','success','failed','error','cancelled','stopped'].includes(line.status??'')
   const failed=['failed','error'].includes(line.status??'')
   const verbs:Record<ToolKind,[string,string,string]>={
     shell:['运行命令','正在运行','已运行'],ssh:['SSH 命令','正在通过 SSH 运行','已通过 SSH 运行'],
@@ -56,7 +56,8 @@ export function toolTitle(line:SessionLine,lang:'zh'|'en'){
   }else target=line.toolKind??line.text
   // Legacy title-only rows can have generic names; avoid repeating them.
   if(['shell','filesystem','read','write','patch','web','ssh'].includes(target))target=''
-  const verb=zh?(failed?'执行失败':verbs[kind][running?1:2]):failed?'Failed':running?toolLabel(line,lang):toolLabel(line,lang).replace(/^Run /,'Ran ').replace(/^Read /,'Read ').replace(/^Edit /,'Edited ').replace(/^Search /,'Searched ').replace(/^Find /,'Found ').replace(/^List /,'Listed ')
+  const stopped=['cancelled','stopped'].includes(line.status??'')
+  const verb=stopped?(zh?'已停止':'Stopped'):zh?(failed?'执行失败':verbs[kind][running?1:2]):failed?'Failed':running?toolLabel(line,lang):toolLabel(line,lang).replace(/^Run /,'Ran ').replace(/^Read /,'Read ').replace(/^Edit /,'Edited ').replace(/^Search /,'Searched ').replace(/^Find /,'Found ').replace(/^List /,'Listed ')
   return `${verb}${target?' '+target:''}`
 }
 
@@ -78,22 +79,13 @@ export function toolOperation(line:SessionLine,lang:'zh'|'en'='en'){
   return line.text.replace(/^(running|editing|searching|finding) /,'')
 }
 
-/** Adjacent calls stay together. Prose between repeated same-family calls is
- * kept inside that group; a change of operation retains its progress paragraph. */
+/** Only adjacent calls share a group; every intervening message keeps its position. */
 export function workBlocks(lines:SessionLine[]):SessionLine[][]{
   const blocks:SessionLine[][]=[]
-  for(let index=0;index<lines.length;index++){
-    const line=lines[index],previous=blocks.at(-1)
-    if(line.type==='tool'&&previous?.[0].type==='tool'){previous.push(line);continue}
-    if(line.type!=='tool'&&previous?.[0].type==='tool'){
-      let next=index
-      while(next<lines.length&&lines[next].type!=='tool')next++
-      const lastTool=previous.findLast(item=>item.type==='tool')!
-      if(next<lines.length&&toolFamily(lastTool)===toolFamily(lines[next])){
-        previous.push(...lines.slice(index,next+1));index=next;continue
-      }
-    }
-    blocks.push([line])
+  for(const line of lines){
+    const previous=blocks.at(-1)
+    if(line.type==='tool'&&line.toolKind!=='request_user_input'&&previous?.[0].type==='tool'&&!previous.some(item=>item.toolKind==='request_user_input'))previous.push(line)
+    else blocks.push([line])
   }
   return blocks
 }

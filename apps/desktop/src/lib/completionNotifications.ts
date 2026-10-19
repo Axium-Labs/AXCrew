@@ -7,6 +7,7 @@ import { conversations, sessionTitle } from './conversations'
 import { useSessionUi } from '../store/sessions'
 import { queryClient } from './runtime'
 import type { CrewEvent, LocalAxOverview, Session, Task } from './types'
+import { modelConnection, modelConnectionText } from './modelConnection'
 
 let nativeQueue = Promise.resolve()
 function updateNative(alertTask?: string) {
@@ -77,6 +78,8 @@ export async function notifyCompletion(event: CrewEvent) {
     const local = device === 'local' ? queryClient.getQueryData<LocalAxOverview>(['localAx'])?.projects.flatMap(project => project.sessions).find(item => item.id === session) : undefined
     const metadata = useSessionUi.getState().metadata
     const title = (conversation ? metadata[conversation]?.title : undefined) ?? sessionTitle(task?.title, local?.title, zh ? 'AX Crew 会话' : 'AX Crew conversation')
-    sendNotification({ title: event.kind === 'task.completed' ? (zh ? '任务已完成' : 'Task completed') : (zh ? '任务失败' : 'Task failed'), body: title, sound: '' })
+    const connection = modelConnection(event.payload.model_connection) ?? modelConnection(task?.output?.model_connection)
+    const failureTitle = connection?.status === 'failed' ? modelConnectionText(connection, zh ? 'zh' : 'en') : (zh ? '任务失败' : 'Task failed')
+    sendNotification({ title: event.kind === 'task.completed' ? (zh ? '任务已完成' : 'Task completed') : failureTitle, body: title, sound: '' })
   } catch (error) { console.warn('[ax-crew] Completion notification unavailable', error) }
 }

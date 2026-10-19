@@ -1,5 +1,12 @@
 # AX Crew: source-based implementation plan
 
+Model connection feedback is an additive AX ACP `model_connection` update.
+The scheduler forwards live attempts and retains a terminal failed frame in
+optional task `output.model_connection`, including its actual attempt count.
+Desktop/Android present the model error using that metadata. Scheduling keeps
+the existing `failed` state; a model error is not treated as a lost remote device
+even when the provider's diagnostic contains the word `disconnected`.
+
 Source baseline: `the ax repository` on `main`, inspected 2026-09-27. This document records the boundary before implementation. AX remains the sole agent runtime.
 
 The implementation this plan describes now lives in `crates/server/`; see

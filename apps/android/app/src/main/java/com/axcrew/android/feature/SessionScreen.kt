@@ -133,20 +133,27 @@ import kotlinx.coroutines.flow.filterNotNull
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 item {
                     Text(original?.title ?: task?.title ?: "正在同步会话…", style = MaterialTheme.typography.titleLarge)
-                    task?.let { Status(it.status) }
+                    task?.let { current ->
+                        val connection = if (current.status == "failed") modelConnectionText(current.output?.get("model_connection").obj()) else null
+                        if (connection != null) Text(connection, color = MaterialTheme.colorScheme.error) else Status(current.status)
+                    }
                     TextButton(onClick = { refresh++; vm.refresh() }) { Text("同步记录") }
                 }
                 if (historyError != null) item { Text(historyError.orEmpty(), color = MaterialTheme.colorScheme.error) }
-                itemsIndexed(lines) { _, line ->
+                itemsIndexed(lines.filter { it.role != "模型连接" || task?.active == true }) { _, line ->
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = if (line.role == "你") Alignment.End else Alignment.Start) {
-                        Text(line.role + if (line.status.isNotEmpty()) " · ${line.status}" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(line.role + if (line.status.isNotEmpty() && line.role != "模型连接") " · ${line.status}" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(6.dp))
                         Surface(color = if (line.role == "你") MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(16.dp)) {
                             SelectionContainer { MarkdownMessage(line.text, Modifier.padding(14.dp)) }
                         }
                     }
                 }
-                if (task?.status == "failed") item { Panel { Text(task.output?.str("error").orEmpty(), color = MaterialTheme.colorScheme.error) } }
+                if (task?.status == "failed") item { Panel {
+                    val connection = task.output?.get("model_connection").obj()
+                    val label = modelConnectionText(connection)
+                    Text(listOfNotNull(label, connection.str("error").ifBlank { task.output?.str("error").orEmpty() }).joinToString("\n"), color = MaterialTheme.colorScheme.error)
+                } }
                 if (task?.status == "completed" && lines.none { it.role == "AX" }) item { SelectionContainer { MarkdownMessage(task.output?.str("text").orEmpty()) } }
                 if (task?.status in listOf("pending", "failed", "cancelled")) item {
                     Button(enabled = !state.busy, onClick = { vm.perform {

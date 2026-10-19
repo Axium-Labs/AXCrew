@@ -1,6 +1,21 @@
 package com.axcrew.android.data.model
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
+
+fun modelConnectionText(update: JsonObject): String? {
+    val attempt = (update["attempt"] as? JsonPrimitive)?.intOrNull ?: return null
+    val max = (update["maxAttempts"] as? JsonPrimitive)?.intOrNull ?: return null
+    if (attempt < 1 || max < attempt) return null
+    return when (update.str("status")) {
+        "connecting" -> "正在连接模型（$attempt/$max）…"
+        "retrying" -> "正在重新连接模型（$attempt/$max）…"
+        "connected" -> "模型已连接"
+        "failed" -> "模型连接失败（已尝试 $attempt/$max 次）"
+        else -> null
+    }
+}
 
 data class Line(val key: String, val role: String, val text: String, val status: String = "")
 fun transcript(updates: List<JsonObject>): List<Line> {
@@ -8,6 +23,16 @@ fun transcript(updates: List<JsonObject>): List<Line> {
     updates.forEach { update ->
         val kind = update.str("sessionUpdate")
         when (kind) {
+            "model_connection" -> {
+                val text = modelConnectionText(update) ?: return@forEach
+                val index = lines.indexOfLast { it.role == "模型连接" }
+                if (update.str("status") == "connected") {
+                    if (index >= 0) lines.removeAt(index)
+                } else {
+                    val line = Line("model-connection", "模型连接", text, update.str("status"))
+                    if (index >= 0) lines[index] = line else lines.add(line)
+                }
+            }
             "user_message_chunk", "agent_message_chunk", "agent_thought_chunk" -> {
                 val role = when (kind) { "user_message_chunk" -> "你"; "agent_thought_chunk" -> "思考"; else -> "AX" }
                 val key = update.str("messageId")
