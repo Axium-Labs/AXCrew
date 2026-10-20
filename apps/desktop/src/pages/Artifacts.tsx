@@ -9,7 +9,8 @@ import { Button } from '../components/ui/button'
 import { Dialog } from '../components/ui/dialog'
 import { Input } from '../components/ui/input'
 import { Menu } from '../components/ui/menu'
-import { Select } from '../components/shared'
+import { Select } from '../components/ui/select'
+import { Empty } from '../components/shared'
 import { useCrews, useTasks } from '../lib/query'
 import type { Task } from '../lib/types'
 import './artifacts.css'
@@ -86,15 +87,13 @@ export function Artifacts() {
     </div>
     <div className="artifacts-filters">
       <div className="artifacts-search"><Search size={16}/><input aria-label={translate("copy.313")} placeholder={translate("copy.314")} value={search} onChange={event => setSearch(event.target.value)}/></div>
-      <div className="artifacts-select"><Select value={kind} onChange={setKind}><option value="all">{translate("copy.315")}</option>{Object.entries(KINDS).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</Select></div>
-      <div className="artifacts-select"><Select value={tag} onChange={setTag}><option value="all">{translate("copy.316")}</option>{tags.map(value => <option key={value} value={value}>{value}</option>)}</Select></div>
+      <div className="artifacts-select"><Select label={translate("copy.315")} value={kind} onChange={setKind} options={[{value:'all',label:translate("copy.315")},...Object.entries(KINDS).map(([value,meta])=>({value,label:meta.label}))]}/></div>
+      <div className="artifacts-select"><Select label={translate("copy.316")} value={tag} onChange={setTag} options={[{value:'all',label:translate("copy.316")},...tags.map(value=>({value,label:value}))]}/></div>
     </div>
     {tasks.isError ? <div role="alert" className="panel artifacts-empty is-error">{translate("copy.317")}{String(tasks.error)} <Button variant="secondary" onClick={() => void tasks.refetch()}>{translate("copy.259")}</Button></div>
-      : !filtered.length ? <div className="artifacts-empty">
-        <Bookmark size={26}/>
-        <strong>{items.length ? translate("copy.318") : translate("copy.319")}</strong>
-        <p>{items.length ? translate("copy.320") : translate("copy.321")}</p>
-      </div>
+      : !filtered.length ? <Empty className="artifacts-empty" icon={<Bookmark size={23} strokeWidth={1.5}/>}
+        title={items.length ? translate("copy.318") : translate("copy.319")}
+        description={items.length ? translate("copy.320") : translate("copy.321")}/>
       : grouped.filter(group => group.items.length > 0).map(group => <section key={group.name || 'unsorted'} className="artifacts-group">
         {!!group.name && <h3 className="artifacts-folder"><FolderPlus size={14}/>{group.name}<small>{group.items.length}</small></h3>}
         {view === 'gallery'

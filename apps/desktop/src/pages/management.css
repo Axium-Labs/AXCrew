@@ -1,0 +1,68 @@
+.management-activity-panel{overflow:hidden}
+.management-page .page-head{margin-bottom:25px}
+.management-text-action{display:inline-flex;align-items:center;gap:6px;color:var(--shell-accent);font-size:12px;text-decoration:none}
+.management-text-action:hover{text-decoration:underline}
+.management-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:22px}
+.management-metric{display:flex;align-items:center;gap:14px;min-width:0;padding:18px;border:1px solid var(--shell-border);border-radius:var(--radius-card);background:var(--shell-panel);color:var(--shell-text);text-decoration:none;transition:border-color var(--dur-quick) ease,background-color var(--dur-quick) ease}
+.management-metric:hover{border-color:color-mix(in srgb,var(--shell-accent) 35%,var(--shell-border));background:var(--shell-hover)}
+.management-metric>span:nth-child(2){min-width:0}
+.management-metric-label{display:block;color:var(--shell-muted);font-size:11px;line-height:1.5}
+.management-metric strong{display:block;margin-top:4px;font-size:25px;font-weight:550;letter-spacing:-.04em;line-height:1.25}
+.management-metric-arrow{align-self:flex-start;margin-left:auto;flex:none;color:var(--shell-muted)}
+.management-icon{display:grid;place-items:center;flex:none;width:40px;height:40px;border:1px solid var(--shell-border);border-radius:13px;background:var(--shell-bg);color:var(--shell-muted)}
+.management-icon.is-small{width:34px;height:34px;border-radius:11px}
+.management-overview-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:20px}
+.management-column{display:flex;flex-direction:column;min-width:0;gap:20px}
+.management-count{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;margin-left:auto;padding:0 6px;border-radius:7px;background:var(--shell-hover);color:var(--shell-muted);font-size:11px;font-weight:500}
+.management-header-action{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;margin:-4px -6px -4px auto;border-radius:8px;color:var(--shell-muted)}
+.management-header-action:hover{background:var(--shell-hover);color:var(--shell-text)}
+.management-row-copy{flex:1;min-width:0}
+.management-row-actions{display:flex;align-items:center;gap:8px;flex:none}
+.management-permissions{margin-bottom:22px;border-color:color-mix(in srgb,var(--color-warning) 32%,var(--shell-border))}
+.management-permissions>.panel-header{color:var(--color-warning)}
+.management-quiet-card{display:flex;align-items:center;gap:12px;padding:18px}
+.management-quiet-card h2{color:var(--shell-text);font-size:12px;font-weight:550}
+.management-quiet-card p,.management-note{margin-top:5px;color:var(--shell-muted);font-size:11px;line-height:1.65}
+.management-event{display:flex;align-items:center;gap:12px;min-width:0;padding:13px 17px;font-size:12px;line-height:1.5}
+.management-event+.management-event{border-top:1px solid color-mix(in srgb,var(--shell-border) 65%,transparent)}
+.management-timeline-dot{width:7px;height:7px;flex:none;margin:0 2px;border:1.5px solid var(--shell-muted);border-radius:50%;opacity:.55}
+.management-event-copy{display:flex;flex:1;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+.management-event-copy>.row-sub{margin-top:3px}
+.management-event-time{flex:none;color:var(--shell-muted);font-size:10px;white-space:nowrap}
+.management-filters{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:19px}
+.management-filters>.ax-select{width:210px;min-width:0}
+.management-filter{width:210px;max-width:100%;min-width:0}
+.management-filter>.ax-select{width:100%}
+.management-filters.is-activity{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.management-filters.is-activity>.ax-select{width:100%}
+.management-panel-meta{margin-left:auto;color:var(--shell-muted);font-size:11px;font-weight:400}
+.management-activity-list{height:calc(100dvh - 285px);min-height:260px}
+.management-activity-row{border-bottom:1px solid color-mix(in srgb,var(--shell-border) 65%,transparent)}
+.management-activity-row:hover{background:color-mix(in srgb,var(--shell-hover) 60%,transparent)}
+.management-event-link{display:inline-flex;align-items:center;justify-content:center;flex:none;width:27px;height:27px;border-radius:8px;color:var(--shell-muted)}
+.management-event-link:hover{background:var(--shell-hover);color:var(--shell-accent)}
+.management-event-json{max-width:100%;margin:0 16px 12px;padding:12px;overflow-x:auto;border:1px solid var(--shell-border);border-radius:var(--radius-chip);background:var(--shell-bg);color:var(--shell-muted);font-size:11px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.management-crews-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.management-crew-card{display:flex;align-items:center;gap:14px;min-width:0;padding:20px;border:1px solid var(--shell-border);border-radius:var(--radius-card);background:var(--shell-panel);color:var(--shell-text);text-decoration:none;transition:border-color var(--dur-quick) ease,background-color var(--dur-quick) ease}
+.management-crew-card:hover{border-color:color-mix(in srgb,var(--shell-accent) 35%,var(--shell-border));background:var(--shell-hover)}
+.management-crew-card>.management-row-copy{align-self:center}
+.management-device-row .management-device-seen{flex:none;min-width:130px;color:var(--shell-muted);font-size:11px;text-align:right}
+.management-member-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:20px;min-height:65vh}
+.management-member-layout>aside{align-self:start}
+.management-member-layout>aside .row[aria-pressed=true]{background:var(--shell-active)}
+.management-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px}
+.management-device-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.management-metadata{display:grid;grid-template-columns:115px minmax(0,1fr);gap:15px 18px;padding:18px;color:var(--shell-text);font-size:12px}
+.management-metadata dt{color:var(--shell-muted)}
+.management-metadata dd{min-width:0;overflow-wrap:anywhere}
+.management-detail-grid>aside{min-width:0}
+.management-task-metadata{padding:18px;font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+.management-task-metadata>div+div{margin-top:17px;padding-top:15px;border-top:1px solid var(--shell-border)}
+.management-task-metadata>div>span:first-child{display:block;margin-bottom:4px;font-size:11px}
+.management-prompt{padding:18px;font-size:13px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.management-task-list{min-height:190px}
+.management-dag{margin-bottom:23px}
+.management-page a:focus-visible{outline:2px solid var(--shell-accent-strong);outline-offset:2px}
+@media(max-width:1100px){.management-filters.is-activity{grid-template-columns:repeat(3,minmax(0,1fr))}.management-detail-grid{grid-template-columns:minmax(0,1fr)}.management-overview-grid{grid-template-columns:minmax(0,1fr) minmax(240px,.8fr)}}
+@media(max-width:850px){.management-metric{gap:10px;padding:15px}.management-metric .management-icon{width:32px;height:32px;border-radius:10px}.management-overview-grid,.management-device-grid{grid-template-columns:minmax(0,1fr)}.management-member-layout{grid-template-columns:minmax(0,1fr)}.management-member-layout>aside{max-height:250px;overflow-y:auto}.management-device-row .management-device-seen{display:none}}
+@media(max-width:600px){.management-metrics{gap:8px}.management-metric{align-items:flex-start;gap:8px;padding:13px 10px}.management-metric>.management-icon,.management-metric-arrow{display:none}.management-metric strong{font-size:23px}.management-metric-label{font-size:10px}.management-crews-grid{grid-template-columns:minmax(0,1fr)}.management-filters.is-activity{grid-template-columns:repeat(2,minmax(0,1fr))}.management-filters>.ax-select{flex:1;width:auto;min-width:140px}.management-filter{flex:1;min-width:140px}.management-event{display:grid;grid-template-columns:12px minmax(0,1fr);gap:4px 8px;padding:12px 13px}.management-timeline-dot{grid-column:1;grid-row:1/3;align-self:center}.management-event-copy{grid-column:2;grid-row:1}.management-event-time{grid-column:2;grid-row:2;margin:0}.management-activity-row .management-event{grid-template-columns:12px minmax(0,1fr) 27px}.management-activity-row .management-event-link,.management-activity-row .management-event>span:last-child:not(.management-event-time){grid-column:3;grid-row:1/3}.management-panel-meta{max-width:45%;font-size:10px;text-align:right}.management-permission-row{flex-wrap:wrap}.management-permission-row>.management-row-copy{flex-basis:100%}.management-row-actions{margin-left:auto}.management-metadata{grid-template-columns:95px minmax(0,1fr);gap:13px;padding:15px}.management-page .row>.ax-status{padding:4px 6px;font-size:10px}.management-page .row{gap:9px}.management-activity-list{height:calc(100dvh - 360px)}}

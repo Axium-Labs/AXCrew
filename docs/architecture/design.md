@@ -142,3 +142,28 @@ A terminal workflow is completed only if all its retained tasks completed.
 Chat platform configuration, peer bindings, cursors and bounded admission state are stored in the protected `chat-channels.dat` sidecar, independent of task/session schema. Each platform has an opt-in connection and dispatcher. Binding requires a one-time command plus local approval; replacement credentials clear account grants. See [state and reliability limits](../chat-channels.md).
 
 Chat channel sidecars also retain optional Slack App Tokens, Teams tenant/public-origin fields, bridge paths and WhatsApp authentication state. These fields have backward-compatible defaults; secrets and WhatsApp keys remain protected by the existing sidecar encryption. A per-configuration generation rejects stale receiver writes after settings replacement.
+
+## Chat navigation menu state
+
+Each approved channel peer has at most one current numbered menu in server memory.
+Opening a menu/page snapshots its project directories or own conversation IDs,
+configuration generation, selected directory and current task, expiring after five
+minutes. Invalid selection keeps the snapshot; a valid selection consumes it before
+normal conversation-command validation. Ordinary chat, slash commands or explicit
+menu cancellation closes it. Stale generation/task/directory and expiry reject the
+selection. Server restart clears menus while persisted project/history bookmarks
+remain. Active work blocks opening menus; work/questions that start later discard
+the menu and preserve the task's numeric answer path. No model call interprets
+management input. Menus add no database/sidecar fields; the separate welcome flag
+below is a compatible per-peer addition.
+
+## Chat welcome state
+
+New peer authorization sets `welcome_pending=true` in the protected channel sidecar.
+The platform dispatcher persists false before attempting the welcome and its live
+main menu. Unattempted welcomes survive restart; attempted/ambiguous sends are not
+replayed. Existing peers deserialize the missing field as false. Repeat approval
+never re-arms it; revoke/disconnect/credential replacement removes the binding.
+Disabled channels do not dispatch welcomes. Welcome processing precedes incoming
+messages and respects an already open selector or active task. No Crew database or
+public API payload change is required.

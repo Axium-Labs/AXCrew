@@ -239,6 +239,16 @@ history. See [workbench scope and command contracts](../distributed-collaboratio
 
 ### Shared desktop selection control
 
+Desktop presentation is split between reusable controls in `components/ui/`,
+page building blocks in `components/shared.tsx`/`shared.css`, and feature layouts
+such as `pages/management.css`. `styles.css` owns shared theme/shape/motion tokens;
+`ui/primitives.css` owns buttons, inputs, menus and standard dialog presentation.
+The standard dialog manages focus, its fixed header and its scrolling body.
+Collaboration wizards explicitly retain a custom body/footer layout. Conversation
+metadata forms use the standard dialog instead of a separate modal implementation.
+These components own presentation and interaction only; feature pages retain their
+existing queries, mutations and routing.
+
 `apps/desktop/src/components/ui/select.tsx` owns single-selection dropdowns for
 settings and distributed collaboration. It wraps Radix Select for grouped options,
 keyboard/focus handling, empty filter values, disabled choices and portal positioning;
@@ -286,3 +296,18 @@ or scheduler is introduced.
 `channels/` owns ten chat adapters: Slack/Discord/WeCom/Feishu WebSockets, Telegram/Weixin/Webex HTTPS polling, authenticated Teams HTTPS ingress and supervised iMessage/WhatsApp stdio companions, per-platform dispatch and peer-isolated sessions. `domain/channel.rs` describes configuration/inbox state; `storage/channels.rs` persists its protected sidecar. `api/channels.rs` is a desktop-admin management surface. The dispatcher reuses session APIs and ApprovalBroker. `channels/conversations.rs` resolves existing local projects and maintains per-peer selected directories and stable conversation bookmarks in the protected sidecar. Project/history switches preserve workspace bindings and reject leaving active work. Optional channel defaults do not override peer selection; history lookup never adopts arbitrary desktop or other-peer tasks. Native Android LAN phone permissions live in `auth/phone.rs`, independent of messaging. The removed IPv6/relay phone transport has no module, listener or endpoint. See [chat channels](../chat-channels.md).
 
 `channels/live.rs` correlates bounded outgoing requests with socket/child acknowledgements. `apps/channel-bridge/` holds the embedded WhatsApp companion and pinned optional dependency manifest/lockfile. Configuration generations isolate reconnections; desktop management remains admin-only while `/api/messaging/teams` verifies Microsoft JWTs.
+
+`channels/navigation.rs` recognizes explicit natural-language navigation phrases
+and creates peer-scoped, five-minute numbered menus in `Channels` runtime state.
+It resolves numbers against displayed option snapshots and delegates mutations to
+the existing conversation/dispatch commands without model classification. Menus
+are transient, are invalidated by connection/current-conversation changes, and
+cannot consume task/question option numbers while active work is pending. Ordinary
+text closes the menu and continues through the existing session API.
+
+Desktop approval arms a compatible per-peer `welcome_pending` sidecar field only
+on first authorization. The platform dispatcher claims it before attempting a
+welcome send, ahead of incoming text. Navigation builds a live main menu without
+replacing an existing selector or interrupting active questions. Repeated approval
+and attempted delivery are not replayed. An unconfigured first task opens the
+project chooser and explicitly requests resending after selection.

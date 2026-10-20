@@ -115,3 +115,15 @@ Host inventory is retained in `removed_hosts`; soft-removed Workflows expose
 on older persisted state. See [lifecycle details](../distributed-collaboration.md).
 
 Chat platforms use outbound provider protocols, local stdio companions or Microsoft-authenticated Teams HTTPS ingress and reuse existing session/approval payloads; desktop-only management is under `/api/channels`. Native phone credentials retain their LAN capability restrictions and revoked/expired credentials close event streams. The experimental `/api/direct` and `/api/remote` surfaces have been removed. The channel `cwd` remains a string and may now be empty (no default project). Peer-scoped `/projects`, `/project`, `/new`, `/sessions` and `/session` commands select local workspaces and retained conversations through the existing session APIs. See [chat channel contract](../chat-channels.md).
+
+Chat navigation accepts explicit Chinese management phrases and peer-scoped numbered
+menus in addition to slash commands. Menus expire after five minutes, are runtime
+only and reuse the same project/session mutation and authorization contracts;
+ordinary chat and task-question numbers retain their existing session API flow.
+See [chat channels](../chat-channels.md) for exact phrases and menu lifecycle.
+
+First peer approval now schedules one welcome menu through the existing reply
+adapter. The approval response shape is unchanged; a protected internal pending
+flag prevents repeat approval/restart from replaying an attempted welcome.
+Unconfigured first chat messages return a numbered project chooser and request
+resending the task after selection. Help aliases include `怎么用` and `你能做什么`.

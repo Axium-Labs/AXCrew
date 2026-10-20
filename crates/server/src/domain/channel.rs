@@ -40,6 +40,8 @@ pub struct Peer {
     /// Empty means use the channel default until a project is selected.
     pub cwd: String,
     pub conversations: Vec<ChannelConversation>,
+    /// Armed only when desktop approval first authorizes this binding.
+    pub welcome_pending: bool,
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ChannelConversation {

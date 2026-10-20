@@ -82,6 +82,15 @@ async fn command(
     peer: &Peer,
     text: &str,
 ) -> Result<String> {
+    let routed_text;
+    let text = match super::navigation::handle(app, platform, cfg, peer, text)? {
+        Some(super::navigation::Action::Reply(reply)) => return Ok(reply),
+        Some(super::navigation::Action::Command(command)) => {
+            routed_text = command;
+            routed_text.as_str()
+        }
+        None => text,
+    };
     let task = peer
         .task
         .as_deref()
@@ -89,7 +98,7 @@ async fn command(
         .transpose()?
         .flatten();
     if text == "/help" || text == "/start" {
-        return Ok("直接发送文字开始或继续会话。\n/projects [页码] 查看本机项目\n/project 项目ID或名称或现有绝对路径 切换项目并准备新会话\n/new [项目ID或名称或现有绝对路径] 新建会话\n/sessions [页码] 查看自己的历史会话\n/session 会话ID 切换历史会话\n/status 查看当前项目、状态和结果\n/cancel 取消当前任务\n/allow 编号 允许一次工具操作\n/deny 编号 拒绝操作\n每个账号的会话独立，权限仍由 AX 控制。".into());
+        return Ok("直接发送文字开始或继续会话。\n发送“菜单”打开编号菜单；“切换项目”“查看历史会话”打开选择列表，回复编号即可选择。\n“新建会话”开启新会话；“切换到 项目名”直接选项目；“查看状态”“取消任务”查看或取消任务。\n菜单五分钟有效，可发送“上一页”“下一页”“返回菜单”“取消选择”。\n备用指令：\n/projects [页码] 查看本机项目\n/project 项目ID或名称或现有绝对路径 切换项目并准备新会话\n/new [项目ID或名称或现有绝对路径] 新建会话\n/sessions [页码] 查看自己的历史会话\n/session 会话ID 切换历史会话\n/status 查看当前项目、状态和结果\n/cancel 取消当前任务\n/allow 编号 允许一次工具操作\n/deny 编号 拒绝操作\n每个账号的会话独立，权限仍由 AX 控制。".into());
     }
     if text == "/axcrew_message_too_large" {
         return Ok("消息超过 16000 字节，请缩短后重新发送；这条消息没有执行。".into());
@@ -153,10 +162,9 @@ async fn command(
             .ok_or_else(|| anyhow::anyhow!("会话环境已删除，请发送 /new"))?
     } else {
         let cwd = super::conversations::workspace(app, cfg, peer)?;
-        ensure!(
-            !cwd.is_empty(),
-            "尚未选择项目，请发送 /projects，再发送 /project 项目ID"
-        );
+        if cwd.is_empty() {
+            return super::navigation::choose_project(app, platform, cfg, peer);
+        }
         app.db.ensure_local_session_member(&cwd, None, None)?
     };
     // Preserve an explicit Deny environment. An Allow environment is narrowed to Ask.
@@ -323,8 +331,42 @@ async fn notify(app: &App, only_platform: &str) -> Result<()> {
     }
     Ok(())
 }
+async fn send_welcomes(app: &App, only_platform: &str) -> Result<()> {
+    for (platform, cfg) in app.channels.store.snapshot().configs {
+        if !cfg.enabled || platform != only_platform {
+            continue;
+        }
+        for peer in cfg.peers.iter().filter(|p| p.approved && p.welcome_pending) {
+            // Persist consumption before sending: an ambiguous delivery is not
+            // replayed after reconnect/restart or a repeated approval click.
+            let claimed = super::conversations::update_peer(app, &platform, &cfg, peer, |p| {
+                let pending = p.welcome_pending;
+                p.welcome_pending = false;
+                Ok(pending)
+            })?;
+            if !claimed {
+                continue;
+            }
+            let body = super::navigation::welcome(app, &platform, &cfg, peer)?;
+            if app
+                .channels
+                .send(&platform, &cfg, peer, &body)
+                .await
+                .is_err()
+            {
+                app.channels.set_state(&platform, "delivery_error");
+            }
+        }
+    }
+    Ok(())
+}
 pub async fn run(app: App, platform: &'static str) {
     loop {
+        // Establish welcome choices before accepting a newly approved peer's
+        // first reply, so a queued number refers to the displayed menu.
+        if send_welcomes(&app, platform).await.is_err() {
+            app.channels.set_state(platform, "delivery_error");
+        }
         if app
             .channels
             .store

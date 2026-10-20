@@ -21,6 +21,12 @@ AX Crew brings conversations, tasks, devices, and model settings into one
 desktop app. It starts the Crew backend automatically; AX runs the agents and
 keeps their credentials, tools, skills, memory, and session history.
 
+- **Shared desktop design** — common controls, dialogs, headings, status labels
+  and empty states serve the main pages. Compact settings navigation, grouped
+  filters and responsive schedule/artifact rows keep narrow windows usable.
+- **Command search** — `Ctrl/Cmd+K` or the titlebar command button opens a grouped
+  panel with recent conversations first, followed by commands and pages. Its
+  search bar and keyboard hints stay visible while the results scroll.
 - **Interactive questions** — main and side chats show compact floating questions
   above the composer, with numbered choices, an optional text reply and collapse. Pending questions survive reopening;
   answering continues the same task/session, and failures retain drafts.
@@ -212,11 +218,14 @@ configuration. Use an AX build that supports Fast mode.
 The model/effort trigger highlights on hover, keyboard focus, or while open.
 Settings → Plugins → Agents manages delegation depth (0 off, 1 direct
 children, 2+ nested children) and shared parallelism (1–64), using the
-global/project selector. Save applies on the next turn; reset restores global
+global/project selector. The page explains model-selected delegation for research,
+writing, analysis and coding, shared ordinary/queue-child limits, inherited
+permissions, and preset roles versus temporary subtasks. These unified runtime
+limits require the corresponding updated AX build. Save applies on the next turn; reset restores global
 defaults or project inheritance. Only edited fields are written, preserving
 inheritance for other project fields. AX owns validation/persistence through
-its settings command. Older AX can read and write global limits, while
-project-scoped settings and reset/inheritance require an updated AX. Settings
+its settings command. Both scopes require the current AX scoped-settings/reset
+interface. Settings
 → AX has no separate Subagents switch.
 In Capabilities → Import from other AI apps, each app starts collapsed. Click
 its header to show/hide skills and MCP configurations; collapsing preserves
@@ -460,7 +469,7 @@ AXCrew adaptations, not imports of the reference application's theme definitions
 
 Android 客户端允许正常截图和录屏。手机扫码连接使用局域网；账号授权、接口权限限制和撤销仍然生效。
 
-设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。默认项目目录可留空；在聊天中用 `/projects`、`/project 项目ID` 选择本机项目，`/new [项目ID]` 新建会话，`/sessions`、`/session 会话ID` 查看及切换本账号历史。每个会话保留原目录，执行中需先结束或取消才能切换。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](../../docs/chat-channels.md)。
+设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。首次授权成功后会自动发送欢迎编号菜单；“怎么用”“你能做什么”也可显示帮助。首次任务未选项目时会展示项目菜单，并提示选好后重新发送任务；新建/切换成功后会提示随时发送“菜单”。默认项目目录可留空；可直接发送“菜单”“切换项目”“查看历史会话”，回复编号选择，支持“新建会话”“切换到 项目名”“查看状态”“取消任务”。自然语言入口由程序直接识别，不调用模型；编号菜单五分钟有效，发送“取消选择”关闭，普通聊天会关闭菜单。在聊天中用 `/projects`、`/project 项目ID` 选择本机项目，`/new [项目ID]` 新建会话，`/sessions`、`/session 会话ID` 查看及切换本账号历史。每个会话保留原目录，执行中需先结束或取消才能切换。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](../../docs/chat-channels.md)。
 
 
 ### Web preview and compact change review

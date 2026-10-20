@@ -5,8 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { HashRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { Activity, CalendarDays, Cpu, House, ListTodo, Monitor, Settings2, ShieldCheck, Users, MessagesSquare, Plus, PanelLeftClose, PanelLeftOpen, SquareTerminal, Globe, Package } from 'lucide-react'
 import { QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { Dialog } from './components/ui/dialog'
-import { Input } from './components/ui/input'
+import { CommandPalette, type CommandGroup } from './components/CommandPalette'
 import { Titlebar } from './components/Titlebar'
 import { TerminalDock, terminalDockClass } from './components/TerminalDock'
 import { queryClient } from './lib/runtime'
@@ -77,25 +76,24 @@ function Shell(){
   useEffect(()=>{const media=window.matchMedia('(prefers-color-scheme: dark)');const update=()=>setSystemDark(media.matches);update();media.addEventListener('change',update);return()=>media.removeEventListener('change',update)},[])
   const resolvedTheme=theme==='system'?(systemDark?'dark':'light'):theme
   useLayoutEffect(()=>applyTheme(document.documentElement,resolvedTheme,themePreset),[resolvedTheme,themePreset])
-  const [search,setSearch]=useState(''),[commandIndex,setCommandIndex]=useState(0),[focusReveal,setFocusReveal]=useState(false)
+  const [focusReveal,setFocusReveal]=useState(false)
   useEffect(()=>{
     if(!focus){setFocusReveal(false);return}
     const onMove=(event:MouseEvent)=>setFocusReveal(revealed=>event.clientY<=12?true:event.clientY>42?false:revealed)
     window.addEventListener('mousemove',onMove)
     return()=>window.removeEventListener('mousemove',onMove)
   },[focus])
-  useEffect(()=>{if(!palette){setSearch('');setCommandIndex(0)}},[palette])
-  const commands=useMemo(()=>[
-    ...nav.map(([path,key,icon])=>({path,label:t(key),icon})),
-    ...(crews.data??[]).map(c=>({path:`/crews/${c.id}`,label:`${t('shell.recentCrew')} · ${c.name}`,icon:Users})),
-    ...(devices.data??[]).map(d=>({path:`/devices/${d.id}`,label:`${t('shell.recentDevice')} · ${d.name}`,icon:Monitor})),
-    ...(tasks.data??[]).map(t2=>({path:`/tasks/${t2.id}`,label:`${t('shell.recentTask')} · ${t2.title}`,icon:ListTodo})),
-    ...sessionRows.map(s=>({path:`/sessions/${s.root.id}`,label:`${t('shell.recentSession')} · ${s.root.title}`,icon:MessagesSquare})),
-    {path:'/sessions',label:t('shell.newSession'),icon:Plus},
-    {path:'/crews?create=1',label:t('shell.createCrew'),icon:Plus},{path:'/tasks?create=1',label:t('shell.createTask'),icon:Plus},{path:'/devices?pair=1',label:t('shell.addDevice'),icon:Plus},{path:'/tasks?status=running',label:t('shell.showRunningTasks'),icon:Cpu},{path:'/overview?permissions=1',label:t('shell.showPermissions'),icon:ShieldCheck},
+  const commandGroups=useMemo<CommandGroup[]>(()=>[
+    {id:'sessions',label:t('shell.recentSessions'),kind:t('shell.recentSession'),limit:5,items:sessionRows.map(s=>({path:`/sessions/${s.root.id}`,label:s.root.title,icon:MessagesSquare}))},
+    {id:'commands',label:t('shell.commandList'),kind:t('shell.commandKind'),items:[
+      {path:'/sessions',label:t('shell.newSession'),description:t('shell.newSessionHint'),icon:Plus},
+      {path:'/crews?create=1',label:t('shell.createCrew'),icon:Plus},{path:'/tasks?create=1',label:t('shell.createTask'),icon:Plus},{path:'/devices?pair=1',label:t('shell.addDevice'),icon:Plus},{path:'/tasks?status=running',label:t('shell.showRunningTasks'),icon:Cpu},{path:'/overview?permissions=1',label:t('shell.showPermissions'),icon:ShieldCheck},
+    ]},
+    {id:'pages',label:t('shell.pages'),kind:t('shell.pageKind'),items:nav.map(([path,key,icon])=>({path,label:t(key),icon}))},
+    {id:'crews',label:t('nav.crews'),kind:t('shell.recentCrew'),items:(crews.data??[]).map(c=>({path:`/crews/${c.id}`,label:c.name,icon:Users}))},
+    {id:'devices',label:t('nav.devices'),kind:t('shell.recentDevice'),items:(devices.data??[]).map(d=>({path:`/devices/${d.id}`,label:d.name,icon:Monitor}))},
+    {id:'tasks',label:t('nav.tasks'),kind:t('shell.recentTask'),items:(tasks.data??[]).map(task=>({path:`/tasks/${task.id}`,label:task.title,icon:ListTodo}))},
   ],[crews.data,devices.data,tasks.data,sessionRows,t])
-  const filteredCommands=commands.filter(c=>c.label.toLowerCase().includes(search.toLowerCase())).slice(0,35)
-  const runCommand=(index:number)=>{const command=filteredCommands[index];if(command){navigate(command.path);setPalette(false)}}
   return <WorkspaceLayoutContext.Provider value={layout}><div className={`app ${focus?'is-focus':''} ${focus&&focusReveal?'is-focus-reveal':''}`}>
     <Titlebar sidebarExpanded={sidebar} showNavigationToggle={layout.navigation==='hidden'} canGoBack={historyIndex>0} canGoForward={historyIndex<maxHistory.current} focus={focus} hidden={focus&&!focusReveal} onFocus={()=>setFocus(!focus)} onMenu={()=>setSidebar(!sidebar)} onBack={()=>{if(historyIndex>0)navigate(-1)}} onForward={()=>{if(historyIndex<maxHistory.current)navigate(1)}} onCommand={()=>setPalette(true)}/>
     {backend.isError&&<div className="backend-error" role="alert">{t('shell.backendFailed')}{String(backend.error)} <button onClick={()=>void queryClient.invalidateQueries()}>{t('shell.retryConnect')}</button></div>}
@@ -114,7 +112,7 @@ function Shell(){
       <TerminalDock context={terminalContext} theme={resolvedTheme} preset={themePreset}/>
     </div>
     </div>
-    <Dialog open={palette} onOpenChange={setPalette} title={t('titlebar.runCommand')}><Input autoFocus aria-label={t('shell.searchCommands')} placeholder={t('shell.searchPlaceholder')} value={search} onChange={e=>{setSearch(e.target.value);setCommandIndex(0)}} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();setCommandIndex(index=>Math.max(0,Math.min(filteredCommands.length-1,index+(e.key==='ArrowDown'?1:-1))))}if(e.key==='Enter'){e.preventDefault();runCommand(commandIndex)}}}/><div className="mt-3 max-h-[52vh] overflow-auto" role="listbox" aria-label={t('shell.commandList')}>{filteredCommands.map(({path,label,icon:Icon},index)=><button role="option" aria-selected={index===commandIndex} key={`${path}${label}`} className={`row w-full text-left command-option ${index===commandIndex?'is-selected':''}`} onMouseEnter={()=>setCommandIndex(index)} onClick={()=>runCommand(index)}><Icon size={15} className="text-muted"/>{label}</button>)}{!filteredCommands.length&&<p className="p-4 text-sm text-muted">{t('shell.noCommands')}</p>}</div></Dialog>
+    <CommandPalette open={palette} onOpenChange={setPalette} groups={commandGroups} onSelect={path=>navigate(path)}/>
   </div></WorkspaceLayoutContext.Provider>
 }
 export default function App(){return <QueryClientProvider client={queryClient}><HashRouter><Shell/></HashRouter></QueryClientProvider>}

@@ -22,6 +22,10 @@ import { CompletionDot } from '../components/CompletionDot'
 import { conversations, isActiveTask, sessionTitle } from '../lib/conversations'
 import { Action } from '../components/shared'
 import { Menu } from '../components/ui/menu'
+import { Dialog } from '../components/ui/dialog'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Select } from '../components/ui/select'
 import { conversationTranscript, latestTurnChangedFiles } from '../lib/sessionTranscript'
 import { modelConnection, modelConnectionText } from '../lib/modelConnection'
 import type { LocalAxSession, Session, Task } from '../lib/types'
@@ -143,7 +147,7 @@ export function SessionsWorkspace(){
   }
   useEffect(()=>{
     const close = () => setContext(null)
-    const key = (event: globalThis.KeyboardEvent) => { if(event.key==='Escape'){close();setEditSession(null)} }
+    const key = (event: globalThis.KeyboardEvent) => { if(event.key==='Escape'&&!event.defaultPrevented){close()} }
     window.addEventListener('click',close);window.addEventListener('keydown',key);window.addEventListener('scroll',close,true)
     return()=>{window.removeEventListener('click',close);window.removeEventListener('keydown',key);window.removeEventListener('scroll',close,true)}
   },[])
@@ -561,15 +565,16 @@ export function SessionsWorkspace(){
       <button role="menuitem" onClick={()=>setEditSession({id:context.id,kind:'project',value:meta(context.id).project??''})}>{t('session.moveProject')}</button>
       <button role="menuitem" disabled={context.active} onClick={()=>{setDeleteError('');setDeleteTarget(context)}}>{t('session.permanentDelete')}</button>
     </div>}
-    {editSession&&<div className="session-dialog-backdrop" onClick={()=>setEditSession(null)}><form className="session-edit-dialog" role="dialog" aria-modal="true" aria-label={t(editSession.kind==='title'?'session.rename':'session.moveProject')} onClick={event=>event.stopPropagation()} onSubmit={event=>{event.preventDefault();ui.setMetadata(editSession.id,{[editSession.kind]:editSession.value.trim()||undefined});setEditSession(null)}}>
-      <h2>{t(editSession.kind==='title'?'session.rename':'session.moveProject')}</h2>
-      {editSession.kind==='title'?<input autoFocus aria-label={t('session.title')} value={editSession.value} onChange={event=>setEditSession({...editSession,value:event.target.value})}/>:<select autoFocus aria-label={t('session.moveProject')} value={editSession.value} onChange={event=>setEditSession({...editSession,value:event.target.value})}><option value="">{t('session.originalProject')}</option>{projects.map(project=><option key={project.key} value={project.root}>{project.name} · {project.root}</option>)}</select>}
-      <div><button type="button" onClick={()=>setEditSession(null)}>{t('common.cancel')}</button><button type="submit">{t('common.save')}</button></div>
-    </form></div>}
-    {deleteTarget&&<div className="session-dialog-backdrop"><div className="session-edit-dialog" role="dialog" aria-modal="true" aria-label={t('session.permanentDelete')}>
-      <h2>{t('session.permanentDelete')}</h2><p>{deleteTarget.title}</p><p>{t('session.deleteHint')}</p>
+    <Dialog open={!!editSession} onOpenChange={value=>{if(!value)setEditSession(null)}} title={t(editSession?.kind==='title'?'session.rename':'session.moveProject')}>
+      {editSession&&<form className="stack session-metadata-form" onSubmit={event=>{event.preventDefault();ui.setMetadata(editSession.id,{[editSession.kind]:editSession.value.trim()||undefined});setEditSession(null)}}>
+        {editSession.kind==='title'?<Input aria-label={t('session.title')} value={editSession.value} onChange={event=>setEditSession({...editSession,value:event.target.value})}/>:<Select label={t('session.moveProject')} value={editSession.value} onChange={value=>setEditSession({...editSession,value})} options={[{value:'',label:t('session.originalProject')},...projects.map(project=>({value:project.root,label:`${project.name} · ${project.root}`}))]}/>}
+        <div className="session-metadata-actions"><Button variant="secondary" onClick={()=>setEditSession(null)}>{t('common.cancel')}</Button><Button type="submit">{t('common.save')}</Button></div>
+      </form>}
+    </Dialog>
+    <Dialog open={!!deleteTarget} onOpenChange={value=>{if(!value&&!deleting)setDeleteTarget(null)}} title={t('session.permanentDelete')}>
+      {deleteTarget&&<div className="stack session-delete-confirmation"><p className="session-delete-title">{deleteTarget.title}</p><p>{t('session.deleteHint')}</p>
       {deleteError&&<p role="alert" className="session-inline-error">{deleteError}</p>}
-      <div><button disabled={deleting} onClick={()=>setDeleteTarget(null)}>{t('common.cancel')}</button><button className="is-danger" disabled={deleting} onClick={async()=>{
+      <div className="session-metadata-actions"><Button variant="secondary" disabled={deleting} onClick={()=>setDeleteTarget(null)}>{t('common.cancel')}</Button><Button variant="danger" disabled={deleting} onClick={async()=>{
         setDeleting(true);setDeleteError('');try{
           const group=groups.find(g=>g.key===deleteTarget.id)
           if(group?.binding)await api(`/api/sessions/${encodeURIComponent(group.root.id)}`,'DELETE')
@@ -579,8 +584,9 @@ export function SessionsWorkspace(){
           await Promise.all(['tasks','sessions','local-ax','localAx'].map(key=>queryClient.invalidateQueries({queryKey:[key]})))
           setDeleteTarget(null);newSession()
         }catch(error){setDeleteError(String(error))}finally{setDeleting(false)}
-      }}>{deleting?'…':t('session.permanentDelete')}</button></div>
-    </div></div>}
+      }}>{deleting?'…':t('session.permanentDelete')}</Button></div>
+      </div>}
+    </Dialog>
     <SelectionMenu container={selectionContainer}/>
     {imagePreview&&<ImageLightbox src={`data:${imagePreview.mime};base64,${imagePreview.data}`} name={imagePreview.name} onClose={()=>setImagePreview(null)}/>}
     <GoalLoopDialog open={goalOpen} onOpenChange={setGoalOpen} storeKey={loopKey??draftKey} run={loopRun} workspace={workspace} disabled={!axAvailable||!workspace} onStart={startLoop} onStop={stopLoop}/>

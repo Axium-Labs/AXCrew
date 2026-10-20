@@ -1,9 +1,65 @@
 import { useT } from '../../lib/i18n'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { cn } from '../../lib/utils'
 import { Button } from './button'
-export function Dialog({open,onOpenChange,title,children,wide=false,closeLabel,className='',onCloseAutoFocus}:{open:boolean;onOpenChange:(value:boolean)=>void;title:string;children:ReactNode;wide?:boolean;closeLabel?:string;className?:string;onCloseAutoFocus?:(event:Event)=>void}){
-  const t=useT()
-  return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}><DialogPrimitive.Portal><DialogPrimitive.Overlay className="ax-overlay fixed inset-0 z-50 bg-black/70"/><DialogPrimitive.Content aria-describedby={undefined} onCloseAutoFocus={onCloseAutoFocus} className={`ax-dialog fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[calc(100vw-40px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto border border-border bg-surface-raised p-5 shadow-2xl ${wide?'max-w-3xl':'max-w-xl'} ${className}`}><div className="mb-5 flex items-center justify-between gap-3"><DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title><DialogPrimitive.Close asChild><Button variant="ghost" size="icon" aria-label={closeLabel??t('common.close')}><X size={16}/></Button></DialogPrimitive.Close></div>{children}</DialogPrimitive.Content></DialogPrimitive.Portal></DialogPrimitive.Root>
+import './primitives.css'
+
+type DialogProps = {
+  open: boolean
+  onOpenChange: (value: boolean) => void
+  title: string
+  children: ReactNode
+  wide?: boolean
+  closeLabel?: string
+  className?: string
+  /** Custom layouts own their scrolling body and footer, e.g. multi-step wizards. */
+  layout?: 'default' | 'custom'
+  onCloseAutoFocus?: (event: Event) => void
+}
+
+export function Dialog({ open, onOpenChange, title, children, wide = false, closeLabel, className, layout = 'default', onCloseAutoFocus }: DialogProps) {
+  const t = useT()
+  const id = useId()
+  const content = useRef<HTMLDivElement>(null)
+  const previousFocus = useRef<HTMLElement | null>(document.activeElement instanceof HTMLElement ? document.activeElement : null)
+  useEffect(() => {
+    if (open) return
+    const rememberFocus = () => {
+      const active = document.activeElement
+      // React's autoFocus runs before the closed-dialog listener is removed.
+      if (active instanceof HTMLElement && active.closest('[data-ax-modal]')?.getAttribute('data-ax-modal') !== id) previousFocus.current = active
+    }
+    rememberFocus()
+    document.addEventListener('focusin', rememberFocus)
+    return () => document.removeEventListener('focusin', rememberFocus)
+  }, [open, id])
+  return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="ax-overlay ax-modal-overlay" />
+      <DialogPrimitive.Content ref={content} data-ax-modal={id} aria-describedby={undefined}
+        onOpenAutoFocus={event => {
+          const field = Array.from(content.current?.querySelectorAll<HTMLElement>('input:not([type="hidden"]):not(:disabled),textarea:not(:disabled),select:not(:disabled),[role="combobox"]:not([aria-disabled="true"])') ?? [])
+            .find(element => element.tabIndex >= 0 && !element.closest('[hidden],[aria-hidden="true"]'))
+          if (field) { event.preventDefault(); field.focus({ preventScroll: true }) }
+        }}
+        onCloseAutoFocus={event => {
+          onCloseAutoFocus?.(event)
+          if (!event.defaultPrevented && previousFocus.current?.isConnected) {
+            event.preventDefault()
+            previousFocus.current.focus({ preventScroll: true })
+          }
+        }}
+        className={cn('ax-dialog ax-modal', wide && 'ax-modal-wide', layout === 'custom' && 'ax-modal-custom', className)}>
+        <div className="ax-modal-header">
+          <DialogPrimitive.Title className="ax-modal-title">{title}</DialogPrimitive.Title>
+          <DialogPrimitive.Close asChild>
+            <Button variant="ghost" size="icon" className="ax-modal-close" aria-label={closeLabel ?? t('common.close')}><X size={16} /></Button>
+          </DialogPrimitive.Close>
+        </div>
+        {layout === 'custom' ? children : <div className="ax-modal-body">{children}</div>}
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Portal>
+  </DialogPrimitive.Root>
 }

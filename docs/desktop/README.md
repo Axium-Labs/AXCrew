@@ -5,7 +5,41 @@ is configured. Build, install and packaging instructions live in
 [apps/desktop/README.md](../../apps/desktop/README.md); this page documents
 the settings surfaces and their behaviour.
 
+## Command search
+
+The titlebar command button and `Ctrl/Cmd+K` open a dedicated command palette.
+The search field forms the header; recent conversations, commands, pages, crews,
+devices and tasks have separate headings and compact rows with type labels.
+Without a query, up to five recent conversations appear first. Searching checks
+all conversation titles and the other existing entries, returning up to 35 total
+results. Empty groups are omitted. Results use the existing navigation routes;
+the palette adds no server API or command execution path.
+
+Only the results scroll vertically; the search bar and keyboard footer stay
+visible. Long titles truncate with full-title tooltips, and the panel fits narrow
+and short windows using the current display theme. Arrow keys select and reveal
+the active result; Enter opens it, except during IME composition. Escape, the Esc
+button or clicking outside closes the panel, restoring its previous focus when
+that control still exists. Reopening clears the query and selection. The search
+input exposes the active option through combobox/listbox accessibility roles.
+
 ## Settings pages
+
+The desktop reuses common buttons, inputs, menus, single-selection controls and
+dialogs across management, settings, schedule, artifacts and conversation metadata.
+Standard dialogs keep their header and close control visible while the body
+scrolls. Conversation rename, project assignment and delete confirmation use the
+same primitives; delete still requires explicit confirmation. Multi-step
+collaboration editors retain their own body/footer layout inside the shared dialog.
+
+Overview groups the existing task, device and approval data into count cards and
+focused panels; counts remain unavailable until their data arrives. Management
+lists, status labels, filters and empty states share one visual treatment.
+Schedule and artifact tables rearrange into compact rows when their available
+content width shrinks, keeping their existing actions accessible. Settings aligns
+its search and grouped navigation in the sidebar; narrow windows use a horizontal
+navigation strip that reveals the selected section. Theme and language settings
+continue to apply to all of these surfaces.
 
 Chat shows AX's model connection progress with actual counts, for example
 `正在连接模型（1/5）…` and `正在重新连接模型（2/5）…`. Once the model responds,
@@ -561,10 +595,15 @@ these commands.
 Settings → Plugins → Agents contains **Subagent delegation** with maximum
 recursion depth and parallelism. Depth 0 disables delegation, 1 permits direct
 children, and greater non-negative integers permit nested delegation. The main
-model decides when to delegate; changing limits does not launch children.
+model decides when to delegate across research, writing, analysis and coding;
+simple tasks can complete directly. Changing limits does not launch children.
 Parallelism accepts 1–64 (default 8); depth defaults to 1. All levels share the
 limit, including waiting ancestors; exhausted nested admission fails rather than
-deadlocking. Named-Agent switches independently control which roles can be used.
+deadlocking. Ordinary subagents and queue children share these limits and inherit
+the current task's permission ceilings; depth 0 disables both local paths in an AX
+build with unified delegation. Named-Agent switches independently control preset
+roles. The page explains that the model can also assign temporary subtasks without
+adding a preset role; no separate automatic-delegation switch is needed.
 
 The existing Global configuration / Current project selector controls these
 settings too. Crew reads/saves through the installed AX's `settings --scope`
@@ -844,3 +883,11 @@ Chat platform settings use an optional default project directory. Project and
 conversation selection is available directly in an approved private chat through
 `/projects`, `/project`, `/new`, `/sessions` and `/session`; the default does not
 move existing conversations. See [chat channels](../chat-channels.md).
+
+Chat platform setup explains the natural-language menu entry points (`菜单`,
+`切换项目`, `查看历史会话`) and numbered selection, plus direct new-conversation,
+project-name and status/cancel phrases. Slash commands remain available.
+
+Account-pairing guidance explains the automatic welcome menu after first approval
+and the `菜单`/`怎么用`/`你能做什么` help phrases. Ordinary messages without a
+project open a chooser; new/switch confirmations include a short menu reminder.

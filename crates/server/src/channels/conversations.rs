@@ -2,7 +2,7 @@
 use super::*;
 use crate::domain::task::Task;
 
-const PAGE_SIZE: usize = 8;
+pub(super) const PAGE_SIZE: usize = 8;
 
 fn line(value: &str) -> String {
     value
@@ -119,7 +119,7 @@ pub(super) fn remember(peer: &mut Peer, task: &Task, cwd: &str) {
     peer.notified.clear();
 }
 
-fn ensure_idle(app: &App, peer: &Peer) -> Result<()> {
+pub(super) fn ensure_idle(app: &App, peer: &Peer) -> Result<()> {
     if let Some(task) = peer
         .task
         .as_deref()
@@ -129,7 +129,7 @@ fn ensure_idle(app: &App, peer: &Peer) -> Result<()> {
     {
         ensure!(
             !super::dispatch::active(&task),
-            "当前任务还在执行，请先 /cancel 或等待完成"
+            "当前任务还在执行，请先发送“取消任务”（/cancel）或等待完成"
         );
         if let Some(binding) = app.db.binding(&task.id)? {
             ensure!(
@@ -144,12 +144,12 @@ fn ensure_idle(app: &App, peer: &Peer) -> Result<()> {
     Ok(())
 }
 
-struct Project {
-    id: String,
-    name: String,
-    cwd: String,
+pub(super) struct Project {
+    pub id: String,
+    pub name: String,
+    pub cwd: String,
 }
-fn projects(app: &App, cfg: &ChannelConfig, peer: &Peer) -> Result<Vec<Project>> {
+pub(super) fn projects(app: &App, cfg: &ChannelConfig, peer: &Peer) -> Result<Vec<Project>> {
     let mut projects = vec![];
     if !cfg.cwd.is_empty() {
         projects.push(Project {
@@ -289,7 +289,7 @@ pub(super) fn command(
                 Ok(())
             })?;
             Ok(Some(format!(
-                "已准备新会话，发送文字开始。\n工作目录：{cwd}\n原会话保留，可用 /sessions 查看。"
+                "已准备新会话，发送文字开始。\n工作目录：{cwd}\n原会话保留，可用 /sessions 查看。\n随时发送“菜单”查看操作。"
             )))
         }
         "/sessions" => {
@@ -351,7 +351,7 @@ pub(super) fn command(
                 Ok(())
             })?;
             Ok(Some(format!(
-                "已切换会话：{}\n工作目录：{}\n/status 查看状态和结果，发送文字继续。",
+                "已切换会话：{}\n工作目录：{}\n/status 查看状态和结果，发送文字继续。\n随时发送“菜单”查看操作。",
                 line(&entry.title),
                 entry.cwd
             )))

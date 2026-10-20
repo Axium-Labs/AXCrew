@@ -8,7 +8,7 @@ import { translate, useLang } from '../lib/i18n'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import { Activity, Archive, ArrowRight, Bot, Check, Download, Folder, Mic, Monitor, Palette, RefreshCw, Eye, EyeOff, Search, ShieldCheck, Upload, Wrench, Globe, Keyboard, MessageCircle } from 'lucide-react'
+import { Activity, Archive, ArrowRight, BarChart3, Bot, Check, Download, Folder, Mic, Monitor, Palette, RefreshCw, Eye, EyeOff, Search, ShieldCheck, SlidersHorizontal, Target, Upload, Wrench, Globe, Keyboard, MessageCircle, X } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { endpoints } from '../lib/api'
 import { axAvailable, axExport, axImport, axLocalState, axRefreshModels, axRemoveCredential, axSelectModel, axStoreApiKey, axSelectExecution, axTuiCommand } from '../lib/ax'
@@ -38,10 +38,10 @@ type Section = 'channels' | 'usage' | 'overview' | 'ax' | 'goal' | 'capabilities
 
 const getSections = (): {id:Section;label:string;group:string;icon:typeof Activity}[] => [
   {id:'overview',label:translate("copy.0"),group:'',icon:Activity}, {id:'ax',label:translate("copy.1"),group:'',icon:Monitor},
-  {id:'usage',label:translate('settings.usage'),group:'',icon:Activity},
-  {id:'personalization',label:translate('settings.personalization'),group:'',icon:Activity},
+  {id:'usage',label:translate('settings.usage'),group:'',icon:BarChart3},
+  {id:'personalization',label:translate('settings.personalization'),group:'',icon:SlidersHorizontal},
   {id:'capabilities',label:translate("copy.2"),group:'',icon:Wrench},
-  {id:'goal',label:translate('settings.goal'),group:'',icon:Check},
+  {id:'goal',label:translate('settings.goal'),group:'',icon:Target},
   {id:'desktop',label:translate("copy.desktop"),group:translate("copy.4"),icon:Keyboard},
   {id:'channels',label:useLang.getState().lang==='zh'?'聊天平台':'Chat platforms',group:translate('copy.4'),icon:MessageCircle},
   {id:'browser',label:translate("copy.browser"),group:translate("copy.4"),icon:Globe},
@@ -71,7 +71,10 @@ export function Settings(){
   const selectedCwd=useSessionUi(state=>state.selectedCwd)
   const routeSection=useParams().section
   const [section,setSectionState]=useState<Section>('overview'),[search,setSearch]=useState('')
+  const navigationRef=useRef<HTMLElement>(null)
+  const visibleSections=sections.filter(item=>item.label.toLowerCase().includes(search.toLowerCase()))
   useEffect(()=>{if(routeSection==='connections'){navigate('/connect',{replace:true});return}setSectionState(sections.some(item=>item.id===routeSection)?routeSection as Section:'overview')},[routeSection])
+  useEffect(()=>{navigationRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView?.({block:'nearest',inline:'nearest'})},[section,search])
   const setSection=(value:Section)=>{setSectionState(value);navigate(`/settings/${value}`)}
   const [loginProvider,setLoginProvider]=useState<{id:string;name:string}|null>(null)
   const loginSuccess=useCallback(()=>{void query.invalidateQueries({queryKey:['ax-local']})},[query])
@@ -141,8 +144,13 @@ export function Settings(){
   }
 
   return <div className="settings-workspace">
-    <aside className="settings-sidebar" aria-label={translate("copy.27")}><h1>{translate("copy.28")}</h1><nav>{sections.filter(item=>item.label.toLowerCase().includes(search.toLowerCase())).map((item,index,list)=>{const Icon=item.icon;return <div key={item.id}>{item.group&&list.findIndex(other=>other.group===item.group)===index&&<span className="settings-nav-heading">{item.group}</span>}<button className={section===item.id?'is-active':''} onClick={()=>setSection(item.id)}><Icon size={18}/>{item.label}</button></div>})}</nav></aside>
-    <div className="settings-main"><div className="settings-page-top"><div><h1>{sections.find(item=>item.id===section)?.label}</h1><p>{section==='channels'?(lang==='zh'?'选择聊天平台，连接你的助手':'Choose a chat platform to connect your assistant'):section==='desktop'?(lang==='zh'?'让助手通过辅助功能读取并操作桌面应用窗口':'Let assistants read and operate desktop windows through accessibility'):section==='overview'?translate("copy.29"):section==='models'?translate("copy.30"):section==='speech'?translate("copy.31"):section==='capabilities'?translate("copy.32"):translate("copy.33")}</p></div><label className="settings-search"><Search size={17}/><input aria-label={translate("copy.34")} placeholder={translate("copy.35")} value={search} onChange={event=>setSearch(event.target.value)}/></label></div>
+    <aside className="settings-sidebar" aria-label={translate("copy.27")}>
+      <h2 className="settings-sidebar-title">{translate("copy.28")}</h2>
+      <label className="settings-search"><Search size={15} aria-hidden="true"/><input aria-label={translate("copy.34")} placeholder={translate("copy.35")} value={search} onChange={event=>setSearch(event.target.value)}/>{search&&<button type="button" aria-label={lang==='zh'?'清除搜索':'Clear search'} onClick={()=>setSearch('')}><X size={14}/></button>}</label>
+      <nav ref={navigationRef}>{visibleSections.map((item,index,list)=>{const Icon=item.icon;return <div className="settings-nav-item" key={item.id}>{item.group&&list.findIndex(other=>other.group===item.group)===index&&<span className="settings-nav-heading">{item.group}</span>}<button type="button" className={section===item.id?'is-active':''} aria-current={section===item.id?'page':undefined} onClick={()=>setSection(item.id)}><Icon size={16} aria-hidden="true"/><span>{item.label}</span></button></div>})}</nav>
+      {!visibleSections.length&&<p className="settings-nav-empty" role="status">{lang==='zh'?'没有匹配的设置':'No matching settings'}</p>}
+    </aside>
+    <div className="settings-main"><div className="settings-page-top"><div><h1>{sections.find(item=>item.id===section)?.label}</h1><p>{section==='channels'?(lang==='zh'?'选择聊天平台，连接你的助手':'Choose a chat platform to connect your assistant'):section==='desktop'?(lang==='zh'?'让助手通过辅助功能读取并操作桌面应用窗口':'Let assistants read and operate desktop windows through accessibility'):section==='overview'?translate("copy.29"):section==='models'?translate("copy.30"):section==='speech'?translate("copy.31"):section==='capabilities'?translate("copy.32"):translate("copy.33")}</p></div></div>
       {needsWorkspace&&checkingWorkspace&&<p role="status">{lang==='zh'?'正在检查工作目录…':'Checking workspace…'}</p>}
       {needsWorkspace&&workspaceError&&<section className="settings-card" role="alert"><p>{String(workspaceError)}</p>{workspaceCandidate&&<SettingsLocation path={workspaceCandidate}/>}<button type="button" className="settings-secondary" onClick={()=>void chooseWorkspace()}><Folder size={15}/>{lang==='zh'?'选择工作目录':'Choose workspace'}</button></section>}
       {section==='overview'&&<><div className="settings-health"><span className={status==='Connected'?'is-online':''}/><strong>{status==='Connected'?translate("copy.36"):translate("copy.37")}</strong><small>{health.data?.version&&`v${health.data.version}`}</small></div><div className="settings-metrics"><Metric label={translate("copy.38")} value={sessions.data?.length??0}/><Metric label={translate("copy.39")} value={tasks.data?.length??0}/><Metric label={translate("copy.40")} value={configured.length}/><Metric label={translate("copy.41")} value={current?.id??'auto'}/></div><div className="settings-overview-grid"><Panel title={translate("copy.1")}><p>{axAvailable?ax.data?.active_path?<SettingsLocation path={ax.data.active_path} kind="file"/>:translate("copy.42"):translate("copy.43")}</p><button onClick={()=>setSection('ax')}>{translate("copy.44")}<ArrowRight size={15}/></button></Panel><Panel title={translate("copy.3")}><p>{current?`${current.provider} · ${current.id}`:translate("copy.45")}</p><button onClick={()=>setSection('models')}>{translate("copy.46")}<ArrowRight size={15}/></button></Panel><Panel title={translate("copy.47")}><p>{translate("copy.48")}</p><button onClick={()=>setSection('backup')}>{translate("copy.5")}<ArrowRight size={15}/></button></Panel></div></>}

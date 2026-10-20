@@ -98,6 +98,71 @@ also removes bindings and queued messages. Replacing credentials clears bindings
 a different bot cannot inherit authorization. Revoke removes one peer's access.
 These actions do not delete conversations or cancel work already accepted.
 
+## First-use guidance
+
+The first desktop approval of a new binding queues a welcome message with a live
+numbered main menu. The platform dispatcher consumes the protected per-peer
+`welcome_pending` flag before attempting delivery; repeated approval clicks,
+reconnects and restarts do not replay an attempted welcome. A pending unsent flag
+survives restart. Old bindings default to no pending welcome, and revocation or
+credential replacement removes the binding/flag. A disabled platform waits until
+enabled. Failed/ambiguous welcome sends report delivery error and are not retried
+automatically; users can send `菜单` or a help phrase to open the menu themselves.
+
+Welcome messages are dispatched before admitted chat input. If a peer already has
+a selection menu, it remains current; active work receives a brief welcome with
+status/cancel hints instead of a numeric selector. No model/task is created for
+welcome/help navigation.
+
+An ordinary first task with no selected/default project opens the numbered project
+menu and explicitly says that the original task has not been submitted. After
+selecting a project, resend the task text; it is not silently queued or executed.
+New-conversation/project/history confirmations include a brief reminder to send
+`菜单`. Ordinary task responses do not repeat the full help text.
+
+## Natural-language navigation and numbered menus
+
+Navigation is deterministic program logic; no model/classifier is called to
+interpret management messages. It recognizes the following complete phrases
+(with optional trailing Chinese/English sentence punctuation):
+
+- `菜单`, `会话菜单`, `帮助`, `返回菜单`, `怎么用`, `怎么使用`, `你能做什么`: main menu.
+- `切换项目`, `换个项目`, `选择项目`, `查看项目`, `项目列表`: numbered local project menu.
+- `历史会话`, `查看历史会话`, `查看会话`, `切换会话`, `会话列表`: numbered own-peer history menu.
+- `新建会话`, `新开会话`, `新建聊天`, `开启新会话`, `新会话`, `开个新会话`: new conversation in the
+  current project. With no selected/default directory, opens the project menu.
+- `当前项目`, `查看当前项目`, `当前在哪个项目`, `查看状态`, `任务状态`: project/task status.
+- `取消任务`, `取消当前任务`, `停止任务`, `停止当前任务`: cancel the current task.
+
+`切换到 项目名`, `切换到项目 项目名`, `切换项目到 项目名`, `换到 项目名`,
+`切换项目 项目名` and `新建会话 项目名` accept the existing exact project ID/name or
+absolute-directory syntax. The `切换项目` and `新建会话` argument forms also accept
+Chinese/English colons. These are fixed syntactic forms, not fuzzy semantic search.
+Existing slash commands remain available. Unmatched text follows ordinary AX chat
+submission (or the project chooser when no workspace is selected); development requests merely mentioning navigation are not intercepted.
+
+Menus show at most eight numbered choices per page. Reply `1`, `选择1`, `选1`,
+`第一个` or a full-width digit to choose; `上一页`/`下一页` page through a list,
+`返回`/`返回菜单` open the main menu and `取消选择` closes it. Explicit `取消菜单`,
+`关闭菜单`, `退出菜单` also close it; `取消`/`不选了` close only an open menu and
+never cancel a task. Use `取消任务` for task cancellation.
+
+Numbers select only within the same approved platform/sender/chat menu. Choices
+are snapshots of the displayed directory/session IDs; changes in catalog order do
+not renumber an already displayed menu. Each opened page is valid for five minutes.
+Invalid numbers retain the current menu and return a hint. A valid choice consumes
+it once and uses the existing workspace, ownership, active-task and approval checks.
+A generation/current-conversation/selected-directory change invalidates the menu.
+Missing directories/history entries return errors without moving the conversation.
+
+Any other ordinary text or slash command closes a pending menu. Without a menu,
+numbers are ordinary conversation text. Menus are in-memory and are discarded at
+server restart; project selection/history remains persisted. An expired or stale
+menu reply returns a refresh hint rather than executing a task. Navigation menus
+cannot be opened while the current conversation has active work, questions or
+approvals. If a question/task starts after a menu opens, the menu is discarded and
+numeric text uses the existing task/answer flow, preserving question option replies.
+
 ## Commands and scope
 
 Only approved private text chats are accepted. Groups, bot-originated messages and

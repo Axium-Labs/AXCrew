@@ -92,6 +92,34 @@ The desktop UI has one palette system, defined in `apps/desktop/src/styles.css`:
   hand-rolled session dialogs match its radius, surface, overlay and
   animation.
 
+### Shared desktop surfaces
+
+Keep shared design rules in the existing component layer instead of adding
+page-specific copies:
+
+- `src/styles.css`: global theme, shape and motion tokens, shell layout and shared
+  keyframes. Feature CSS consumes these tokens; it does not define another palette.
+- `src/components/ui/primitives.css`: Button, Input/Textarea, Menu and Dialog
+  presentation. These components import the file themselves. Standard Dialog
+  owns its fixed header and scrolling body; `layout="custom"` is reserved for
+  callers such as collaboration wizards that already own their body/footer layout.
+- `src/components/ui/select.tsx` and `select.css`: the common labelled
+  single-selection control using `options`. Legacy native selection implementations
+  in `components/shared.tsx` have been removed; consumers import this primitive.
+- `src/components/shared.tsx` and `shared.css`: PageHead, Empty, Field, Status and
+  Action, plus common page/panel/row/form layouts. Empty accepts an optional icon,
+  action and feature class; features do not need to recreate its markup.
+- Feature styles such as `pages/management.css`, `settings.css`, `schedule.css`
+  and `artifacts.css` own only their layouts and domain-specific presentation.
+  Schedule/artifact compact layouts use container width rather than guessing how
+  much room remains after navigation.
+
+Buttons and fields keep their semantic variants and keyboard focus states.
+Closed dialogs restore the previous connected control unless their caller owns
+focus restoration. Shared component rules live below caller utility classes in
+the CSS cascade. Keep reduced-motion handling and theme variables when extending
+the components, and remove superseded rules instead of adding override layers.
+
 ### Shared single-selection control
 
 Import `Select` and `SelectOption` from `components/ui/select`. Its component owns

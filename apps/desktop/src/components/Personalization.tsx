@@ -7,6 +7,8 @@ import { call as invoke } from '../lib/errors'
 import { translate, useLang } from '../lib/i18n'
 import { axAvailable, axLocalState } from '../lib/ax'
 import { Dialog } from './ui/dialog'
+import { Button } from './ui/button'
+import { SettingsLocation } from './ui/settings-location'
 
 type PersonalizationState = {
   memory_enabled: boolean
@@ -182,7 +184,7 @@ export function Personalization() {
           {data?.writing_folder && (
             <div className="settings-field-row">
               <span>{lang === 'zh' ? '参考文件夹' : 'Reference folder'}</span>
-              <code>{data.writing_folder}</code>
+              <SettingsLocation path={data.writing_folder}/>
             </div>
           )}
           <div className="settings-actions">
@@ -232,22 +234,21 @@ export function Personalization() {
           )}
 
           <div className="dialog-actions">
-            <button 
+            <Button
               type="button"
-              className="settings-secondary" 
+              variant="secondary"
               onClick={() => setDialogState(null)}
               disabled={busy}
             >
               {lang === 'zh' ? '取消' : 'Cancel'}
-            </button>
-            <button 
+            </Button>
+            <Button
               type="button"
-              className="settings-primary" 
               disabled={busy || !data || !hasChanges} 
               onClick={saveInstructions}
             >
               {lang === 'zh' ? '保存' : 'Save'}
-            </button>
+            </Button>
           </div>
         </div>
       </Dialog>
@@ -271,17 +272,17 @@ export function Personalization() {
           </div>
 
           <div className="dialog-actions">
-            <button 
+            <Button
               type="button"
-              className="settings-secondary" 
+              variant="secondary"
               onClick={() => setDialogState(null)}
               disabled={deletingMemory}
             >
               {lang === 'zh' ? '取消' : 'Cancel'}
-            </button>
-            <button 
+            </Button>
+            <Button
               type="button"
-              className="settings-danger" 
+              variant="danger"
               onClick={confirmDeleteMemories}
               disabled={deletingMemory}
             >
@@ -293,7 +294,7 @@ export function Personalization() {
                   {lang === 'zh' ? '确认删除' : 'Confirm Delete'}
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </div>
       </Dialog>

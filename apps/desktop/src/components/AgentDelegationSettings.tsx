@@ -38,7 +38,7 @@ export function AgentDelegationSettings({ workspace, scope }: { workspace?: stri
   return <section className="settings-card agent-delegation-settings" aria-label={copy('子智能体设置', 'Subagent settings')}>
     <div className="agent-delegation-heading"><h2>{copy('子智能体委派', 'Subagent delegation')}</h2>
       {query.data && <span className="settings-capability-tag">{query.data.max_depth === 0 ? copy('已关闭', 'Disabled') : copy(`已开启 · 最多 ${query.data.max_depth} 层`, `Enabled · up to ${query.data.max_depth} levels`)}</span>}</div>
-    <p>{copy('由主智能体根据任务决定是否委派。0 关闭；1 只允许主智能体创建子智能体；2 或更大值允许继续向下委派。', 'The main agent decides when to delegate. 0 disables delegation; 1 permits direct children; 2 or more permits nested delegation.')}</p>
+    <p>{copy('主智能体按任务需要决定是否委派，适用于调研、写作、分析和编程；简单任务可直接完成。', 'The main agent decides whether delegation helps with research, writing, analysis or coding. Simple tasks can be completed directly.')}</p>
     {!workspace && <p>{copy('请先选择工作目录。', 'Select a workspace first.')}</p>}
     {query.isPending && axAvailable && workspace && <p role="status">{copy('正在读取子智能体设置…', 'Loading subagent settings…')}</p>}
     {query.error && <div role="alert" className="settings-notice is-error"><p>{String(query.error)}</p><button type="button" disabled={query.isFetching} onClick={()=>void query.refetch()}>{copy('重试', 'Retry')}</button></div>}
@@ -49,7 +49,8 @@ export function AgentDelegationSettings({ workspace, scope }: { workspace?: stri
         <label>{copy('子智能体并行数量上限', 'Subagent parallelism limit')}<input aria-label={copy('子智能体并行数量上限', 'Subagent parallelism limit')} type="number" min="1" max="64" step="1" value={concurrent} disabled={saving} aria-invalid={maxConcurrent === null} onChange={event => { setConcurrent(event.target.value); setNotice('') }}/>
           {maxConcurrent === null && <small>{copy('请输入 1 到 64 的整数。', 'Enter a whole number from 1 to 64.')}</small>}</label>
       </div>
-      <p className="agent-delegation-help">{copy('并行上限由所有委派层级共享，等待下层结果的子智能体也占用名额。', 'All delegation levels share the limit; children waiting for descendants still occupy slots.')}</p>
+      <p className="agent-delegation-help">{copy('深度 0 关闭全部本地委派；1 允许直接子智能体；2 及以上允许继续向下委派。', 'Depth 0 disables all local delegation; 1 permits direct children; 2 or more permits nested delegation.')}</p>
+      <p className="agent-delegation-help">{copy('普通子智能体和队列子任务共享并行名额与深度限制，等待下层结果也占用名额。所有子任务沿用当前任务的权限限制。', 'Ordinary subagents and queue children share concurrency slots and depth limits. Waiting parents still occupy slots. All children inherit the current task’s permission limits.')}</p>
       <div className="settings-actions"><button type="button" disabled={!dirty || invalid || saving} onClick={() => void save()}>{copy(saving ? '保存中…' : '保存', saving ? 'Saving…' : 'Save')}</button>
         <button type="button" disabled={saving} onClick={() => void save(true)}>{copy(scope === 'project' ? '继承全局设置' : '恢复默认', scope === 'project' ? 'Inherit global settings' : 'Reset to default')}</button></div>
     </>}

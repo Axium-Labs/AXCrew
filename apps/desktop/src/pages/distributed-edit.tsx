@@ -56,7 +56,7 @@ export function GoalPolicy({state,workflow:w,label,busy,run,close,error}:Workben
       requirements:{...w.collaboration?.requirements,models:list(models),skills:list(skills),mcp:list(mcp)}})
     close()
   })
-  return <Dialog open wide className="cluster-edit-dialog" title={label('编辑协作','Edit collaboration')} onOpenChange={open=>{if(!open&&!busy)close()}}>
+  return <Dialog open wide layout="custom" className="cluster-edit-dialog" title={label('编辑协作','Edit collaboration')} onOpenChange={open=>{if(!open&&!busy)close()}}>
     <div className="cluster-edit-body cluster-form">
       {error&&<p role="alert" className="text-danger">{error}</p>}
       <Field label={label('协作名称','Collaboration name')}><Input aria-label={label('协作名称','Collaboration name')} value={title} maxLength={512} onChange={e=>setTitle(e.target.value)}/></Field>

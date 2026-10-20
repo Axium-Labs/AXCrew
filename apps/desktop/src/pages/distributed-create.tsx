@@ -49,7 +49,7 @@ export function CreateTask({ open, close, state, run, busy, label, error, workfl
   }
   const steps = [label('定义目标 / 任务', 'Define work'), label('组织 AX', 'Organize AX'), label('确认执行', 'Confirm execution')]
   const visibleMembers = instances.filter(i => `${i.name} ${state?.hosts[i.host_id]?.name ?? ''}`.toLowerCase().includes(memberSearch.toLowerCase()))
-  return <Dialog open={open} wide className="collaboration-dialog" onOpenChange={value => { if (!value) close() }} title={workflow ? `${label('添加工作任务', 'Add work tasks')} · ${workflow.title}` : label('创建协作', 'Create collaboration')}>
+  return <Dialog open={open} wide layout="custom" className="collaboration-dialog" onOpenChange={value => { if (!value) close() }} title={workflow ? `${label('添加工作任务', 'Add work tasks')} · ${workflow.title}` : label('创建协作', 'Create collaboration')}>
     <div className="collaboration-wizard">
       <nav className="collaboration-steps" aria-label={label('创建步骤', 'Creation steps')}>{steps.map((title, n) => <button type="button" key={title} disabled={n > step} aria-current={step === n ? 'step' : undefined} className={n < step ? 'is-complete' : ''} onClick={() => setStep(n)}><span className="collaboration-step-number">{n < step ? <Check size={14} /> : `0${n + 1}`}</span><span>{title}</span></button>)}</nav>
       <div className="collaboration-body cluster-form" key={step}>

@@ -5,6 +5,7 @@ mod dispatch;
 pub mod feishu;
 mod live;
 pub mod local_bridge;
+mod navigation;
 pub mod slack;
 pub mod teams;
 mod telegram;
@@ -33,6 +34,7 @@ pub struct Channels {
     live: Mutex<BTreeMap<String, (String, tokio::sync::mpsc::Sender<live::Request>)>>,
     pub qr: Mutex<Option<String>>,
     pub install: tokio::sync::Mutex<()>,
+    menus: Mutex<BTreeMap<(String, String), navigation::Menu>>,
     pub teams_keys: tokio::sync::Mutex<Option<(std::time::Instant, Value)>>,
     pub http: reqwest::Client,
     changes: watch::Sender<BTreeMap<String, u64>>,
@@ -69,6 +71,7 @@ impl Channels {
             live: Mutex::default(),
             qr: Mutex::default(),
             install: tokio::sync::Mutex::new(()),
+            menus: Mutex::default(),
             teams_keys: tokio::sync::Mutex::new(None),
             store: ChannelStore::load(args.database.with_file_name("chat-channels.dat"))?,
             http: reqwest::Client::builder()
@@ -304,6 +307,9 @@ impl Channels {
                     .find(|p| p.id == id)
                     .ok_or_else(|| anyhow::anyhow!("account not found"))?;
                 ensure!(peer.approved || peer.expires > unix_now(), "授权请求已过期");
+                if !peer.approved {
+                    peer.welcome_pending = true;
+                }
                 peer.approved = true;
             } else {
                 let removed = cfg

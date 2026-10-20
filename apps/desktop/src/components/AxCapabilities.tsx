@@ -149,7 +149,10 @@ function CapabilityView({ workspace, scope, onScopeChange, tab, onTabChange }: {
       {!!warnings.length && <div role="alert" className="settings-notice is-error">{warnings.join('\n')}</div>}
       <Tabs.Content value={tab} className="plugins-panel" aria-busy={catalog.isFetching}>
         {catalog.isPending && canQuery && <div role="status" className="plugins-empty"><RefreshCw size={24} className="is-refreshing"/><strong>{copy('正在读取插件…', 'Loading plugins…')}</strong></div>}
-        {tab === 'agents' && <AgentDelegationSettings workspace={workspace} scope={scope}/>}
+        {tab === 'agents' && <>
+          <AgentDelegationSettings workspace={workspace} scope={scope}/>
+          <p className="settings-toggle-description">{copy('下方列表用于配置预设角色。主智能体也可以直接分配临时子任务，无需预先添加角色。', 'The list below configures preset roles. The main agent can also assign temporary subtasks without adding a role first.')}</p>
+        </>}
         {data && <section className={`plugins-list ${tab === 'mcp' ? 'is-grouped' : ''}`} aria-label={current.label}>
           {items.map(item => <article className="plugin-row" key={item.name}>
             <span className="plugin-icon"><Icon size={20}/></span>

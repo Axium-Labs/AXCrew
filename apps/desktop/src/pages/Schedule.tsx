@@ -5,7 +5,8 @@ import {
   CalendarDays, ChevronDown, ChevronRight, Clock, Clock3, FolderPlus, List,
   Moon, MoreHorizontal, Play, Plus, Repeat, Rocket, Search, Sunrise, Timer, TriangleAlert, Trash2,
 } from 'lucide-react'
-import { Action, Field, PageHead, Select } from '../components/shared'
+import { Action, Empty, Field, PageHead } from '../components/shared'
+import { Select } from '../components/ui/select'
 import { Button } from '../components/ui/button'
 import { Dialog } from '../components/ui/dialog'
 import { Input, Textarea } from '../components/ui/input'
@@ -124,14 +125,10 @@ function ScheduleEditor({ automation, initial, folders, onFolders, close }: { au
       <span className="schedule-field-title">{translate("copy.205")}</span>
       <span className="schedule-field-hint">{translate("copy.206")}</span>
       <div className="schedule-plan">
-        <Select value={draft.schedule_kind} onChange={value => set('schedule_kind', value as Draft['schedule_kind'])}>
-          <option value="interval">{translate("copy.207")}</option><option value="daily">{translate("copy.208")}</option><option value="weekly">{translate("copy.189")}</option>
-        </Select>
+        <Select label={translate("copy.205")} value={draft.schedule_kind} onChange={value => set('schedule_kind', value as Draft['schedule_kind'])} options={[{value:'interval',label:translate("copy.207")},{value:'daily',label:translate("copy.208")},{value:'weekly',label:translate("copy.189")}]}/>
         {draft.schedule_kind === 'interval' ? <>
           <Input type="number" min={1} aria-label={translate("copy.209")} value={draft.interval_value} onChange={event => set('interval_value', Math.max(1, Number(event.target.value) || 1))}/>
-          <Select value={draft.interval_unit} onChange={value => set('interval_unit', value as Draft['interval_unit'])}>
-            <option value="minutes">{translate("copy.210")}</option><option value="hours">{translate("copy.211")}</option><option value="days">{translate("copy.212")}</option>
-          </Select>
+          <Select label={translate("copy.207")} value={draft.interval_unit} onChange={value => set('interval_unit', value as Draft['interval_unit'])} options={[{value:'minutes',label:translate("copy.210")},{value:'hours',label:translate("copy.211")},{value:'days',label:translate("copy.212")}]}/>
         </> : <>
           <Input type="time" aria-label={translate("copy.213")} value={draft.daily_time} onChange={event => set('daily_time', event.target.value || '09:00')}/>
           {draft.schedule_kind === 'weekly' && <div className="schedule-weekdays" role="group" aria-label={translate("copy.214")}>{WEEKDAYS().map((label, index) => <button key={label} type="button" aria-pressed={draft.weekdays.includes(index + 1)} className={draft.weekdays.includes(index + 1) ? 'is-on' : ''} onClick={() => set('weekdays', draft.weekdays.includes(index + 1) ? draft.weekdays.filter(day => day !== index + 1) : [...draft.weekdays, index + 1])}>{label}</button>)}</div>}
@@ -139,18 +136,13 @@ function ScheduleEditor({ automation, initial, folders, onFolders, close }: { au
       </div>
     </div>
     <ScheduleField label={translate("copy.215")} hint={translate("copy.216")}>
-      <Select value={draft.member_id} onChange={value => set('member_id', value)}>
-        <option value="">{translate("copy.217")}</option>
-        {(members.data ?? []).map(member => <option key={member.id} value={member.id}>{member.name} · {member.role}</option>)}
-      </Select>
+      <Select label={translate("copy.215")} value={draft.member_id} onChange={value => set('member_id', value)} options={[{value:'',label:translate("copy.217")},...(members.data??[]).map(member=>({value:member.id,label:`${member.name} · ${member.role}`}))]}/>
     </ScheduleField>
     <ScheduleField label={translate("copy.218")} hint={translate("copy.219")}>
-      <Select value={draft.model} onChange={value => set('model', value)}><option value="">{translate("copy.220")}</option>{draft.model && <option value={draft.model}>{draft.model}</option>}</Select>
+      <Select label={translate("copy.218")} value={draft.model} onChange={value => set('model', value)} options={[{value:'',label:translate("copy.220")},...(draft.model?[{value:draft.model,label:draft.model}]:[])]}/>
     </ScheduleField>
     <ScheduleField label={translate("copy.221")} hint={translate("copy.222")}>
-      <Select value={draft.approval} onChange={value => set('approval', value as Draft['approval'])}>
-        <option value="default">{translate("copy.223")}</option><option value="auto">{translate("copy.224")}</option><option value="ask">{translate("copy.225")}</option>
-      </Select>
+      <Select label={translate("copy.221")} value={draft.approval} onChange={value => set('approval', value as Draft['approval'])} options={[{value:'default',label:translate("copy.223")},{value:'auto',label:translate("copy.224")},{value:'ask',label:translate("copy.225")}]}/>
     </ScheduleField>
     <div className="schedule-toggles">
       <div><strong>{translate("copy.226")}</strong><span>{translate("copy.227")}</span></div><Switch label={translate("copy.226")} checked={draft.silent} onChange={value => set('silent', value)}/>
@@ -158,7 +150,7 @@ function ScheduleEditor({ automation, initial, folders, onFolders, close }: { au
       <div><strong>{translate("copy.230")}</strong><span>{translate("copy.231")}</span></div><Switch label={translate("copy.230")} checked={draft.hide_from_chat} onChange={value => set('hide_from_chat', value)}/>
     </div>
     <ScheduleField label={translate("copy.232")} hint={translate("copy.233")}>
-      <Select value={draft.folder} onChange={value => set('folder', value)}><option value="">{translate("copy.234")}</option>{folders.map(folder => <option key={folder} value={folder}>{folder}</option>)}</Select>
+      <Select label={translate("copy.232")} value={draft.folder} onChange={value => set('folder', value)} options={[{value:'',label:translate("copy.234")},...folders.map(folder=>({value:folder,label:folder}))]}/>
     </ScheduleField>
     <p className="schedule-field-hint">{folders.length ? translate("copy.235") : translate("copy.236")}</p>
     <div className="schedule-toggles">
@@ -196,7 +188,7 @@ function CalendarView({ automations }: { automations: Automation[] }) {
   }, [automations, days])
   const todayIndex = useMemo(() => { const now = new Date(); return (now.getDay() + 6) % 7 }, [])
   return <div className="schedule-calendar">
-    <div className="schedule-calendar-zone"><Clock3 size={15}/><Select value="local" onChange={() => {}}><option value="local">{timezoneLabel()}</option></Select></div>
+    <div className="schedule-calendar-zone"><Clock3 size={15}/><Select label={timezoneLabel()} value="local" onChange={() => {}} options={[{value:'local',label:timezoneLabel()}]}/></div>
     <div className="schedule-calendar-grid">
       <div className="schedule-calendar-hours">{Array.from({ length: 24 }, (_, hour) => <span key={hour}>{`${String(hour).padStart(2, '0')}:00`}</span>)}</div>
       <div className="schedule-calendar-columns">{days.map((date, index) => <div key={index} className={`schedule-calendar-day ${index === todayIndex ? 'is-today' : ''}`}>
@@ -255,9 +247,9 @@ export function Schedule() {
       : view === 'calendar' ? <CalendarView automations={filtered}/>
       : view === 'runs' ? <RunHistory runs={runs.data ?? []} automations={list}/>
       : !list.length ? <div className="schedule-empty">
-        <h2>{translate("copy.261")}</h2>
-        <p>{translate("copy.262")}</p>
-        <Button onClick={() => { setTemplate(null); setEditing('new') }}><Plus size={15}/> {translate("copy.263")}</Button>
+        <Empty className="schedule-intro" icon={<CalendarDays size={24} strokeWidth={1.5}/>}
+          title={translate("copy.261")} description={translate("copy.262")}
+          action={<Button onClick={() => { setTemplate(null); setEditing('new') }}><Plus size={15}/> {translate("copy.263")}</Button>}/>
         <span className="schedule-empty-hint">{translate("copy.264")}</span>
         <div className="schedule-templates-head"><h3>{translate("copy.265")}</h3><Button variant="secondary" onClick={() => setTemplates(true)}>{translate("copy.266")}</Button></div>
         <div className="schedule-templates">{TEMPLATES().slice(0, 4).map((item, index) => {
@@ -311,8 +303,8 @@ export function Schedule() {
         {expanded && <p>{item.message}</p>}
       </div>
       <div className="schedule-cell"><span className={`schedule-pill ${item.enabled ? 'is-ready' : 'is-paused'}`}>{item.enabled ? translate("copy.287") : translate("copy.288")}</span></div>
-      <div className="schedule-cell schedule-when">{relative(item.last_run_at)}</div>
-      <div className="schedule-cell schedule-when">{item.enabled ? relative(item.next_run_at) : '—'}</div>
+      <div className="schedule-cell schedule-when"><span className="schedule-compact-label">{translate("copy.274")}</span><span>{relative(item.last_run_at)}</span></div>
+      <div className="schedule-cell schedule-when"><span className="schedule-compact-label">{translate("copy.275")}</span><span>{item.enabled ? relative(item.next_run_at) : '—'}</span></div>
       <div className="schedule-cell schedule-actions">
         <Action run={async () => { await api(`/api/automations/${item.id}/run`, 'POST', {}) }}><Play size={13}/> {translate("copy.289")}</Action>
         <Action variant="danger" run={async () => { await api(`/api/automations/${item.id}`, 'DELETE') }}><Trash2 size={13}/> {translate("copy.290")}</Action>
