@@ -180,6 +180,32 @@ button.plugin-add-source:disabled{opacity:.6;cursor:progress}
 .settings-capability-table td button{display:inline-block;margin:0 6px 6px 0;font-size:12px}
 
 /* Personalization uses the settings rows and shared dialog buttons. */
+.settings-sidebar nav button .completion-dot{margin-left:auto;overflow:visible}
+.evolution-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.evolution-heading h2{margin:0}
+.evolution-section{margin-top:22px}
+.evolution-section h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:13px;font-weight:600}
+.evolution-section h3 small{color:var(--shell-muted);font-size:12px;font-weight:400}
+.evolution-skill{padding:16px 0;border-top:1px solid var(--shell-border)}
+.evolution-skill h4{margin:14px 0 6px;color:var(--shell-muted);font-size:12px;font-weight:500}
+.evolution-skill-name{display:block;min-width:0;overflow-wrap:anywhere;font-size:13px;line-height:1.5}
+.evolution-card .evolution-preview{max-height:280px;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:2;line-height:1.6}
+.evolution-evidence{display:grid;gap:9px;margin:8px 0 14px;padding-left:18px;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.evolution-evidence small{display:block;color:var(--shell-muted);font-size:11px}
+.evolution-learned-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-top:1px solid var(--shell-border)}
+.evolution-learned-row>div{min-width:0;flex:1}
+.evolution-learned-row>button{flex:none}
+.evolution-skill-meta{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:5px;color:var(--shell-muted);font-size:12px}
+.evolution-runtime{margin-top:18px;padding-top:14px;border-top:1px solid var(--shell-border)}
+.evolution-runtime summary{width:fit-content;cursor:pointer;color:var(--shell-muted);font-size:12px}
+.evolution-runtime summary:focus-visible{outline:2px solid var(--shell-accent-strong);outline-offset:4px}
+.evolution-runtime dl{display:grid;gap:10px;margin:14px 0 0;font-size:12px}
+.evolution-runtime dl>div{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.evolution-runtime dt{color:var(--shell-muted)}
+.evolution-runtime dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.evolution-unavailable{margin-top:18px;padding-top:14px;border-top:1px solid var(--shell-border);font-size:12px}
+.evolution-unavailable strong{font-weight:500}
+.evolution-card .evolution-action-notice{overflow-wrap:anywhere;color:var(--shell-text)}
 .settings-card button.personalization-entry-button{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:13px 14px;border-radius:var(--radius-control);text-align:left}
 .entry-content{flex:1;min-width:0}
 .entry-title{font-size:14px;font-weight:600;color:var(--shell-text);margin-bottom:4px}

@@ -31,6 +31,7 @@ import { ExecutionSettings } from '../components/ExecutionSettings'
 import { AxDesktopControl } from '../components/AxDesktopControl'
 import { AxBrowserControl } from '../components/AxBrowserControl'
 import { useSettingsWorkspace } from '../lib/useSettingsWorkspace'
+import { useLocalEvolution } from '../lib/evolution'
 import { resolveSendWorkspace } from '../lib/workspace'
 import { GoalSettings } from '../components/GoalSettings'
 
@@ -74,7 +75,6 @@ export function Settings(){
   const navigationRef=useRef<HTMLElement>(null)
   const visibleSections=sections.filter(item=>item.label.toLowerCase().includes(search.toLowerCase()))
   useEffect(()=>{if(routeSection==='connections'){navigate('/connect',{replace:true});return}setSectionState(sections.some(item=>item.id===routeSection)?routeSection as Section:'overview')},[routeSection])
-  useEffect(()=>{navigationRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView?.({block:'nearest',inline:'nearest'})},[section,search])
   const setSection=(value:Section)=>{setSectionState(value);navigate(`/settings/${value}`)}
   const [loginProvider,setLoginProvider]=useState<{id:string;name:string}|null>(null)
   const loginSuccess=useCallback(()=>{void query.invalidateQueries({queryKey:['ax-local']})},[query])
@@ -90,7 +90,10 @@ export function Settings(){
   const [exportScope,setExportScope]=useState<'all'|'memory'|'sessions'>('all')
   const workspaceCandidate=selectedCwd??settings.data?.default_cwd
   const needsWorkspace=['capabilities','backup','ax','goal'].includes(section)
-  const {workspace,error:workspaceError,checking:checkingWorkspace}=useSettingsWorkspace(workspaceCandidate,needsWorkspace)
+  const {workspace,error:workspaceError,checking:checkingWorkspace}=useSettingsWorkspace(workspaceCandidate)
+  const evolution=useLocalEvolution(workspace)
+  const hasPendingSkills=!!(evolution.data?.available && evolution.data.status.pending_reviews>0)
+  useEffect(()=>{navigationRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView?.({block:'nearest',inline:'nearest'})},[section,search,hasPendingSkills])
   const chooseWorkspace=async()=>{
     try {
       const path=await resolveSendWorkspace()
@@ -147,7 +150,7 @@ export function Settings(){
     <aside className="settings-sidebar" aria-label={translate("copy.27")}>
       <h2 className="settings-sidebar-title">{translate("copy.28")}</h2>
       <label className="settings-search"><Search size={15} aria-hidden="true"/><input aria-label={translate("copy.34")} placeholder={translate("copy.35")} value={search} onChange={event=>setSearch(event.target.value)}/>{search&&<button type="button" aria-label={lang==='zh'?'清除搜索':'Clear search'} onClick={()=>setSearch('')}><X size={14}/></button>}</label>
-      <nav ref={navigationRef}>{visibleSections.map((item,index,list)=>{const Icon=item.icon;return <div className="settings-nav-item" key={item.id}>{item.group&&list.findIndex(other=>other.group===item.group)===index&&<span className="settings-nav-heading">{item.group}</span>}<button type="button" className={section===item.id?'is-active':''} aria-current={section===item.id?'page':undefined} onClick={()=>setSection(item.id)}><Icon size={16} aria-hidden="true"/><span>{item.label}</span></button></div>})}</nav>
+      <nav ref={navigationRef}>{visibleSections.map((item,index,list)=>{const Icon=item.icon;return <div className="settings-nav-item" key={item.id}>{item.group&&list.findIndex(other=>other.group===item.group)===index&&<span className="settings-nav-heading">{item.group}</span>}<button type="button" className={section===item.id?'is-active':''} aria-current={section===item.id?'page':undefined} onClick={()=>setSection(item.id)}><Icon size={16} aria-hidden="true"/><span>{item.label}</span>{item.id==='personalization'&&hasPendingSkills&&<span className="completion-dot" role="img" aria-label={translate('evolution.pendingDot')} title={translate('evolution.pendingDot')}/>}</button></div>})}</nav>
       {!visibleSections.length&&<p className="settings-nav-empty" role="status">{lang==='zh'?'没有匹配的设置':'No matching settings'}</p>}
     </aside>
     <div className="settings-main"><div className="settings-page-top"><div><h1>{sections.find(item=>item.id===section)?.label}</h1><p>{section==='channels'?(lang==='zh'?'选择聊天平台，连接你的助手':'Choose a chat platform to connect your assistant'):section==='desktop'?(lang==='zh'?'让助手通过辅助功能读取并操作桌面应用窗口':'Let assistants read and operate desktop windows through accessibility'):section==='overview'?translate("copy.29"):section==='models'?translate("copy.30"):section==='speech'?translate("copy.31"):section==='capabilities'?translate("copy.32"):translate("copy.33")}</p></div></div>
@@ -176,12 +179,12 @@ export function Settings(){
       </div>}
       {section==='models'&&<div className="settings-model-tools"><button disabled={!axAvailable} onClick={()=>openAxTui('/model')}>{translate("copy.126")}</button><button disabled={!axAvailable||busy} onClick={()=>refreshModels()}><RefreshCw size={15}/> {translate("copy.127")}</button></div>}
       {section==='usage'&&<Usage/>}
-      {section==='personalization'&&<Personalization/>}
+      {section==='personalization'&&<Personalization workspace={workspace} onChooseWorkspace={chooseWorkspace}/>}
       {section==='capabilities'&&<AxCapabilities workspace={workspace} home={ax.data?.home}/>}
       {section==='desktop'&&<AxDesktopControl/>}
       {section==='browser'&&<AxBrowserControl/>}
       {(section==='ax'||section==='models')&&ax.data?.runtime_warning&&<div className="settings-notice is-error" role="alert">{ax.data.runtime_warning}</div>}
-      {ax.error&&section!=='appearance'&&<div className="settings-notice is-error" role="alert">{translate("copy.128")}{String(ax.error)}</div>}
+      {ax.error&&section!=='appearance'&&section!=='personalization'&&<div className="settings-notice is-error" role="alert">{translate("copy.128")}{String(ax.error)}</div>}
       {loginProvider&&<ProviderLogin provider={loginProvider.id} name={loginProvider.name} onClose={()=>{setLoginProvider(null);void query.invalidateQueries({queryKey:['ax-local']})}} onSuccess={loginSuccess}/>}
       {notice&&<div className={`settings-notice${noticeError?' is-error':''}`} role={noticeError?'alert':'status'}>{notice}</div>}
     </div>

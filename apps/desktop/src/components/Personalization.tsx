@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { open } from '@tauri-apps/plugin-dialog'
 import { Trash2, FolderOpen, ChevronRight, AlertCircle } from 'lucide-react'
 import { call as invoke } from '../lib/errors'
-import { translate, useLang } from '../lib/i18n'
+import { translate, useLang, useT } from '../lib/i18n'
 import { axAvailable, axLocalState } from '../lib/ax'
+import { axEvolutionArchive, axEvolutionReview, useLocalEvolution } from '../lib/evolution'
 import { Dialog } from './ui/dialog'
 import { Button } from './ui/button'
 import { SettingsLocation } from './ui/settings-location'
@@ -13,6 +14,7 @@ import { SettingsLocation } from './ui/settings-location'
 type PersonalizationState = {
   memory_enabled: boolean
   tool_memory: boolean
+  evolution?: boolean
   writing_enabled: boolean
   writing_folder: string | null
   instructions_path: string
@@ -23,6 +25,7 @@ type PersonalizationState = {
 async function axPersonalize(args: {
   memory?: boolean
   toolMemory?: boolean
+  evolution?: boolean
   writing?: boolean
   writingFolder?: string
   clearWritingFolder?: boolean
@@ -35,6 +38,7 @@ async function axPersonalize(args: {
   const axArgs = ['personalize']
   if (args.memory !== undefined) axArgs.push('--memory', String(args.memory))
   if (args.toolMemory !== undefined) axArgs.push('--tool-memory', String(args.toolMemory))
+  if (args.evolution !== undefined) axArgs.push('--evolution', String(args.evolution))
   if (args.writing !== undefined) axArgs.push('--writing', String(args.writing))
   if (args.writingFolder) axArgs.push('--writing-folder', args.writingFolder)
   if (args.clearWritingFolder) axArgs.push('--clear-writing-folder')
@@ -54,8 +58,9 @@ type DialogState = null | {
   type: 'confirm_delete_memories'
 }
 
-export function Personalization() {
+export function Personalization({ workspace, onChooseWorkspace }: { workspace?: string; onChooseWorkspace?: () => Promise<void> }) {
   const lang = useLang(state => state.lang)
+  const t = useT()
   const query = useQueryClient()
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
@@ -141,7 +146,9 @@ export function Personalization() {
         <section className="settings-card">
           <h2>{lang === 'zh' ? '记忆' : 'Memory'}</h2>
           <SettingsToggle label={lang === 'zh' ? '启用记忆' : 'Enable memory'} description={lang === 'zh' ? '保存和检索个人偏好、项目事实和会话临时记录' : 'Store and retrieve personal preferences, project facts, and session notes'} checked={data?.memory_enabled ?? true} disabled={busy || !data} onChange={e => void save({ memory: e.target.checked })}/>
-          <SettingsToggle label={lang === 'zh' ? '允许工具使用记忆' : 'Allow tool-driven memory'} description={lang === 'zh' ? '让 AX 可以通过工具主动创建记忆并从完成的工作中学习' : 'Let AX create memories through tools and learn from completed work'} checked={data?.tool_memory ?? true} disabled={busy || !data} onChange={e => void save({ toolMemory: e.target.checked })}/>
+          <SettingsToggle label={t('personalization.toolMemory')} description={t('personalization.toolMemoryDescription')} checked={data?.tool_memory ?? true} disabled={busy || !data} onChange={e => void save({ toolMemory: e.target.checked })}/>
+          <SettingsToggle label={t('evolution.toggle')} description={t('evolution.description')} checked={data?.evolution ?? false} disabled={busy || typeof data?.evolution !== 'boolean'} onChange={e => void save({ evolution: e.target.checked })}/>
+          {data?.evolution && !data.memory_enabled && <p>{t('evolution.memoryRequired')}</p>}
           <div className="settings-action-row">
             <div className="settings-toggle-copy">
               <strong>{lang === 'zh' ? '删除所有记忆' : 'Delete all memories'}</strong>
@@ -156,6 +163,8 @@ export function Personalization() {
             </button>
           </div>
         </section>
+
+        <EvolutionCard key={workspace ?? ''} workspace={workspace} onChooseWorkspace={onChooseWorkspace}/>
 
         {/* 自定义指令部分 */}
         <section className="settings-card">
@@ -199,7 +208,7 @@ export function Personalization() {
           </div>
         </section>
 
-        {state.error && <div className="settings-notice is-error" role="alert">
+        {state.error && <div className="settings-notice" role="status">
           <AlertCircle size={16} />
           <span>{lang === 'zh' ? '无法读取个性化设置：' : 'Could not load personalization settings: '}{String(state.error)}</span>
         </div>}
@@ -300,4 +309,67 @@ export function Personalization() {
       </Dialog>
     </>
   )
+}
+
+function EvolutionCard({ workspace, onChooseWorkspace }: { workspace?: string; onChooseWorkspace?: () => Promise<void> }) {
+  const t = useT()
+  const lang = useLang(state => state.lang)
+  const query = useQueryClient()
+  const evolution = useLocalEvolution(workspace)
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState('')
+  // An in-flight action belongs to its original project; do not carry its notice
+  // into a newly selected workspace.
+  useEffect(() => { setNotice('') }, [workspace])
+  const data = evolution.data?.available ? evolution.data : undefined
+  const unavailable = evolution.data?.available === false ? evolution.data : undefined
+  const refresh = async () => {
+    await query.invalidateQueries({ queryKey: ['ax-evolution', workspace] })
+  }
+  const mutate = async (run: () => Promise<unknown>) => {
+    if (busy || !workspace) return
+    setBusy(true)
+    setNotice('')
+    try {
+      await run()
+    } catch (error) {
+      const reason = String(error)
+      setNotice(/stale|digest|changed/i.test(reason) ? t('evolution.staleReview') : t('evolution.actionFailed', { reason }))
+    } finally {
+      // Refresh on failures too: an expired digest must get a new preview and an
+      // explicit user choice, never an automatic retry with a different digest.
+      await refresh()
+      setBusy(false)
+    }
+  }
+  const pending = data?.reviews ?? []
+  const learned = data?.skills.filter(skill => !pending.some(review => review.name === skill.name)) ?? []
+  const timestamp = data?.status.last_analysis
+  const lastAnalysis = timestamp ? new Date(timestamp * 1000).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US') : t('evolution.never')
+  return <section className="settings-card evolution-card" aria-label={t('evolution.title')}>
+    <div className="evolution-heading"><h2>{t('evolution.title')}</h2><button type="button" disabled={busy || evolution.isFetching || !axAvailable || !workspace} onClick={() => void refresh()}>{t('evolution.refresh')}</button></div>
+    <p>{t('evolution.localOnly')}</p>
+    {workspace && <SettingsLocation path={workspace}/>}
+    {!evolution.data && <p role="status">{t('evolution.loading')}</p>}
+    {unavailable && <div className="evolution-unavailable" role="status"><strong>{t('evolution.unavailable')}</strong><p>{t(`evolution.${unavailable.reason}`, { reason: unavailable.detail ?? '' })}</p>{unavailable.reason === 'workspaceRequired' && onChooseWorkspace && <button type="button" onClick={() => void onChooseWorkspace()}>{t('evolution.chooseWorkspace')}</button>}</div>}
+    {data && <>
+      <div className="evolution-section"><h3>{t('evolution.pending')} <small>{pending.length}</small></h3>
+        {!pending.length && <p>{t('evolution.pendingEmpty')}</p>}
+        {pending.map(review => <article className="evolution-skill" key={`${workspace}:${review.name}:${review.digest}`} aria-label={review.name}>
+          <strong className="evolution-skill-name">{review.name}</strong>
+          <h4>{t('evolution.preview')}</h4>
+          <pre className="settings-report evolution-preview"><code>{review.content}</code></pre>
+          <h4>{t('evolution.evidence')}</h4>
+          {review.evidence.length ? <ul className="evolution-evidence">{review.evidence.map((item, index) => <li key={`${item.id}:${index}`}><span>{item.task}</span><small>{item.id}</small></li>)}</ul> : <p>{t('evolution.noEvidence')}</p>}
+          <div className="settings-actions"><button type="button" className="settings-primary" disabled={busy || evolution.isFetching || !review.digest} onClick={() => void mutate(() => axEvolutionReview(workspace!, review.name, review.digest, true))}>{t('evolution.accept')}</button><button type="button" disabled={busy || evolution.isFetching || !review.digest} onClick={() => void mutate(() => axEvolutionReview(workspace!, review.name, review.digest, false))}>{t('evolution.reject')}</button></div>
+        </article>)}
+      </div>
+      <div className="evolution-section"><h3>{t('evolution.learned')}</h3>
+        {!learned.length && <p>{t('evolution.learnedEmpty')}</p>}
+        {learned.map(skill => <article className="evolution-learned-row" key={skill.name} aria-label={skill.name}><div><strong className="evolution-skill-name">{skill.name}</strong><div className="evolution-skill-meta"><span>{t(`evolution.state.${skill.state}`)}</span><span>{t('evolution.usage', { count: skill.use_count })}</span><span>{t('evolution.successes', { count: skill.success_count })}</span></div></div>{['candidate', 'trial', 'active'].includes(skill.state) && <button type="button" disabled={busy || evolution.isFetching} onClick={() => void mutate(() => axEvolutionArchive(workspace!, skill.name))}>{t('evolution.archive')}</button>}</article>)}
+      </div>
+      <details className="evolution-runtime"><summary>{t('evolution.runtime')}</summary><dl><div><dt>{t('evolution.pendingRecords')}</dt><dd>{data.status.pending}</dd></div><div><dt>{t('evolution.lastAnalysis')}</dt><dd>{lastAnalysis}</dd></div><div><dt>{t('evolution.failures')}</dt><dd>{data.status.consecutive_failures}</dd></div><div><dt>{t('evolution.backoff')}</dt><dd>{t('evolution.seconds', { count: data.status.backoff_seconds })}</dd></div></dl></details>
+    </>}
+    {notice && <p className="evolution-action-notice" role="status">{notice}</p>}
+  </section>
 }

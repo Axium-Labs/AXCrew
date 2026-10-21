@@ -65,6 +65,40 @@ chat while preparing automatic file change previews. AX bounds and cancels the
 snapshot worker; the transcript shows when a complete file change preview is
 unavailable. Tool execution remains available. See [AX ACP limits](../../../ax/docs/acp-crew.md).
 
+### Personalization and automatic learning
+
+Settings → Personalization (`/settings/personalization`) separates tool-driven
+memory writes from **Automatic learning (self-evolution)**. The memory tool
+switch controls writing memories; automatic learning has its own global switch
+backed by `ax personalize --evolution`. Automatic analysis requires both memory
+and automatic learning to be enabled.
+
+Evolution data belongs to a project, rather than an AX-wide skill list. The card
+uses the selected project directory, falling back to Crew's default working
+directory, and validates that folder on this computer. It displays the actual
+local project path and only that project's learning data. If no valid local
+project is available, choose a local project folder in the card.
+
+The **Automatic learning** card reads the local AX JSON outputs for
+`evolution status`, `evolution skills` and `evolution show`. Pending skills show
+their full SKILL.md as plain text and an evidence summary containing evidence
+IDs and task summaries. The desktop verifies the text's UTF-8 SHA-256 digest
+against the pending review digest. Accept and reject use `evolution review`
+with that digest, so a changed proposal must be reviewed again. Learned skills
+show their status, use count and
+success count, with an archive action. Runtime status starts collapsed and shows
+pending analysis items, the last analysis time, consecutive failures and backoff
+duration. A dot using the existing unread indicator style marks Personalization
+in settings navigation while skills await review.
+
+All calls use the desktop's `ax_tui_command` bridge. Global personalization uses
+the local AX home; evolution commands run in the validated local project folder.
+This surface supports only the AX runtime on this computer, including when Crew
+is connected to a remote server; evolution
+data is never written to or sent through the Crew server. If local AX is missing,
+cannot run, or predates the evolution commands, the card shows an unavailable
+reason instead of an error alert. A matching AX runtime is required to use it.
+
 ### Goal policies
 
 Settings → Goal (`/settings/goal`) edits AX's global defaults or the selected

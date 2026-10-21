@@ -51,6 +51,15 @@ keeps their credentials, tools, skills, memory, and session history.
   Settings read/write AX's existing templates; automatic use defaults off.
   Acceptance, validators, budget and recovery sections start collapsed; clicking
   a heading reveals the form and folding retains its draft.
+- **Automatic learning** — Settings → Personalization has separate controls for
+  tool-driven memory writes and global automatic learning. Its local AX card
+  shows only the selected local project's data; choose a folder when no local
+  project is selected. It previews proposed skills and evidence for digest-bound
+  accept/reject, shows learned
+  skill status and usage/success counts, and supports archiving. Pending reviews
+  add a navigation dot; runtime details start collapsed. Missing or older AX
+  runtimes display an unavailable reason. Evolution data stays on this machine
+  and is never written to the Crew server; remote AX is not supported here.
 - **Codex sign-in** — choose browser or device-code login in model settings.
   Device codes are displayed in full with a Copy code button. AX saves the
   credentials; this flow requires the matching AX build with `--method`/`--json`.

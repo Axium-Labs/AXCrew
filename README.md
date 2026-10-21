@@ -72,6 +72,14 @@ Desktop app highlights:
   conservative progress observations and cumulative Runtime caps. An opt-in
   switch applies them automatically to ordinary new tasks; advanced forms start
   collapsed and retain drafts when folded. Durable execution and takeover retain Crew's existing leases/checkpoints.
+- **Local automatic learning** — Settings → Personalization separates tool-driven
+  memory writes from AX's global automatic learning switch. Choose a local
+  project to review its proposed skills with their SKILL.md preview and evidence
+  summary, accept or reject the reviewed digest, and inspect or archive its
+  learned skills. A navigation dot marks pending
+  reviews; runtime details start collapsed. This surface uses only the local AX
+  runtime and explains when AX is unavailable or too old. Evolution data never
+  goes to the Crew server.
 - **Codex account sign-in** — choose browser authorization or device-code login
   in desktop model settings; the full one-time code is visible and copyable.
 - **Settings → Plugins** — manage Mods, MCP and skills in settings. The page
