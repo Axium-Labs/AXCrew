@@ -105,7 +105,7 @@ class CrewRepository(val api: GatewayApi) {
             }
             current.copy(events = (listOf(event) + current.events).take(300), streams = streams)
         }
-        if (!event.kind.startsWith("agent.") && !event.kind.startsWith("tool.")) requestRefresh()
+        if (!event.kind.startsWith("agent.") && !event.kind.startsWith("tool.") && event.kind != "subagent.update") requestRefresh()
     }
     suspend fun history(id: String): History = api.get("sessions", id, "history")
     suspend fun createCrew(name: String): Crew = api.post("crews", body = NewCrew(name.trim()))

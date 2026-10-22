@@ -21,6 +21,26 @@ card; AX remains the authoritative transcript and task identity source. Crew tas
 output holds the transient question/queued answer, without a separate question
 store or scheduling loop. Event history redacts question/answer content.
 
+Subagent activity follows the same parent binding: local and paired-device
+transports forward AX's `sessionUpdate: "subagent"` envelopes unchanged, and the
+scheduler emits `subagent.update`. Child assistant text/tools remain nested and
+never contribute to the parent's final response. The event repository persists
+only child IDs, lifecycle status and nested update kind. The existing parent
+history inspection restores detailed activity from AX's authoritative records;
+Crew adds no child-session database or client-selectable filesystem path.
+
+The local read-only adapter also recognizes AX's `[ax-subagent]` parent system
+records when direct local history is viewed or ACP inspection is unavailable.
+Child session UUIDs and canonical `child-runs/.../state` paths must match the
+parent-owned locator; JSONL symlinks cannot escape that state directory. Nested
+public assistant/tool activity is restored once per child, excluding inherited
+user history and reasoning. Retained `[ax-child-outcome]` records recover final
+status after parent interruption. This fallback reads at most 256 child stores,
+32 MiB and 20,000 child updates per request; limited history exposes the optional
+`historyTruncated: true` flag while keeping lifecycle metadata.
+Older local records without a subagent index may have no child details in this
+read-only fallback; normal ACP history retains AX's legacy queue compatibility.
+
 ## Documents
 
 Desktop website browsing uses `WebPreviewPanel.tsx` to own independent tabs and

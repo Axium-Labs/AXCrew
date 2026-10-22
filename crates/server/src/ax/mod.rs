@@ -10,6 +10,7 @@
 //! This is not a transport: it never talks to an AX process. `crate::transport`
 //! owns the ACP connection to AX, and `crate::storage` owns Crew's own database.
 
+mod subagents;
 pub mod usage;
 
 use anyhow::{Context, Result, anyhow};
@@ -251,6 +252,7 @@ fn to_update(session: &str, message: &Value) -> Option<Value> {
         "system" if content.starts_with("[ax-changes]\n") => {
             json!({"sessionUpdate":"turn_changes","changedFiles":serde_json::from_str::<Value>(content.trim_start_matches("[ax-changes]\n")).unwrap_or(Value::Null)})
         }
+        "system" if content.starts_with("[ax-subagent]\n") => subagents::saved_update(&content)?,
         _ => return None,
     };
     Some(json!({"sessionId":session,"update":with_time(update, at)}))
@@ -309,6 +311,7 @@ pub fn transcript(session: &str) -> Result<Value> {
         }
         let file = fs::File::open(&path).with_context(|| format!("无法读取 {}", path.display()))?;
         let mut updates = Vec::new();
+        let mut children = subagents::ReplayBudget::default();
         for line in BufReader::new(file).lines().map_while(Result::ok) {
             let Ok(message) = serde_json::from_str::<Value>(&line) else {
                 continue;
@@ -317,6 +320,14 @@ pub fn transcript(session: &str) -> Result<Value> {
                 updates.push(update);
             }
             updates.extend(tool_starts(session, &message));
+            subagents::replay_children(
+                session,
+                &project.data_dir.join("child-runs"),
+                &message,
+                None,
+                &mut children,
+                &mut updates,
+            );
         }
         return Ok(json!({
             "ax_session_id": session,

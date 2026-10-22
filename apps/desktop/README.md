@@ -260,6 +260,12 @@ without restarting its shell.
 
 Conversation transcripts start with messages without a session-ID metadata line.
 The AX Session ID is available in the Details sidebar.
+With AX 0.3.14 or later, delegated work appears as compact agent cards in the main transcript. Open a
+card or the Agents sidebar tab to select a child and inspect its task, streamed
+output, tool calls and result, including nested delegation and failure/stop
+states. AX owns these records; history replay restores the work view after a
+refresh. This requires AX with subagent event support; older records can lack
+child content. See [agent workspace](../../docs/desktop/README.md#subagent-workspace).
 The composer leaves 20px of space below it. Its project/location strip appears
 only before the first send in a new chat, hides when work begins and stays hidden
 in existing chats. Failed first sends restore it; a new chat shows it again.
@@ -277,7 +283,7 @@ automatically collapses navigation then Sessions, and uses a preview drawer when
 both panel minima cannot fit. Automatic changes preserve preferences, drafts and
 file tabs. Manually expanding a panel with insufficient space opens a drawer.
 Drag the chat/preview separator to resize (default 55:45; preview minimum 420px
-for Files, 320px for Chat/Details). Arrow keys, Home/End and Enter support keyboard
+for Files/Preview/Agents, 320px for Chat/Details). Arrow keys, Home/End and Enter support keyboard
 resizing/reset; double-click restores the default split. Panel layout offers a
 sidebar-only view and a return to main chat. Restore default layout resets the
 split and visibility without deleting drafts or file tabs. The composer measures

@@ -19,6 +19,11 @@ A task's final output is kept as its result. Message deltas, tool arguments and
 permission inputs are broadcast live over the event stream but excluded from
 the durable payload.
 
+Subagent envelopes also stay live: their titles, tasks, summaries, errors and
+nested text/tool content are excluded from the event index. Only execution and
+parent IDs, child-session identity, lifecycle status and nested update kind are
+retained. Detailed child history is replayed through AX's parent session store.
+
 ## Source of truth
 
 AX's own project `.ax` directory remains the source of truth for session

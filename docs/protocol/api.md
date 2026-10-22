@@ -110,6 +110,28 @@ The `payload.sessionUpdate` values (`agent_message_chunk`,
 shared with the ACP adapter; the `event_id`, `kind`, `task_id` and `payload`
 envelope is stable.
 
+Subagent updates use `kind: "subagent.update"` and
+`payload.sessionUpdate: "subagent"`. A stable `agentId` identifies the execution;
+`parentAgentId` links nested delegation, while `childSessionId` names AX's child
+session. `title`, `task`, `status`, optional `summary`/`error`, and an optional
+nested ACP `update` describe the child activity. The nested update can contain
+assistant text, tool calls/results or model connection state. It is scoped to
+the child and does not become the parent task's final assistant text.
+`GET /api/sessions/{task_id}/history` replays these envelopes through the existing
+parent session binding on the assigned device. No child path or store can be
+selected by a client. `GET /api/events` returns only redacted child IDs/status and
+nested update kind; detailed history remains in AX.
+
+For direct local history and the ACP-unavailable fallback, Crew reads only the
+child stores referenced by AX's parent system records beneath that AX store's
+canonical `child-runs` directory. Missing or unreadable child files retain the
+known lifecycle. A bounded fallback can add `historyTruncated: true` to the child
+envelope after 256 stores, 32 MiB or 20,000 child updates; inherited child prompts
+and reasoning are omitted. Child outcomes retained by AX restore terminal status
+even if the parent stopped before recording its final lifecycle event.
+Older local records without subagent indices may have no child details in this
+fallback; the normal ACP inspection path uses AX's own compatibility replay.
+
 ## Pairing and connection
 
 Issue a one-time code on the machine running Crew (with the admin token):

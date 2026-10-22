@@ -5,13 +5,13 @@ import { useAutoGrow } from '../lib/useAutoGrow'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowUp, ChevronDown, ShieldCheck, Square, X, MessageSquarePlus, Plus } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ChevronDown, ShieldCheck, Square, X, MessageSquarePlus, Plus } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { call as invoke } from '../lib/errors'
 import { api, endpoints } from '../lib/api'
 import type { AxModel } from '../lib/ax'
 import type { Task, Session } from '../lib/types'
-import { conversationTranscript } from '../lib/sessionTranscript'
+import { conversationTranscript, sessionSubagents } from '../lib/sessionTranscript'
 import { isActiveTask } from '../lib/conversations'
 import { useTasks, useSessions } from '../lib/query'
 import { useLive } from '../lib/live'
@@ -23,11 +23,14 @@ import { TranscriptLines } from './SessionTranscript'
 import { ModelControls } from './ModelControls'
 import { VoiceInput } from './VoiceInput'
 import { Menu } from './ui/menu'
+import { SubagentNavigation } from './SubagentCard'
+import { SubagentPanel } from './SubagentPanel'
 
 type Props={quotes:string[];onQuotesChange:(quotes:string[])=>void;cwd?:string;memberId?:string;models:AxModel[];initialModel?:AxModel|null;fast:boolean;onFast:()=>void;fastDisabled:boolean;remote:boolean;onRemoteModel:(provider:string,model:string)=>Promise<void>;onTask:(id:string)=>void}
 export function SideChat({quotes,onQuotesChange,cwd,memberId,models,initialModel,fast,onFast,fastDisabled,remote,onRemoteModel,onTask,visible=true}:Props&{visible?:boolean}){
   const lang=useLang(s=>s.lang),t=useT(),navigate=useNavigate(),query=useQueryClient(),tasks=useTasks(),sessions=useSessions(),streams=useLive(s=>s.streams)
   const [taskId,setTaskId]=useState<string>(),[draft,setDraft]=useState(''),[sending,setSending]=useState(false),[error,setError]=useState('')
+  const [selectedAgent,setSelectedAgent]=useState<string|null>(null)
   const [permission,setPermission]=useState<'read'|'ask'|'trust'|'yolo'>('read'),[effort,setEffort]=useState(''),[pickedModel,setPickedModel]=useState<AxModel|null>(null),[boundModel,setBoundModel]=useState<AxModel|null>(null)
   const [images,setImages]=useState<AttachedImage[]>([]),[files,setFiles]=useState<string[]>([])
   const [boundWorkspace,setBoundWorkspace]=useState<{cwd?:string;memberId?:string;remote:boolean}|null>(null)
@@ -44,6 +47,7 @@ export function SideChat({quotes,onQuotesChange,cwd,memberId,models,initialModel
   const history=useQuery({queryKey:['history',taskId],queryFn:()=>endpoints.history(taskId!),enabled:!!binding,retry:1,refetchOnWindowFocus:false})
   const settled=!!task?.finished_at&&history.dataUpdatedAt>task.finished_at*1000&&!history.isFetching&&!history.isError
   const lines=conversationTranscript(history.data,streams[taskId??'']??[],task,!settled)
+  const agents=sessionSubagents(lines,task?.status)
   const pendingQuestion=pendingSessionQuestion(task,streams[taskId??'']??[])
   useEffect(()=>{if(follow.current&&scroll.current)scroll.current.scrollTop=scroll.current.scrollHeight},[lines])
   const inputRef=useRef<HTMLTextAreaElement>(null)
@@ -63,7 +67,7 @@ export function SideChat({quotes,onQuotesChange,cwd,memberId,models,initialModel
       void query.invalidateQueries({queryKey:['sessions']});void query.invalidateQueries({queryKey:['tasks']})
     }catch(reason){setError(String(reason))}finally{lock.current=false;setSending(false)}
   }
-  return <div className="session-side-chat"><header><MessageSquarePlus size={18}/><strong>{lang==='zh'?'侧边聊天':'Side chat'}</strong><button type="button" aria-label={lang==='zh'?'新建侧边聊天':'New side chat'} disabled={busy||sending} onClick={()=>{setTaskId(undefined);setBoundModel(null);setBoundWorkspace(null);setDraft('');setImages([]);setFiles([]);setError('');onQuotesChange([])}}><Plus size={17}/></button></header><div className="session-side-chat-scroll" ref={scroll} onScroll={event=>{const node=event.currentTarget;follow.current=node.scrollHeight-node.clientHeight-node.scrollTop<80}}>{lines.length?<TranscriptLines lines={lines} taskStatus={task?.status} active={busy} finishedAt={task?.finished_at?task.finished_at*1000:undefined}/>:<div className="session-side-chat-empty"><MessageSquarePlus size={34}/><strong>{lang==='zh'?'侧边聊天':'Side chat'}</strong><p>{lang==='zh'?'围绕选中文字提问，主聊天保持原处。':'Ask about selected text while keeping your main conversation in place.'}</p></div>}</div>
+  return <SubagentNavigation.Provider value={setSelectedAgent}><div className="session-side-chat"><header>{selectedAgent?<button type="button" aria-label={lang==='zh'?'返回侧边聊天':'Back to side chat'} onClick={()=>setSelectedAgent(null)}><ArrowLeft size={17}/></button>:<MessageSquarePlus size={18}/>}<strong>{lang==='zh'?'侧边聊天':'Side chat'}</strong><button type="button" aria-label={lang==='zh'?'新建侧边聊天':'New side chat'} disabled={busy||sending} onClick={()=>{setTaskId(undefined);setSelectedAgent(null);setBoundModel(null);setBoundWorkspace(null);setDraft('');setImages([]);setFiles([]);setError('');onQuotesChange([])}}><Plus size={17}/></button></header>{selectedAgent?<SubagentPanel agents={agents} selectedId={selectedAgent} onSelect={setSelectedAgent} visible={visible}/>:<div className="session-side-chat-scroll" ref={scroll} onScroll={event=>{const node=event.currentTarget;follow.current=node.scrollHeight-node.clientHeight-node.scrollTop<80}}>{lines.length?<TranscriptLines lines={lines.map(line=>line.subagent?agents.find(agent=>agent.key===line.key)??line:line)} taskStatus={task?.status} active={busy} finishedAt={task?.finished_at?task.finished_at*1000:undefined}/>:<div className="session-side-chat-empty"><MessageSquarePlus size={34}/><strong>{lang==='zh'?'侧边聊天':'Side chat'}</strong><p>{lang==='zh'?'围绕选中文字提问，主聊天保持原处。':'Ask about selected text while keeping your main conversation in place.'}</p></div>}</div>}
     <form className="session-side-composer" onSubmit={event=>{event.preventDefault();void send()}} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void addImages([...event.dataTransfer.files])}}>
       {task&&pendingQuestion&&<SessionQuestionCard key={`${task.id}:${pendingQuestion.id}`} task={task} question={pendingQuestion} disabled={sending} onBusy={setSending}/>}
       <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={event=>{void addImages([...event.target.files??[]]);event.target.value=''}}/>
@@ -75,5 +79,5 @@ export function SideChat({quotes,onQuotesChange,cwd,memberId,models,initialModel
         <div className="session-composer-spacer"/><ModelControls models={models} model={model} effort={effectiveEffort} onEffort={setEffort} onModel={async(provider,id)=>{if(taskId)return;try{if(remote)await onRemoteModel(provider,id);setPickedModel(models.find(model=>model.provider===provider&&model.id===id)??null);setError('')}catch(reason){setError(String(reason))}}} modelDisabled={!!taskId} fast={fast} fastDisabled={fastDisabled} onFast={onFast} emptyHint={t('session.connectModel')} onConfigure={()=>navigate('/settings/models')}/>
         {((busy||task?.status==='waiting_user')&&!draft.trim()&&!images.length&&!files.length)?<button type="button" className="session-send-button session-stop-button" aria-label={lang==='zh'?'停止侧边聊天':'Stop side chat'} disabled={sending} onClick={async()=>{try{await api(`/api/tasks/${taskId}/cancel`,'POST',{});void query.invalidateQueries({queryKey:['tasks']})}catch(reason){setError(String(reason))}}}><Square size={14}/></button>:<button type="submit" className="session-send-button" aria-label={lang==='zh'?'发送侧边消息':'Send side chat message'} disabled={(!draft.trim()&&!images.length&&!files.length)||sending||(busy&&!binding)||(!activeWorkspace.cwd&&!activeWorkspace.memberId)}><ArrowUp size={19}/></button>}
       </div>{error&&<p className="session-inline-error" role="alert">{error}</p>}
-    </form></div>
+    </form></div></SubagentNavigation.Provider>
 }

@@ -1,0 +1,36 @@
+.session-subagent-card{display:flex;align-items:center;gap:10px;width:min(100%,440px);padding:11px 12px;border:1px solid var(--session-border);border-radius:var(--radius-chip);background:var(--session-panel);color:var(--session-text);text-align:left;cursor:pointer}
+.session-subagent-card:hover{background:var(--session-hover)}
+.session-subagent-card:disabled{cursor:default;opacity:1}
+.session-subagent-card>svg{flex:none;color:var(--session-muted)}
+.session-subagent-caption{display:grid;gap:5px;flex:1;min-width:0}
+.session-subagent-caption strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500}
+.session-subagent-caption small,.session-subagent-status{display:flex;align-items:center;gap:5px;color:var(--session-muted);font-size:11px}
+.session-subagent-card.is-failed small,.session-subagent-status.is-failed,.session-subagents-item.is-failed>svg{color:var(--color-danger)}
+.session-subagent-card.is-completed small,.session-subagent-status.is-completed{color:var(--color-success)}
+.subagent-spinner{animation:subagent-spin 1.5s linear infinite}
+@keyframes subagent-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.subagent-spinner{animation:none}}
+.session-subagents{display:flex;flex:1;min-height:0;min-width:0;flex-direction:column;overflow:hidden}
+.session-subagents-heading{display:flex;align-items:center;gap:7px;padding:13px 16px;color:var(--session-text);font-size:12px;flex:none}
+.session-subagents-heading span{margin-left:auto;color:var(--session-muted);font-size:11px}
+.session-subagents-list{display:grid;gap:3px;max-height:180px;overflow:auto;padding:0 9px 10px;border-bottom:1px solid var(--session-border);flex:none}
+.session-subagents-item{display:flex;align-items:center;gap:8px;padding:9px;border:0;border-radius:9px;background:transparent;color:var(--session-muted);font-size:11px;text-align:left;cursor:pointer}
+.session-subagents-item:hover{background:var(--session-hover)}
+.session-subagents-item[aria-pressed=true]{background:var(--session-hover);color:var(--session-text)}
+.session-subagents-item>svg,.session-subagents-item small{flex:none}
+.session-subagents-item>span{display:flex;align-items:center;gap:5px;flex:1;min-width:0}
+.session-subagents-item strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500}
+.session-subagents-item small{font-size:10px}
+.session-subagent-detail{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:16px;overflow-wrap:anywhere}
+.session-subagent-detail>header{display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:13px}
+.session-subagent-detail h3{margin:0;flex:1;min-width:120px;color:var(--session-text);font-size:14px;font-weight:550;line-height:1.5}
+.session-subagent-status{flex:none;min-height:21px}
+.session-subagent-parent{display:flex;gap:5px;color:var(--session-muted);font-size:11px}
+.session-subagent-task{padding:10px 0;margin-bottom:8px;border-bottom:1px solid var(--session-border);font-size:12px;line-height:1.6}
+.session-subagent-task summary{color:var(--session-muted);cursor:pointer}
+.session-subagent-task .session-markdown{margin-top:10px}
+.session-subagent-transcript .session-process{margin:0}
+.session-subagent-transcript .session-transcript-line{font-size:12px}
+.session-subagent-waiting{margin:16px 0;color:var(--session-muted);font-size:12px;line-height:1.7}
+.session-subagent-result{font-size:12px;color:var(--session-text);line-height:1.65}
+.session-subagent-result h4{font-size:11px;color:var(--session-muted);font-weight:500}

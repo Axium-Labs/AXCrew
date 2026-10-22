@@ -15,7 +15,11 @@ export const useLive=create<Live>(set=>({status:'Disconnected',events:[],streams
     const kind=event.payload.sessionUpdate
     const incoming=event.payload.content as {text?:string}|undefined
     const prior=last?.payload.content as {text?:string}|undefined
-    if(last&&kind===last.payload.sessionUpdate&&['agent_message_chunk','agent_thought_chunk'].includes(String(kind))&&last.payload.messageId===event.payload.messageId&&typeof incoming?.text==='string'&&typeof prior?.text==='string'){
+    const child=event.payload.update as {sessionUpdate?:string;messageId?:string;content?:{text?:string}}|undefined
+    const previousChild=last?.payload.update as typeof child
+    if(last&&kind==='subagent'&&last.payload.sessionUpdate===kind&&last.payload.agentId===event.payload.agentId&&child?.sessionUpdate==='agent_message_chunk'&&previousChild?.sessionUpdate===child.sessionUpdate&&child.messageId===previousChild.messageId&&typeof child.content?.text==='string'&&typeof previousChild.content?.text==='string'){
+      streams[event.task_id]=[...previous.slice(0,-1),{...event,payload:{...event.payload,update:{...child,content:{...child.content,text:previousChild.content.text+child.content.text}}}}]
+    }else if(last&&kind===last.payload.sessionUpdate&&['agent_message_chunk','agent_thought_chunk'].includes(String(kind))&&last.payload.messageId===event.payload.messageId&&typeof incoming?.text==='string'&&typeof prior?.text==='string'){
       streams[event.task_id]=[...previous.slice(0,-1),{...event,payload:{...event.payload,content:{...incoming,text:prior.text+incoming.text}}}]
     }else streams[event.task_id]=[...previous,event]
     // Keep recent conversations independently of the bounded Activity feed.

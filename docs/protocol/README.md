@@ -34,6 +34,15 @@ These are treated as contracts, not implementation details:
   is stable. The `payload.sessionUpdate` values (`agent_message_chunk`,
   `agent_thought_chunk`, `agent_question`, `tool_call`, `tool_call_update`, `turn_changes`) are
   shared with the ACP adapter.
+- **Subagent activity**: additive `payload.sessionUpdate: "subagent"` is
+  broadcast as `kind: "subagent.update"` inside the bound parent task/session.
+  It carries stable `agentId`, optional `parentAgentId`, `title`/`task`,
+  `childSessionId`, `status` (`running`, `completed`, `failed`, `cancelled`),
+  optional `summary`/`error`, and optional nested ACP `update` for child text,
+  tool calls/results or model connection status. Nested content is never
+  appended to the parent task's assistant output. The durable Crew event index
+  retains IDs, status and nested update kind only; replayed child content comes
+  from the existing authenticated parent `session/load` history, owned by AX.
 - **Model connection updates**: additive `payload.sessionUpdate: "model_connection"`
   carries `status` (`connecting`, `retrying`, `connected`, `failed`), 1-based
   `attempt`, `maxAttempts` (at most 5) and optional `error`. These frames remain

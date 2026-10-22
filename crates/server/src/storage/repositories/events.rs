@@ -59,6 +59,13 @@ impl Db {
             "task.waiting_user" => {
                 json!({"waiting_for_user":true,"question_id":payload["question"]["id"]})
             }
+            "subagent.update" => json!({
+                "agent_id":payload["agentId"],
+                "parent_agent_id":payload["parentAgentId"],
+                "status":payload["status"],
+                "child_session_id":payload["childSessionId"],
+                "update_kind":payload["update"]["sessionUpdate"],
+            }),
             _ => payload.clone(),
         };
         db.execute("INSERT INTO events(id,kind,crew_id,member_id,device_id,task_id,session_id,payload_json) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![id,kind,crew,member,device,task_id,session,stored_payload.to_string()])?;

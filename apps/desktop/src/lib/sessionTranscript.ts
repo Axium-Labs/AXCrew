@@ -18,7 +18,57 @@ export function transcriptTurns(lines: SessionLine[]) {
  */
 export type ChangedFile = { path:string; additions:number; deletions:number; diff?:string|null; binary?:boolean; change?:'created'|'modified'|'deleted' }
 export type SessionImage = {path?:string;name:string;src?:string}
-export type SessionLine = { type:'user'|'agent'|'tool'|'thought'; connection?:ModelConnection; steering?:boolean; text:string; images?:SessionImage[]; operation?:string; output?:string; rawOutput?:string; toolKind?:string; toolInput?:Record<string,unknown>; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
+export type SubagentActivity = {agentId:string;parentAgentId?:string;title:string;task?:string;childSessionId?:string;status:string;summary?:string;error?:string;historyTruncated?:boolean;lines:SessionLine[]}
+export type SessionLine = { type:'user'|'agent'|'tool'|'thought'|'subagent'; subagent?:SubagentActivity; connection?:ModelConnection; steering?:boolean; text:string; images?:SessionImage[]; operation?:string; output?:string; rawOutput?:string; toolKind?:string; toolInput?:Record<string,unknown>; changedFiles?:ChangedFile[]; status?:string; key:string; at?:number; end?:number }
+
+export function subagentStatus(status:string,lang:'zh'|'en'){
+  const labels:Record<string,[string,string]>={running:['工作中','Working'],completed:['已完成','Completed'],failed:['失败','Failed'],cancelled:['已停止','Stopped'],interrupted:['已中断','Interrupted']}
+  return (labels[status]??labels.running)[lang==='zh'?0:1]
+}
+
+function mergeSubagentStatus(previous:string,next:string){
+  return ['completed','failed','cancelled','interrupted'].includes(previous)&&next==='running'?previous:next
+}
+
+function mergeChildLines(previous:SessionLine[],next:SessionLine[]){
+  const result=previous.map(line=>({...line}))
+  const claimed=new Set<SessionLine>()
+  const matches=next.map(line=>{
+    const matched=result.find(item=>!claimed.has(item)&&item.type===line.type&&(item.key===line.key||line.type==='agent'&&!!item.text&&!!line.text&&(item.text.startsWith(line.text)||line.text.startsWith(item.text))))
+    if(matched)claimed.add(matched)
+    return matched
+  })
+  let cursor:SessionLine|undefined
+  next.forEach((line,index)=>{
+    const matched=matches[index]
+    if(!matched){
+      const following=matches.slice(index+1).find(item=>item!==undefined)
+      const position=following?result.indexOf(following):cursor?result.indexOf(cursor)+1:result.length
+      const added={...line}
+      result.splice(position,0,added)
+      cursor=added
+    }else{
+      if(cursor&&result.indexOf(matched)<result.indexOf(cursor)){
+        result.splice(result.indexOf(matched),1)
+        result.splice(result.indexOf(cursor)+1,0,matched)
+      }
+      Object.assign(matched,{...line,key:matched.key,at:matched.at??line.at,text:matched.text.startsWith(line.text)?matched.text:line.text,status:mergeStatus(matched.status,line.status),output:mergeOutput(matched.output,line.output),rawOutput:mergeOutput(matched.rawOutput,line.rawOutput)})
+      cursor=matched
+    }
+  })
+  return result
+}
+
+export function sessionSubagents(lines:SessionLine[],parentStatus?:Task['status']):SessionLine[]{
+  const lastUser=lines.findLastIndex(line=>line.type==='user'&&!line.steering)
+  return lines.flatMap((line,index)=>{
+    if(!line.subagent)return []
+    const agent=line.subagent!
+    if(agent.status==='running'&&index<lastUser)return [{...line,subagent:{...agent,status:'interrupted'}}]
+    if(agent.status!=='running'||!parentStatus||['pending','ready','running','waiting_permission','waiting_user'].includes(parentStatus))return line
+    return {...line,subagent:{...agent,status:parentStatus==='cancelled'?'cancelled':'interrupted'}}
+  })
+}
 
 /**
  * The view keeps one transcript row per message, so a tool result is capped
@@ -149,8 +199,32 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
     ...live.map(item=>({update:item.payload,at:updateTime(item.payload)??(item.timestamp?item.timestamp*1000:undefined)})),
   ]
   const lines:SessionLine[]=[]
+  const childUpdates=new Map<string,{sessionId:string;update:Record<string,unknown>}[]>()
   for(const {update,at} of entries){
     const kind=String(update.sessionUpdate??'')
+    if(kind==='subagent'){
+      if(typeof update.agentId!=='string'||!update.agentId)continue
+      const key=`subagent-${update.agentId}`
+      let line=lines.find(line=>line.key===key)
+      if(!line){line={type:'subagent',text:'',key,at,subagent:{agentId:update.agentId,title:'',status:'running',lines:[]}};lines.push(line)}
+      const agent=line.subagent!
+      for(const field of ['title','task','childSessionId','parentAgentId','summary','error'] as const)if(typeof update[field]==='string')agent[field]=update[field]
+      if(update.historyTruncated===true)agent.historyTruncated=true
+      if(typeof update.status==='string')agent.status=mergeSubagentStatus(agent.status,update.status)
+      line.text=agent.title||agent.task||agent.agentId
+      if(['completed','failed','cancelled'].includes(agent.status))line.end=at??line.end
+      const child=update.update
+      if(child&&typeof child==='object'&&!Array.isArray(child)){
+        const value=child as Record<string,unknown>
+        // Only child output and tool activity belong in the public work view.
+        if(['agent_message_chunk','tool_call','tool_call_update','turn_changes','model_connection'].includes(String(value.sessionUpdate))){
+          const updates=childUpdates.get(key)??[]
+          updates.push({sessionId:agent.childSessionId??agent.agentId,update:{...value,_ax:{...value._ax as object,createdAt:at===undefined?undefined:at/1000}}})
+          childUpdates.set(key,updates)
+        }
+      }
+      continue
+    }
     if(kind==='model_connection'){
       const connection=modelConnection(update)
       if(!connection)continue
@@ -196,6 +270,7 @@ export function transcript(history?:SessionHistory, live:CrewEvent[]=[]):Session
       }else lines.push({type:'tool',text:toolTitle(update),...(output?{output}:{}),status:String(update.status??'pending'),key:String(update.toolCallId??lines.length),...(at===undefined?{}:{at}),...toolFields(update)})
     }
   }
+  for(const line of lines)if(line.subagent)line.subagent.lines=transcript({task_id:'',ax_session_id:line.subagent.childSessionId??'',updates:childUpdates.get(line.key)??[]})
   return lines
 }
 
@@ -215,7 +290,7 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
   // Settled history can omit child tools or race with cancellation checkpoints.
   // Keep those rows by call ID, while saved message prose remains authoritative.
   const retainStream=includeCurrent||task.status==='cancelled'||task.status==='failed'
-  if(!retainStream&&!events.some(event=>['tool_call','tool_call_update','workspace_changes_unavailable','model_connection'].includes(String(event.payload.sessionUpdate))))return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
+  if(!retainStream&&!events.some(event=>['subagent','tool_call','tool_call_update','workspace_changes_unavailable','model_connection'].includes(String(event.payload.sessionUpdate))))return saved.map((line,index)=>userLine({...line,key:hasCurrent&&index===lastUser?`prompt-${task.id}`:line.key}))
   const before=hasCurrent?saved.slice(0,lastUser):saved.length?saved:contextLines(prompt)
   const previous=hasCurrent?saved.slice(lastUser+1):[]
   const streamed=transcript(undefined,events).filter(line=>line.type!=='user'||line.steering)
@@ -229,7 +304,7 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
     const generatedKey=/^\d+-(agent|thought|user)$/.test(line.key)
     const compatible=(item:SessionLine)=>!!item.text&&!!line.text&&(item.text.startsWith(line.text)||line.text.startsWith(item.text))
     let index=previous.findIndex((item,index)=>!claimed.has(index)&&category(item)===kind&&item.key===line.key&&(!generatedKey||compatible(item)))
-    if(index<0&&!['tool','connection','changes','notice'].includes(kind)&&!line.steering&&line.text){
+    if(index<0&&!['tool','subagent','connection','changes','notice'].includes(kind)&&!line.steering&&line.text){
       index=previous.findIndex((item,index)=>!claimed.has(index)&&category(item)===kind&&!item.steering&&compatible(item))
     }
     if(index>=0)claimed.add(index)
@@ -238,7 +313,7 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
   let cursor:SessionLine|undefined
   streamed.forEach((line,index)=>{
     const matched=matches[index]
-    if(!retainStream&&line.type!=='tool'&&line.key!=='workspace-changes-unavailable'&&!line.connection){
+    if(!retainStream&&line.type!=='tool'&&line.type!=='subagent'&&line.key!=='workspace-changes-unavailable'&&!line.connection){
       if(matched)cursor=matched
       return
     }
@@ -256,7 +331,8 @@ export function conversationTranscript(history:SessionHistory|undefined, events:
         body.splice(body.indexOf(cursor)+1,0,matched)
       }
       const output=mergeOutput(matched.output,line.output),rawOutput=mergeOutput(matched.rawOutput,line.rawOutput)
-      Object.assign(matched,{...line,key:matched.key,at:matched.at??line.at,status:mergeStatus(matched.status,line.status),text:matched.text.startsWith(line.text)?matched.text:line.text,...(output?{output}:{}),...(rawOutput?{rawOutput}:{})})
+      const subagent=matched.subagent&&line.subagent?{...matched.subagent,...line.subagent,title:line.subagent.title||matched.subagent.title,status:mergeSubagentStatus(matched.subagent.status,line.subagent.status),lines:mergeChildLines(matched.subagent.lines,line.subagent.lines)}:line.subagent
+      Object.assign(matched,{...line,key:matched.key,at:matched.at??line.at,status:mergeStatus(matched.status,line.status),text:subagent?(subagent.title||subagent.task||subagent.agentId):matched.text.startsWith(line.text)?matched.text:line.text,...(subagent?{subagent}:{}),...(output?{output}:{}),...(rawOutput?{rawOutput}:{})})
       cursor=matched
     }
   })

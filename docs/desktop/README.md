@@ -624,6 +624,36 @@ JSON through the installed AX's `skill import` / `mcp import` commands,
 choosing project or global scope. An updated AX executable is required for
 these commands.
 
+## Subagent workspace
+
+The session transcript shows a compact card for each delegated AX execution.
+Clicking a card opens the right-side **子代理 / Agents** tab and selects that
+child. The tab also provides a list of children, status counts, nested delegation
+links, expandable task instructions, streamed output, tool inputs/results and a
+final result or error. These are the child's public messages and tool activity;
+child reasoning is excluded. Ordinary delegation and queue children use the same
+view. Parent narration and final answers remain in the main transcript.
+
+The selected child stays selected while updates arrive. The panel follows new
+output while scrolled to the bottom and preserves the user's position when reading
+earlier work. It reuses the existing resizable 420px-minimum side panel, drawer
+and keyboard behavior. Files, Preview and Chat retain their own panel state.
+Side Chat keeps its own child selection and detail view, with a Back to side chat
+action, so inspecting a side-chat child cannot select an unrelated main-session
+agent. Child work views offer copying and saved diff inspection; they do not
+apply the parent's branch or workspace-file actions to an isolated child store.
+
+AX supplies additive `sessionUpdate: "subagent"` envelopes. Crew forwards them as
+`subagent.update`; session history restores the same envelopes through the bound
+parent session. Terminal states do not revert to running when older live chunks
+are reconciled with history. An unfinished child of a cancelled parent is shown
+as stopped; if the parent otherwise ends without a child receipt, it is shown as
+interrupted. Missing work records are identified in the detail view. This feature
+requires the updated AX runtime; older binaries and historical sessions may not
+provide child activity. The panel does not control child execution separately.
+The Android client accepts these additive events without refreshing task lists
+for each child output chunk; the agent detail workspace is desktop-only.
+
 ## Subagents
 
 Settings → Plugins → Agents contains **Subagent delegation** with maximum

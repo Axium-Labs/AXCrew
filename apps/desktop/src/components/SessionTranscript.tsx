@@ -9,6 +9,7 @@ import type { Task } from '../lib/types'
 import type { ChangedFile, SessionLine } from '../lib/sessionTranscript'
 import { MessageActions, MessageImage, useSessionInteractions } from './SessionInteractions'
 import { modelConnectionText } from '../lib/modelConnection'
+import { SubagentCard } from './SubagentCard'
 
 function clock(at:number|undefined,lang:'zh'|'en'){
   if(!at)return ''
@@ -101,6 +102,7 @@ function Changes({files}:{files:ChangedFile[]}){
 export function TranscriptLine({line,showActions=true}:{line:SessionLine;showActions?:boolean}){
   const lang=useLang(s=>s.lang)
   if(line.type==='tool')return <ToolRow line={line}/>
+  if(line.type==='subagent')return <SubagentCard line={line}/>
   if(line.type==='thought'&&line.key!=='workspace-changes-unavailable')return <details className="session-thought"><summary>{lang==='zh'?'思考摘要':'Thinking summary'}</summary><div className="session-transcript-line is-thought"><MessageMarkdown text={line.text}/></div></details>
   const time=clock(line.at,lang)
   if(!line.text&&line.changedFiles)return null

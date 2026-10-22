@@ -581,6 +581,7 @@ impl Scheduler {
             match value["sessionUpdate"].as_str().unwrap_or("") {
                 "agent_message_chunk" => "agent.message.delta",
                 "agent_question" => "agent.question",
+                "subagent" => "subagent.update",
                 "tool_call" => "tool.started",
                 "tool_call_update" if value["rawOutput"]["status"] == "error" => "tool.failed",
                 "tool_call_update" => match value["status"].as_str() {
