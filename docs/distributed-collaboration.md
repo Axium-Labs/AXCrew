@@ -463,31 +463,16 @@ Automatic result patches exclude `.ax` and execution-input metadata so local
 configuration, MCP credentials and runtime stores are not exported as code changes.
 
 
-## Execution-path audit and completed connections
+## Workflow execution and placement
 
-The original production path already provided transactional Task/Workflow storage,
-lease/generation/incarnation fencing, asynchronous child work, dependency gating,
-Host-wide reservations, approved AX slots, isolated ACP workspaces and failover.
-These remain the authority. Desktop creation now calls `POST /plans`, which
-reuses `submit_in_cluster` within one aggregate transaction and invokes the same
-`reconcile` once. It adds no planning agent, Goal ledger or execution loop.
-
-Previously the form submitted one Task, models were only capability predicates,
-and some desktop and permission-event paths used the first Session. Member
-changes affected only future placement. The current three-step form defines work,
-organizes AX/work duties/model choices and actual work-task assignments, then
-previews dependencies, resource minimums and per-node matching reasons. Selecting
-additional AX creates editable work-task rows; adding a member later accepts its
-work task in the same CAS policy transaction. More tasks and dependencies remain
-editable through existing task creation and fenced reassignment controls.
-
-The desktop creation wizard keeps step navigation and actions visible while its
-content scrolls. Task/Goal choices, expandable selected-member cards and numbered
-work-task cards separate objective, team settings and assignments. AX/Host names
-and online status remain visible when duty/model settings expand. Member search
-appears for pools larger than four AX. Confirmation includes task content, duties,
-execution model choices and placement reasons; going back retains edits. These
-presentation changes reuse the same plan submission and placement endpoints.
+The scheduler assigns ready Tasks to eligible workers using the Workflow policy,
+worker capabilities and current resource reports. Each Attempt records its
+execution provider, model and duty. The desktop plan form submits Tasks and
+dependencies atomically, then displays placement reasons before execution.
+The desktop plan form keeps its actions available while the form content scrolls.
+It separates the objective, team settings and work assignments, and shows task
+content, execution choices and placement reasons before submission. Returning to
+an earlier step retains the draft.
 
 A Task has one effective owner for its current generation. Attempt records freeze
 its exact execution Provider/Model and work duty. Task model selection overrides

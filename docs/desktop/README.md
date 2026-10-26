@@ -1,9 +1,8 @@
-# Desktop Settings & Plugins
+# Desktop behavior
 
-How the AX Crew desktop client ([`apps/desktop`](../../apps/desktop/README.md))
-is configured. Build, install and packaging instructions live in
-[apps/desktop/README.md](../../apps/desktop/README.md); this page documents
-the settings surfaces and their behaviour.
+Current behavior of the AXCrew desktop client is documented here. Build,
+installation and packaging instructions are in
+[apps/desktop/README.md](../../apps/desktop/README.md).
 
 ## Command search
 

@@ -57,7 +57,9 @@ Do not add handlers or business logic to it.
 | REST / WebSocket / ACP contracts | `docs/protocol/README.md`, root `README.md` |
 | Build, test or packaging commands | `docs/development/README.md`, `scripts/` |
 | A user-visible feature | `README.md` and the matching `apps/*/README.md` |
-| The schema or a state machine | `docs/architecture/design.md` |
+| The REST/WebSocket API contract | `docs/protocol/api.md` |
+| A distributed workflow or task state machine | `docs/distributed-collaboration.md` |
+| AX/Crew execution ownership | `docs/architecture/design.md` |
 | A version number | every manifest listed in [../RELEASE_WORKFLOW.md](../RELEASE_WORKFLOW.md) |
 
 ## Verify before finishing

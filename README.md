@@ -317,8 +317,8 @@ API only.
 The root only organises the product; it holds no code of its own. See
 [docs/architecture/README.md](docs/architecture/README.md) for the full
 repository layout and module responsibilities, and
-[docs/architecture/design.md](docs/architecture/design.md) for the Crew/AX
-boundary, schema and state machines.
+[docs/architecture/design.md](docs/architecture/design.md) for AX/Crew runtime
+ownership and execution boundaries.
 
 ## Docs
 

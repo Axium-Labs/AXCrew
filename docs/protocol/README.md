@@ -13,8 +13,8 @@ not a user-supplied remote Session ownership override.
 |---|---|---|
 | Distributed Tasks, Workflow State, Events, Artifacts and worker leases | [distributed-collaboration.md](../distributed-collaboration.md) | `api/distributed.rs`, `orchestration/distributed.rs` |
 | Crew REST API and `CrewEvent` WebSocket stream | [api.md](api.md) | `crates/server/src/api/` |
-| ACP (JSON-RPC 2.0 over stdio and the routed gateway envelope) | [design.md, "Protocol framing"](../architecture/design.md) | `crates/server/src/transport/` |
-| Device gateway handshake (Ed25519 challenge, heartbeats) | [design.md, "State machines"](../architecture/design.md) | `crates/server/src/gateway/` |
+| ACP (JSON-RPC 2.0 over stdio and the routed gateway envelope) | [api.md](api.md) and [runtime boundary](../architecture/design.md) | `crates/server/src/transport/` |
+| Device gateway handshake and heartbeats | [api.md](api.md) and [distributed collaboration](../distributed-collaboration.md) | `crates/server/src/gateway/` |
 
 ## Compatibility commitments
 

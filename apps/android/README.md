@@ -4,7 +4,7 @@
 
 AX Crew 的原生 Android 控制客户端。Kotlin、Compose Material 3、Navigation Compose、ViewModel/StateFlow、Coroutines、OkHttp 和 Kotlin Serialization。最低 Android 8.0 / API 26。
 
-手机控制的是电脑端同一个 Crew Gateway，或单独部署的 Crew Gateway；不会启动 AX Runtime、执行 SSH、打开远程 shell 或保存模型提供商密钥。架构及桌面功能对应关系见 [桌面实现与 Android 对应关系](../../docs/architecture/android-migration.md)。
+手机控制的是电脑端同一个 Crew Gateway，或单独部署的 Crew Gateway；不会启动 AX Runtime、执行 SSH、打开远程 shell 或保存模型提供商密钥。架构及桌面功能对应关系见 [Android 客户端范围](../../docs/architecture/android-migration.md)。
 
 ## 开发与构建
 

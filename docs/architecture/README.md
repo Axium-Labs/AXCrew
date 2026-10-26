@@ -6,61 +6,18 @@ interfaces: the control plane (`crates/server`), the desktop client
 control plane over the REST/WebSocket API and nothing else; neither client links
 against server internals.
 
-Local AX Goal settings reuse the existing native AX configuration bridge; AX
-owns policy validation/persistence and Runtime usage/permissions. Distributed
-Goal snapshots use the existing Crew Workflow checkpoint CAS and worker fencing,
-as documented in [distributed-collaboration.md](../distributed-collaboration.md).
-They add no Crew scheduler, independent quota system or Session database.
-
-Ordinary chat questions reuse AX's request/answer lifecycle. Transports expose
-`agent_question` and retain waiting metadata; Scheduler parks the existing task
-as `waiting_user`. The session domain validates answers, and the task repository
-atomically claims a question for one queued resume. The API exposes `/answer` and
-treats `/message` text as an answer while parked. Main/side chat share one question
-card; AX remains the authoritative transcript and task identity source. Crew task
-output holds the transient question/queued answer, without a separate question
-store or scheduling loop. Event history redacts question/answer content.
-
-Subagent activity follows the same parent binding: local and paired-device
-transports forward AX's `sessionUpdate: "subagent"` envelopes unchanged, and the
-scheduler emits `subagent.update`. Child assistant text/tools remain nested and
-never contribute to the parent's final response. The event repository persists
-only child IDs, lifecycle status and nested update kind. The existing parent
-history inspection restores detailed activity from AX's authoritative records;
-Crew adds no child-session database or client-selectable filesystem path.
-
-The local read-only adapter also recognizes AX's `[ax-subagent]` parent system
-records when direct local history is viewed or ACP inspection is unavailable.
-Child session UUIDs and canonical `child-runs/.../state` paths must match the
-parent-owned locator; JSONL symlinks cannot escape that state directory. Nested
-public assistant/tool activity is restored once per child, excluding inherited
-user history and reasoning. Retained `[ax-child-outcome]` records recover final
-status after parent interruption. This fallback reads at most 256 child stores,
-32 MiB and 20,000 child updates per request; limited history exposes the optional
-`historyTruncated: true` flag while keeping lifecycle metadata.
-Older local records without a subagent index may have no child details in this
-read-only fallback; normal ACP history retains AX's legacy queue compatibility.
+AX owns agent execution, permissions and Session history. AXCrew owns device management, scheduling and durable coordination state. The projects exchange work through ACP and the authenticated Crew gateway.
 
 ## Documents
 
-Desktop website browsing uses `WebPreviewPanel.tsx` to own independent tabs and
-`NativeWebPreview.tsx` to synchronize each child webview with the active panel.
-`src-tauri/src/preview_browser.rs` owns
-creation, URL validation, bounds, navigation and closure through a main-webview-only
-command. DOM bounds are clipped to the panel/viewport and converted from CSS to
-physical pixels using the main webview size, including UI zoom/display scaling.
-Inactive tabs hide their child while retaining page state; closing a tab or
-conversation destroys its view. Native title and new-window events target the
-main view; popups create new tabs. Children receive no remote capabilities and
-downloads are rejected. This uses Tauri's `unstable` multiwebview
-feature. Browser-only development retains the sandboxed iframe fallback.
+These references define product behavior and development contracts. The architecture overview below focuses on server responsibilities and module boundaries.
 
 | Document | Contents |
 |---|---|
 | [../distributed-collaboration.md](../distributed-collaboration.md) | Additive distributed models, storage, orchestration and API modules. |
-| [design.md](design.md) | The source-based AX call-chain analysis, the Crew/AX boundary, the database schema and the state machines. |
+| [design.md](design.md) | AX/Crew runtime ownership and execution boundaries. |
 | [storage.md](storage.md) | The SQLite WAL database, what is stored durably and the source-of-truth boundary. |
-| [android-migration.md](android-migration.md) | How each desktop surface maps to the Android client, and what was deliberately not migrated. |
+| [android-migration.md](android-migration.md) | Android client scope and desktop capability differences. |
 | [../protocol/README.md](../protocol/README.md) | Where the REST, WebSocket and ACP contracts are defined. |
 | [../development/README.md](../development/README.md) | Build, test and packaging commands. |
 | [../desktop/README.md](../desktop/README.md) | Desktop settings and scoped AX capabilities. |
@@ -69,11 +26,6 @@ feature. Browser-only development retains the sandboxed iframe fallback.
 
 The root only organises the product; it holds no code of its own.
 
-Desktop collaboration creation is presented by `src/pages/distributed-create.tsx`
-and its scoped stylesheet. `distributed-forms.tsx` retains enrollment/configuration
-forms and re-exports the creation dialog. The wizard calls the existing distributed
-plan and placement client methods; it does not own scheduling or execution.
-
 | Path | Responsibility |
 |---|---|
 | `crates/server/` | The control plane: REST/WebSocket API, scheduling, storage, transports. The only Cargo workspace member. |
@@ -81,7 +33,6 @@ plan and placement client methods; it does not own scheduling or execution.
 | `apps/android/` | The native Kotlin/Compose Android control client. |
 | `docs/` | `architecture/`, `protocol/`, `development/`, `desktop/`, `releases/`. |
 | `scripts/` | Repository-level build and release scripts. |
-| Local validation | Standalone tests and work logs are maintained locally and excluded from the published repository. |
 
 ## The control plane
 
@@ -155,179 +106,15 @@ workspaces. transport/ax.rs owns the local ACP update/approval/cancellation
 lifecycle; SSH tasks inject a host context into that local AX process. The source
 selector never validates a remote directory on the gateway disk.
 
-### Desktop file workspace
+### Client behavior references
 
-The desktop terminal remains a native PTY surface. `store/terminal.ts` binds each
-tab to a host/directory context and selects matching tabs as SessionsWorkspace
-publishes the current conversation environment. `App.tsx` supplies that context
-to TerminalDock and the terminal shortcut. `TerminalDock.tsx` reads saved SSH
-configuration through the existing authenticated connections API, then invokes
-`terminal_create` with optional SSH settings. `terminal_ssh.rs` validates the
-settings, quotes the remote directory and constructs a direct interactive
-OpenSSH command; `terminal.rs` owns PTY input/output/resize/close. Local shell
-configuration is read only for local tabs. Paired-device terminal support is
-explicitly unavailable. No REST/WS/AX protocol or database schema changes.
+The desktop and Android clients are described in their product references rather
+than in this server architecture overview:
 
-`SessionsWorkspace.tsx` supplies the current conversation's workspace and saved
-turn changes, routes transcript review requests, and opens Files through the shared workspace layout. `UnifiedFilePanel.tsx` owns review selection, open document tabs,
-the lazy directory explorer and Markdown preview/source. Switching side-panel
-sections preserves these tabs; changing conversation/workspace resets them.
-`store/fileEdits.ts` holds original text and editable drafts by workspace/path for
-the current app run, preserving drafts across component unmounts and navigation.
-The native commands in `src-tauri/src/lib.rs` list complete directories and read
-bounded UTF-8 text on the blocking pool, checking canonical workspace containment.
-`src-tauri/src/workspace_edit.rs` saves existing text files on that pool with a
-256 KiB bound, original-content comparison and staged replacement. It serializes
-Crew saves, preserves read-only/mode flags and cleans its staging file on failure;
-external programs remain outside the save lock. Historical diffs are not rewritten.
-Only local desktop sessions use those filesystem commands; remote/SSH sessions
-review saved changes without reading local lookalike paths. This does not change
-the control-plane REST/WebSocket contracts.
-
-### Desktop close preference
-
-`DesktopBehavior.tsx` provides the single System-settings close-preference card,
-reading native state and updating it after acknowledged saves. The shared
-`ui/settings-toggle.tsx` lays out labeled native checkbox inputs with switch
-semantics and descriptions; the settings card has no explicit Quit button. The native
-`desktop_behavior.rs` owns the close preference and atomic app-data persistence;
-`lib.rs` loads it at startup, dispatches main-window close events to Hide or Quit,
-and routes explicit tray quit through the same runtime shutdown path.
-The existing `set_minimize_on_close` command now returns the persisted boolean;
-`get_minimize_on_close` reads it. REST/WebSocket and Android are unchanged.
-
-### Desktop completion attention
-
-`store/attention.ts` persists unread completion IDs and bounded event deduplication,
-tracking focus and visible chat identities only in memory. `lib/live.ts` forwards
-completed/failed task events to `lib/completionNotifications.ts`, which applies
-the foreground/background policy, resolves conversation titles and serializes
-native icon updates. `CompletionDot.tsx` renders the shared unread state in
-navigation, Recent, project sessions and the side-chat tab. Main and side chat
-register only their visible conversations and acknowledge results while focused.
-`src-tauri/src/completion_attention.rs` handles taskbar overlays, tray badges,
-focus-safe attention requests and embedded asynchronous Windows chime playback.
-No server, AX or Android contracts change.
-
-### Desktop system telemetry
-
-`SystemMetrics.tsx` owns the System page's native-only three-second telemetry
-query, nullable reading validation, capacities in GiB and localized uptime.
-`system_info.rs` collects Windows CPU counter deltas, physical memory, the actual
-Windows system volume and system uptime. The async `get_system_info` bridge runs
-it on the blocking pool, including the initial CPU sampling interval; collectors
-return null on failure or unsupported platforms. The legacy `_mb` fields contain
-MiB; `disk_path` identifies the volume. The lazy NVML collector adds per-device
-NVIDIA name, usage and VRAM in `gpus`; individual failed fields remain null.
-The driver handle is reused, missing drivers are retried on later reads, and
-unsupported vendors remain unavailable. These local shell commands do not
-change server or remote-host telemetry or depend on AX's `/system` panel.
-Linux/macOS use sysinfo for local CPU/RAM/uptime and the filesystem containing
-HOME. `desktop_platform.rs` owns Unix GUI process PATH supplementation, platform
-terminal choices and default shell resolution; `proc.rs` and `terminal.rs`
-apply it to subprocesses/PTYs. Platform-specific Tauri configs bundle the matching
-gateway executable. See [desktop platforms](../platforms.md).
-
-### Unified desktop workspace layout
-
-`lib/workspaceLayout.ts` is the pure width-budget allocator for navigation,
-Sessions, main chat and preview. `workspaceLayoutContext.tsx`, owned by the shell,
-observes the outer workspace and terminal widths; children consume one result
-instead of separate viewport thresholds. The allocator reserves a 560px chat
-target / 520px minimum, collapses navigation then Sessions, and selects a drawer
-when preview and chat minima cannot fit. A 24px restoration margin prevents
-threshold oscillation; automatic decisions do not persist visibility.
-
-`store/sessions.ts` keeps main-chat visibility and split ratio alongside existing
-list/right visibility and drafts. `WorkspaceSplitter.tsx` supports pointer capture,
-keyboard resizing and ratio reset. `usePanelDrawer.ts` handles keyboard focus and
-return focus for drawers. `ComposerSecondaryActions.tsx` observes the actual form
-width and moves secondary controls to a shared popover below 600px. Existing
-`useAutoGrow` handles textarea wrapping after the panel resizes. No server API,
-AX behavior, Android state or stored conversation format changes.
-
-
-The collaboration workbench extends the existing distributed aggregate with
-serde-defaulted Workflow policy, reported Attempt Session chains, execution
-inbox commands and opt-in instance native-management commands. No new Session
-store, Goal ledger, scheduler or SQL table is introduced. The collaboration
-orchestration module handles CAS scope policy, whole-Workflow control,
-reassignment and partial batch results; the API only authenticates and delegates.
-AX retains ACP execution, settings validation, approvals and native Long Project
-history. See [workbench scope and command contracts](../distributed-collaboration.md).
-
-
-### Shared desktop selection control
-
-Desktop presentation is split between reusable controls in `components/ui/`,
-page building blocks in `components/shared.tsx`/`shared.css`, and feature layouts
-such as `pages/management.css`. `styles.css` owns shared theme/shape/motion tokens;
-`ui/primitives.css` owns buttons, inputs, menus and standard dialog presentation.
-The standard dialog manages focus, its fixed header and its scrolling body.
-Collaboration wizards explicitly retain a custom body/footer layout. Conversation
-metadata forms use the standard dialog instead of a separate modal implementation.
-These components own presentation and interaction only; feature pages retain their
-existing queries, mutations and routing.
-
-`apps/desktop/src/components/ui/select.tsx` owns single-selection dropdowns for
-settings and distributed collaboration. It wraps Radix Select for grouped options,
-keyboard/focus handling, empty filter values, disabled choices and portal positioning;
-`select.css` owns their theme styling and loads with the component. The previous
-`settings-select.tsx` only re-exports this implementation. Page CSS supplies layout
-constraints; no page owns a separate selection popup or depends on loading Settings
-for styling. This is frontend presentation and does not alter API or stored values.
-
-
-Distributed instance deletion uses the existing orchestration/storage transaction.
-Serde-defaulted `Cluster.removed_instances` holds disabled, credential-free metadata
-for historical Host/AX names while active registration, credentials and scheduling
-remain in `instances`. No SQL table or AX runtime store is deleted. The API authorizes
-admin deletion; the orchestration layer checks task ownership/pinning, selected active
-Workflow policy and native-command execution before moving registration to history.
-
-
-`ui/disclosure.tsx` owns app-styled advanced/expandable sections. It uses the shared
-Button, Lucide chevron and its automatically imported stylesheet, with local open
-state and stable ARIA IDs. Collapsing hides mounted children so form drafts survive.
-The distributed views/dialogs use this component for requirements, previews, tool
-information and history; browser-native summary styling is no longer involved.
-
-
-Distributed collaboration now creates actual multi-AX work through a three-step
-plan form and one atomic Task/Workflow transaction. Native worker model catalogs
-feed searchable execution selections; each Attempt freezes its Provider/Model
-and duty. Matching previews share scheduler predicates and pending Tasks display
-reasons. Member removal fences only its Workflow; new-member work can save in the
-same policy transaction. Latest-Session routing and read-only Session history
-retain rotation and migration associations. Resource minimums reserve scheduler
-capacity; system resource limits are explicitly unsupported. See
-[distributed contracts](../distributed-collaboration.md).
-
-
-Collaboration metadata/member editing and task editors live in the desktop's
-`distributed-edit.tsx`. The authenticated `/tasks/{id}/edit` handler delegates to
-`orchestration/collaboration_edit.rs`, which atomically compares generation and
-content, preserves submission identity and retains removed tasks as history.
-It uses the existing cluster transaction and reconciliation; no additional store
-or scheduler is introduced.
-
-## Chat channels
-
-`channels/` owns ten chat adapters: Slack/Discord/WeCom/Feishu WebSockets, Telegram/Weixin/Webex HTTPS polling, authenticated Teams HTTPS ingress and supervised iMessage/WhatsApp stdio companions, per-platform dispatch and peer-isolated sessions. `domain/channel.rs` describes configuration/inbox state; `storage/channels.rs` persists its protected sidecar. `api/channels.rs` is a desktop-admin management surface. The dispatcher reuses session APIs and ApprovalBroker. `channels/conversations.rs` resolves existing local projects and maintains per-peer selected directories and stable conversation bookmarks in the protected sidecar. Project/history switches preserve workspace bindings and reject leaving active work. Optional channel defaults do not override peer selection; history lookup never adopts arbitrary desktop or other-peer tasks. Native Android LAN phone permissions live in `auth/phone.rs`, independent of messaging. The removed IPv6/relay phone transport has no module, listener or endpoint. See [chat channels](../chat-channels.md).
-
-`channels/live.rs` correlates bounded outgoing requests with socket/child acknowledgements. `apps/channel-bridge/` holds the embedded WhatsApp companion and pinned optional dependency manifest/lockfile. Configuration generations isolate reconnections; desktop management remains admin-only while `/api/messaging/teams` verifies Microsoft JWTs.
-
-`channels/navigation.rs` recognizes explicit natural-language navigation phrases
-and creates peer-scoped, five-minute numbered menus in `Channels` runtime state.
-It resolves numbers against displayed option snapshots and delegates mutations to
-the existing conversation/dispatch commands without model classification. Menus
-are transient, are invalidated by connection/current-conversation changes, and
-cannot consume task/question option numbers while active work is pending. Ordinary
-text closes the menu and continues through the existing session API.
-
-Desktop approval arms a compatible per-peer `welcome_pending` sidecar field only
-on first authorization. The platform dispatcher claims it before attempting a
-welcome send, ahead of incoming text. Navigation builds a live main menu without
-replacing an existing selector or interrupting active questions. Repeated approval
-and attempted delivery are not replayed. An unconfigured first task opens the
-project chooser and explicitly requests resending after selection.
+- [Desktop behavior](../desktop/README.md) covers current desktop workflows and
+  settings.
+- [Android client scope](android-migration.md) records platform differences.
+- [Chat channels](../chat-channels.md) documents setup and supported behavior.
+- [Distributed collaboration](../distributed-collaboration.md) and the
+  [protocol reference](../protocol/README.md) define coordination and API
+  contracts.

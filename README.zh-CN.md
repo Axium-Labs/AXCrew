@@ -146,7 +146,7 @@ AX Crew 是一个产品、三个交付物，只在稳定接口处交汇：
 
 控制平面严格分层：`api/` → `orchestration/` → `storage/` → `domain/`，`transport/`、`gateway/`、`ax/` 是通信与 AX 适配边界。桌面端与 Android 只通过 API 访问控制平面。
 
-仓库根目录只组织产品，自身不含代码。完整的仓库布局与模块职责见 [docs/architecture/README.md](docs/architecture/README.md)；Crew/AX 边界、schema 与状态机见 [docs/architecture/design.md](docs/architecture/design.md)。
+仓库根目录只组织产品，自身不含代码。完整的仓库布局与模块职责见 [docs/architecture/README.md](docs/architecture/README.md)；AX 与 Crew 的运行时职责及执行边界见 [docs/architecture/design.md](docs/architecture/design.md)。
 
 ## 文档
 
