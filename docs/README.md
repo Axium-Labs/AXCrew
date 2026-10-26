@@ -11,7 +11,7 @@ terminal defaults, telemetry, installer updates and capability limits.
 | Document | Topic |
 |---|---|
 | [distributed-collaboration.md](distributed-collaboration.md) | Distributed control plane, scoped worker API, recovery and desktop management |
-| [releases/0.3.11.md](releases/0.3.11.md) | Current release |
+| [releases/0.3.12.md](releases/0.3.12.md) | Current desktop release |
 | [architecture/README.md](architecture/README.md) | System architecture: control plane modules, layering, boundaries, repository layout |
 | [architecture/design.md](architecture/design.md) | AX/Crew runtime boundary and execution ownership |
 | [architecture/storage.md](architecture/storage.md) | SQLite WAL database, durable vs live data, source-of-truth boundary |

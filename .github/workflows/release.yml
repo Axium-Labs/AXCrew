@@ -33,6 +33,7 @@ jobs:
             bundles: app,dmg
     env:
       AX_CREW_TARGET: ${{ matrix.target }}
+      GITCODE_AXCREW_REPOSITORY: ${{ vars.GITCODE_AXCREW_REPOSITORY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -67,16 +68,22 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - name: Resolve release notes
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: Download assets
         uses: actions/download-artifact@v4
         with:
           pattern: axcrew-release-*
-          path: assets
-          merge-multiple: true
+          path: downloaded
       - name: Generate SHA256SUMS
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p assets
+          find downloaded -type f -name 'AX-Crew-*' -exec cp -t assets {} +
           cd assets
           sha256sum AX-Crew-* > SHA256SUMS
           cat SHA256SUMS
@@ -87,3 +94,4 @@ jobs:
             assets/AX-Crew-*
             assets/SHA256SUMS
           generate_release_notes: true
+          body_path: docs/releases/${{ steps.version.outputs.version }}.md

@@ -32,7 +32,9 @@ complete macOS `.app` with `ditto`. Do not ship a bare Unix desktop executable.
 The manual/pull-request `Desktop platform builds` workflow generates Windows
 x64, Linux x64/arm64 and macOS Intel/Apple Silicon installers.
 `stage-platform-assets.mjs` sets canonical filenames and generates SHA256SUMS.
-It uploads workflow artifacts without publishing a release. Corresponding native
+It uploads workflow artifacts without publishing a release. The tag-triggered
+`Release` workflow builds the same matrix, collects canonical installer names
+from every platform directory and publishes one shared SHA256SUMS. Corresponding native
 CI jobs must actually pass before macOS/arm64 builds are treated as verified.
 New assets cannot be downloaded from existing Releases until separately released.
 
