@@ -1,6 +1,6 @@
 [package]
 name = "ax-crew-desktop"
-version = "0.3.12"
+version = "0.3.13"
 description = "AX Crew desktop control plane"
 authors = ["AX Crew contributors"]
 license = "MIT"
