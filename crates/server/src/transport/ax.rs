@@ -25,6 +25,10 @@ impl LocalTransport {
         let mut cmd = Command::new(&self.ax);
         cmd.env_remove("AX_SSH_CONTEXT")
             .env_remove("AX_SSH_CONTEXT_FILE");
+        if task.assigned_device != "local" {
+            cmd.env_remove("AX_CREW_BROWSER_URL")
+                .env_remove("AX_CREW_BROWSER_TOKEN");
+        }
         if let Some(home) = crate::ax::ax_home() {
             cmd.env("AX_HOME", home);
         }

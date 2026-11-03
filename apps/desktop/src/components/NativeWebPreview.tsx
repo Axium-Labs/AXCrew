@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useLang } from '../lib/i18n'
 
-export function NativeWebPreview({ id: suppliedId, url, active = true, action, onUrl }: {
-  id?: string; url: string; active?: boolean
+export function NativeWebPreview({ id: suppliedId, url, active = true, action, onUrl, scope, adopted = false }: {
+  id?: string; url: string; active?: boolean; scope?: string; adopted?: boolean
   action: { kind: string; sequence: number }; onUrl: (url: string) => void
 }) {
   const host = useRef<HTMLDivElement>(null)
@@ -20,14 +20,16 @@ export function NativeWebPreview({ id: suppliedId, url, active = true, action, o
   }, [])
 
   useEffect(() => {
+    if (adopted) return
     let alive = true
     setError(false)
     void command('open', { url }).catch(() => { if (alive) setError(true) })
     return () => { alive = false }
-  }, [url, command])
+  }, [url, command, adopted])
 
   useEffect(() => {
     if (!active) { void command('hide').catch(() => {}); return }
+    if (scope) void command('bind', { scope }).catch(() => {})
     let alive = true
     let frame = 0
     let previous = ''
@@ -61,9 +63,9 @@ export function NativeWebPreview({ id: suppliedId, url, active = true, action, o
     }
     void sync()
     return () => { alive = false; cancelAnimationFrame(frame); void command('hide').catch(() => {}) }
-  }, [active, command])
+  }, [active, command, scope])
 
-  useEffect(() => () => { void command('close').catch(() => {}) }, [command])
+  useEffect(() => () => { void command('release').catch(() => {}) }, [command])
 
   useEffect(() => {
     if (!action.sequence) return

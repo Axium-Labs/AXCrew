@@ -174,8 +174,21 @@ impl DeviceRouter {
         };
         if device == "local" || ssh_device {
             let mut cmd = Command::new(&self.local.ax);
+            if device != "local" {
+                cmd.env_remove("AX_CREW_BROWSER_URL")
+                    .env_remove("AX_CREW_BROWSER_TOKEN");
+            }
             cmd.env_remove("AX_SSH_CONTEXT")
                 .env_remove("AX_SSH_CONTEXT_FILE");
+            // Discovery may have found a legacy, global or explicitly configured
+            // store. Cwd alone can resolve to a different (empty) project store.
+            // Keep deletion in AX, but target the store that owns this session.
+            if device == "local"
+                && method == "session/delete"
+                && let Some(project) = params["sessionId"].as_str().and_then(crate::ax::project_of)
+            {
+                cmd.arg("--data-dir").arg(project.data_dir);
+            }
             let _context_file;
             if let Some(home) = crate::ax::ax_home() {
                 cmd.env("AX_HOME", home);

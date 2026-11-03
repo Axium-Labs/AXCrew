@@ -435,17 +435,62 @@ are offered as buttons and load only after a click. Interactive embedded pages c
 receive their dev server's live updates. URLs with credentials, privileged schemes
 and the application origin are rejected, including native navigations. Remote
 projects need a reachable URL or an already forwarded port. Switching conversations
-clears the browser tabs and closes their native views. Each child follows the
+clears ordinary preview UI tabs; AX-controlled views are hidden and retained
+for their running Session, rather than closed. Each child follows the
 panel's clipped bounds in physical pixels, accounting for UI zoom and display
-scaling, and hides beneath app dialogs/menus. New-window links create new tabs;
+scaling, and hides beneath app dialogs/menus. Ordinary user-preview new-window links create new tabs; controlled pages deny
+all popups and require explicit goto authorization instead;
 downloads are disabled. Remote pages receive no app capabilities. The panel
 does not start servers or forward ports automatically.
 
-Ask AX to inspect inserts the preview URL into the composer for the user to send.
-AX uses its existing separate browser tool; embedded page cookies, clicks and DOM
-are not shared with it. Existing browser tool restrictions still apply.
+Ask AX to inspect inserts the preview URL into the composer. Local desktop AX
+runs use the existing `browser` tool through an authenticated loopback bridge to
+these same child WebViews; they do not launch a separate Playwright window.
+`list_sessions` discovers this AX Session's tabs. The active bound tab is the
+default; `open`/`goto`, text/CSS-target snapshots, click, fill, type and Enter/Tab
+operate on that tab. Agent-created tabs appear in Preview automatically. Switching
+conversations hides controlled tabs rather than destroying ongoing browser work;
+closing a tab or returning it to Start closes its native view. Controlled tabs
+are labelled AX controlled. Browse in a new tab, address navigation and Reload
+open a separate ordinary user preview without loosening the controlled page
+network boundary; Back/Forward remain disabled on the controlled copy. Tabs are routed by
+the actual AX Session ID, not a conversation title. Limits are 16 per Session and
+64 per desktop process; unused tabs can be closed explicitly.
+
+First Agent adoption of an existing user page installs network protection and
+reloads it, so DOM/form state refreshes while the embedded browser's existing
+cookie/login profile remains in use. Session routing isolates tab access, not
+browser profiles. Existing profile cookies and independent pre-existing user
+profile workers are not isolated; the controlled document bypasses cached/service-
+worker responses and its new worker creation is prohibited. Windows requires a WebView2 runtime with all-request-source
+filtering and DevTools interception support. The guard blocks cross-origin HTTP
+resources and redirect hops, WebSockets, all controlled-page popups and downloads;
+idle Agent-controlled tabs cannot continue background requests. Failure to install
+the guard fails the operation. Other desktop platforms currently report embedded
+Agent control unavailable; ordinary user preview still works. Screenshots and
+keys other than Enter/Tab explicitly report unsupported. No arbitrary JavaScript
+is accepted from the model, and remote pages receive no Tauri IPC capabilities.
+
+Browser Use enablement, website Ask/Allow/Deny and task restrictions remain AX's
+source of truth. Desktop bridge credentials are per launch, stay out of tool/MCP/
+Mod subprocess environments and are not persisted. Remote paired/SSH AX runs do
+not inherit this local browser connection; they use their own runtime. No silent
+external-browser fallback occurs when the local embedded bridge is unavailable.
 
 File change summaries use compact rows, aligned counts, truncated paths with full
 path tooltips, and the existing sidebar diff viewer. Unavailable undo is omitted.
 Allowed Computer Use applications no longer trigger generic per-action prompts;
 explicit task Ask/Deny and capability Deny still apply. Website rules are unchanged.
+
+Local project menus always offer **Remove from project list**, including projects
+found automatically in AX history. Removal persists on this desktop, retains
+project files and conversations, and is reversed by adding the folder again.
+Permanent local conversation deletion targets the AX data directory discovered
+for that session, including legacy and custom stores; AX must confirm deletion
+before Crew removes its related task records.
+
+The conversation navigation dot indicates an unread completed/failed result.
+After task and session lists load successfully, restored notifications with no
+remaining task or conversation binding are cleared. Late session bindings are
+reconciled so reading the conversation clears its result dot. New completion
+events are retained while task lists refresh.

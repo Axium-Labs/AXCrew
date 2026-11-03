@@ -21,6 +21,30 @@ function updateNative(alertTask?: string) {
   }).catch(error => console.warn('[ax-crew] Completion attention unavailable', error))
 }
 
+// Only prune entries restored at startup: new completion events can precede
+// the task-list refresh and must not be discarded during that race.
+export function reconcileCompletionAttention(restored: Set<string>) {
+  const tasks = queryClient.getQueryData<Task[]>(['tasks'])
+  const sessions = queryClient.getQueryData<Session[]>(['sessions'])
+  if (!tasks || !sessions || queryClient.getQueryState(['tasks'])?.status !== 'success' || queryClient.getQueryState(['sessions'])?.status !== 'success') return
+  const state = useAttention.getState()
+  let changed = false
+  const unread = Object.fromEntries(Object.entries(state.unread).flatMap(([id, item]) => {
+    const binding = sessions.find(session => session.task_id === item.taskId)
+    const conversation = binding ? conversationIdentity(binding.device_id, binding.ax_session_id) : item.conversation
+    if (restored.has(id) && !tasks.some(task => task.id === item.taskId) && !sessions.some(session => conversationIdentity(session.device_id, session.ax_session_id) === conversation)) {
+      changed = true
+      return []
+    }
+    if (conversation !== item.conversation) { changed = true; return [[id, {...item, conversation}]] }
+    return [[id, item]]
+  }))
+  if (changed) {
+    useAttention.setState({unread})
+    useAttention.getState().setFocused(state.focused)
+  }
+}
+
 export function startCompletionNotifications() {
   let disposed = false, unlisten: (() => void) | undefined
   const focus = (value: boolean) => { if (!disposed) useAttention.getState().setFocused(value) }
@@ -42,12 +66,17 @@ export function startCompletionNotifications() {
     window.addEventListener('blur', browserFocus)
     document.addEventListener('visibilitychange', browserFocus)
   }
+  const restored = new Set(Object.keys(useAttention.getState().unread))
+  const unsubscribeQueries = queryClient.getQueryCache().subscribe(event => {
+    if (event.type === 'updated' && ['tasks', 'sessions'].includes(String(event.query.queryKey[0]))) reconcileCompletionAttention(restored)
+  })
+  reconcileCompletionAttention(restored)
   updateNative()
   const unsubscribe = useAttention.subscribe((state, previous) => {
     if (state.unread !== previous.unread || state.focused !== previous.focused) updateNative()
   })
   return () => {
-    disposed = true; unlisten?.(); unsubscribe()
+    disposed = true; unlisten?.(); unsubscribe(); unsubscribeQueries()
     window.removeEventListener('focus', browserFocus)
     window.removeEventListener('blur', browserFocus)
     document.removeEventListener('visibilitychange', browserFocus)

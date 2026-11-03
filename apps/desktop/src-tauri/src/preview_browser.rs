@@ -3,7 +3,7 @@ use tauri::{
     webview::WebviewBuilder, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl,
 };
 
-fn allowed(url: &reqwest::Url, origin: &str) -> bool {
+pub(crate) fn allowed(url: &reqwest::Url, origin: &str) -> bool {
     matches!(url.scheme(), "http" | "https")
         && url.username().is_empty()
         && url.password().is_none()
@@ -32,9 +32,47 @@ pub async fn preview_browser(
     action: String,
     url: Option<String>,
     bounds: Option<Bounds>,
+    scope: Option<String>,
 ) -> Result<Option<String>, String> {
     if caller.label() != "main" || !id.starts_with("preview-") || id.len() > 80 {
         return Err("Invalid browser caller".into());
+    }
+    if action == "agent_tabs" {
+        return Ok(Some(
+            serde_json::to_string(&crate::agent_browser::tabs(
+                &app,
+                scope.as_deref().unwrap_or_default(),
+            ))
+            .map_err(|e| e.to_string())?,
+        ));
+    }
+    if action == "bind" {
+        // open_view installs a child at about:blank before its asynchronous
+        // navigation commits. The serialized frontend open -> bind sequence
+        // must not lose this Session binding during that short transition.
+        for _ in 0..50 {
+            let view = app.get_webview(&id).ok_or("Browser view closed")?;
+            if view.url().map_err(|e| e.to_string())?.as_str() != "about:blank" {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        crate::agent_browser::bind(
+            &app,
+            scope.as_deref().ok_or("Missing browser Session")?,
+            &id,
+        )?;
+        return Ok(None);
+    }
+    // The native registry is authoritative: React may unmount before its
+    // asynchronous Agent-adoption event arrives. Ordinary scoped user previews
+    // must still close, while an in-flight/controlled Agent page stays alive.
+    if action == "release" && !crate::agent_browser::is_controlled(&app, &id) {
+        if let Some(view) = app.get_webview(&id) {
+            view.close().map_err(|e| e.to_string())?;
+        }
+        crate::agent_browser::closed(&app, &id);
+        return Ok(None);
     }
     let origin = caller
         .url()
@@ -47,56 +85,18 @@ pub async fn preview_browser(
         if !allowed(&url, &origin) {
             return Err("Invalid browser URL".into());
         }
-        if let Some(view) = app.get_webview(&id) {
-            view.navigate(url).map_err(|e| e.to_string())?;
-        } else {
-            let popup_app = app.clone();
-            let popup_id = id.clone();
-            let popup_origin = origin.clone();
-            let title_app = app.clone();
-            let title_id = id.clone();
-            let builder = WebviewBuilder::new(&id, WebviewUrl::External(url))
-                .focused(false)
-                .on_navigation(move |url| allowed(url, &origin))
-                .on_download(|_, _| false)
-                .on_document_title_changed(move |_, title| {
-                    let _ = title_app.emit_to(
-                        "main",
-                        "preview-browser-title",
-                        serde_json::json!({"id": title_id, "title": title}),
-                    );
-                })
-                .on_new_window(move |url, _| {
-                    // A website's new-window link becomes a separate browser tab.
-                    if allowed(&url, &popup_origin) {
-                        let _ = popup_app.emit_to(
-                            "main",
-                            "preview-browser-new-tab",
-                            serde_json::json!({"source": popup_id, "url": url.as_str()}),
-                        );
-                    }
-                    tauri::webview::NewWindowResponse::Deny
-                });
-            let view = caller
-                .window()
-                .add_child(
-                    builder,
-                    PhysicalPosition::new(0, 0),
-                    PhysicalSize::new(1, 1),
-                )
-                .map_err(|e| e.to_string())?;
-            view.hide().map_err(|e| e.to_string())?;
-            view.set_auto_resize(false).map_err(|e| e.to_string())?;
-        }
+        open_view(caller.clone(), app.clone(), &id, url)?;
     }
+
     if let Some(view) = app.get_webview(&id) {
         match action.as_str() {
             "close" => {
                 view.close().map_err(|e| e.to_string())?;
+                crate::agent_browser::closed(&app, &id);
                 return Ok(None);
             }
             "reload" => view.reload().map_err(|e| e.to_string())?,
-            "hide" => view.hide().map_err(|e| e.to_string())?,
+            "hide" | "release" => view.hide().map_err(|e| e.to_string())?,
             "back" => view.eval("history.back()").map_err(|e| e.to_string())?,
             "forward" => view.eval("history.forward()").map_err(|e| e.to_string())?,
             "bounds" => {
@@ -156,4 +156,99 @@ pub async fn preview_browser(
             .map_err(|e| e.to_string());
     }
     Ok(None)
+}
+
+pub(crate) fn open_view(
+    caller: tauri::Webview,
+    app: tauri::AppHandle,
+    id: &str,
+    url: reqwest::Url,
+) -> Result<(), String> {
+    let origin = caller
+        .url()
+        .map_err(|e| e.to_string())?
+        .origin()
+        .ascii_serialization();
+    if let Some(view) = app.get_webview(id) {
+        crate::agent_browser::update_origin(&app, id, &url);
+        let installed = crate::agent_browser::install_guard(&app, id, &view)?;
+        if view.url().ok().as_ref() != Some(&url) {
+            crate::agent_browser::loaded(&app, id, false);
+            view.navigate(url).map_err(|e| e.to_string())?;
+        } else if installed {
+            crate::agent_browser::loaded(&app, id, false);
+            view.reload().map_err(|e| e.to_string())?;
+        }
+    } else {
+        let navigation_app = app.clone();
+        let navigation_id = id.to_owned();
+        let popup_app = app.clone();
+        let popup_guard_app = app.clone();
+        let popup_guard_id = id.to_owned();
+        let popup_id = id.to_owned();
+        let popup_origin = origin.clone();
+        let title_app = app.clone();
+        let title_id = id.to_owned();
+        let load_app = app.clone();
+        let load_id = id.to_owned();
+        let builder = WebviewBuilder::new(
+            id,
+            WebviewUrl::External(reqwest::Url::parse("about:blank").map_err(|e| e.to_string())?),
+        )
+        .focused(false)
+        .on_navigation(move |url| {
+            crate::agent_browser::navigation(&navigation_app, &navigation_id, url).map_or_else(
+                || allowed(url, &origin),
+                |permit| permit && allowed(url, &origin),
+            )
+        })
+        .on_download(|_, _| false)
+        .on_page_load(move |_, payload| {
+            crate::agent_browser::loaded(
+                &load_app,
+                &load_id,
+                matches!(payload.event(), tauri::webview::PageLoadEvent::Finished),
+            )
+        })
+        .on_document_title_changed(move |_, title| {
+            if crate::agent_browser::title_result(&title_app, &title_id, &title) {
+                return;
+            }
+            let _ = title_app.emit_to(
+                "main",
+                "preview-browser-title",
+                serde_json::json!({"id": title_id, "title": title}),
+            );
+        })
+        .on_new_window(move |url, _| {
+            // A website's new-window link becomes a separate browser tab.
+            if allowed(&url, &popup_origin)
+                && crate::agent_browser::popup_allowed(&popup_guard_app, &popup_guard_id, &url)
+            {
+                let _ = popup_app.emit_to(
+                    "main",
+                    "preview-browser-new-tab",
+                    serde_json::json!({"source": popup_id, "url": url.as_str()}),
+                );
+            }
+            tauri::webview::NewWindowResponse::Deny
+        });
+        let view = caller
+            .window()
+            .add_child(
+                builder,
+                PhysicalPosition::new(0, 0),
+                PhysicalSize::new(1, 1),
+            )
+            .map_err(|e| e.to_string())?;
+        view.hide().map_err(|e| e.to_string())?;
+        view.set_auto_resize(false).map_err(|e| e.to_string())?;
+        if let Err(error) = crate::agent_browser::install_guard(&app, id, &view) {
+            let _ = view.close();
+            return Err(error);
+        }
+        crate::agent_browser::loaded(&app, id, false);
+        view.navigate(url).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }

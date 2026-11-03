@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Globe, RotateCw, ArrowRight, ArrowLeft, Search, Home, ArrowUpRight, Plus, X } from 'lucide-react'
-import { isTauri } from '@tauri-apps/api/core'
+import { invoke, isTauri } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { NativeWebPreview } from './NativeWebPreview'
 import { useLang } from '../lib/i18n'
@@ -32,14 +32,16 @@ export function resolvePreviewAddress(value: string): string | null {
 type BrowserTab = {
   id: string; url: string; currentUrl: string; address: string; title: string
   revision: number; error: boolean; action: { kind: string; sequence: number }
+  adopted?: boolean
 }
 
 function newTab(url = ''): BrowserTab {
   return { id: `preview-${crypto.randomUUID()}`, url, currentUrl: url, address: url, title: '', revision: 0, error: false, action: { kind: 'reload', sequence: 0 } }
 }
 
-export function WebPreviewPanel({ sessionKey, lines, remote, onInspect }: {
+export function WebPreviewPanel({ sessionKey, lines, remote, onInspect, browserScope, onAgentActivity }: {
   sessionKey: string; lines: SessionLine[]; remote: boolean; onInspect: (url: string) => void
+  browserScope?: string; onAgentActivity?: () => void
 }) {
   const zh = useLang(state => state.lang) === 'zh'
   const [tabs, setTabs] = useState<BrowserTab[]>(() => [newTab()])
@@ -50,6 +52,28 @@ export function WebPreviewPanel({ sessionKey, lines, remote, onInspect }: {
   tabsRef.current = tabs
   const native = isTauri()
   const inputRef = useRef<HTMLInputElement>(null)
+  const activityRef = useRef(onAgentActivity)
+  activityRef.current = onAgentActivity
+  useEffect(() => {
+    if (!native || remote || !browserScope) return
+    let alive = true
+    type AgentTab = { id: string; scope: string; url?: string; closed?: boolean }
+    const adopt = (tab: AgentTab, show = true) => {
+      if (!alive || tab.scope !== browserScope) return
+      if (tab.closed) { setTabs(tabs => { const next = tabs.filter(item => item.id !== tab.id); return next.length ? next : [newTab()] }); return }
+      const url = previewUrl(tab.url ?? '')
+      if (!url) return
+      setTabs(tabs => tabs.some(item => item.id === tab.id) ? tabs.map(item => item.id === tab.id ? { ...item, url, currentUrl: url, address: url, adopted: true } : item) : [...tabs, { ...newTab(url), id: tab.id, adopted: true }])
+      setActiveId(tab.id)
+      if (show) activityRef.current?.()
+    }
+    const subscription = listen<AgentTab>('agent-browser-tab', event => adopt(event.payload))
+    void invoke<string>('preview_browser', { id: 'preview-list', action: 'agent_tabs', scope: browserScope }).then(text => {
+      const tabs: AgentTab[] = JSON.parse(text)
+      tabs.forEach(tab => adopt(tab, tab.id.startsWith('preview-agent-')))
+    }).catch(console.error)
+    return () => { alive = false; void subscription.then(remove => remove()) }
+  }, [native, remote, browserScope])
   const placeholder = zh ? '搜索或输入网址' : 'Search or enter a URL'
   useEffect(() => {
     document.getElementById(`${active.id}-tab`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
@@ -74,6 +98,7 @@ export function WebPreviewPanel({ sessionKey, lines, remote, onInspect }: {
     if (!url) inputRef.current?.focus()
   }
   function closeTab(id: string) {
+    if (native) void invoke('preview_browser', { id, action: 'close' }).catch(console.error)
     const index = tabs.findIndex(tab => tab.id === id)
     if (tabs.length === 1) {
       const tab = newTab()
@@ -107,7 +132,8 @@ export function WebPreviewPanel({ sessionKey, lines, remote, onInspect }: {
     if (!value.trim()) return
     const next = resolvePreviewAddress(value)
     if (!next) { updateTab(active.id, { error: true }); return }
-    updateTab(active.id, tab => ({ address: next, currentUrl: next, url: next, title: '', error: false, revision: tab.revision + 1,
+    if (active.adopted) { addTab(next); return }
+    updateTab(active.id, tab => ({ address: next, currentUrl: next, url: next, title: '', error: false, adopted: false, revision: tab.revision + 1,
       action: next === tab.url ? { kind: 'reload', sequence: tab.action.sequence + 1 } : tab.action }))
     inputRef.current?.blur()
   }
@@ -137,20 +163,20 @@ export function WebPreviewPanel({ sessionKey, lines, remote, onInspect }: {
     </div>
     <form className="web-preview-toolbar" onSubmit={event => { event.preventDefault(); navigate(active.address) }}>
       <div className="web-preview-navigation">
-        <button type="button" disabled={!active.url || !native} aria-label={zh ? '后退' : 'Back'} title={zh ? '后退' : 'Back'} onClick={() => browserAction('back')}><ArrowLeft size={16}/></button>
-        <button type="button" disabled={!active.url || !native} aria-label={zh ? '前进' : 'Forward'} title={zh ? '前进' : 'Forward'} onClick={() => browserAction('forward')}><ArrowRight size={16}/></button>
-        <button type="button" disabled={!active.url} title={zh ? '刷新' : 'Reload'} aria-label={zh ? '刷新' : 'Reload'} onClick={() => browserAction('reload')}><RotateCw size={16}/></button>
+        <button type="button" disabled={!active.url || !native || active.adopted} aria-label={zh ? '后退' : 'Back'} title={zh ? '后退' : 'Back'} onClick={() => browserAction('back')}><ArrowLeft size={16}/></button>
+        <button type="button" disabled={!active.url || !native || active.adopted} aria-label={zh ? '前进' : 'Forward'} title={zh ? '前进' : 'Forward'} onClick={() => browserAction('forward')}><ArrowRight size={16}/></button>
+        <button type="button" disabled={!active.url} title={zh ? '刷新' : 'Reload'} aria-label={zh ? '刷新' : 'Reload'} onClick={() => active.adopted ? addTab(active.currentUrl || active.url) : browserAction('reload')}><RotateCw size={16}/></button>
       </div>
-      <button type="button" title={zh ? '起始页' : 'Start page'} aria-label={zh ? '起始页' : 'Start page'} disabled={!active.url} onClick={() => { updateTab(active.id, { url: '', currentUrl: '', address: '', title: '', action: { kind: 'reload', sequence: 0 }, error: false }); inputRef.current?.focus() }}><Home size={16}/></button>
+      <button type="button" title={zh ? '起始页' : 'Start page'} aria-label={zh ? '起始页' : 'Start page'} disabled={!active.url} onClick={() => { if(native) void invoke('preview_browser',{id:active.id,action:'close'}).catch(console.error); updateTab(active.id, { url: '', currentUrl: '', address: '', title: '', action: { kind: 'reload', sequence: 0 }, error: false }); inputRef.current?.focus() }}><Home size={16}/></button>
       <div className="web-preview-address"><Search size={15}/><input ref={inputRef} aria-label={placeholder} placeholder={focused ? '' : placeholder} value={active.address} autoComplete="off" spellCheck={false} onFocus={event => { setFocused(true); event.target.select() }} onBlur={() => setFocused(false)} onChange={event => updateTab(active.id, { address: event.target.value, error: false })}/>
         <button type="submit" disabled={!active.address.trim()} title={zh ? '前往' : 'Go'} aria-label={zh ? '前往' : 'Go'}><ArrowRight size={15}/></button>
       </div>
     </form>
     {active.error && <p role="alert">{zh ? '无法打开该地址，请使用不含登录凭据的 HTTP 或 HTTPS 网址。' : 'Use an HTTP or HTTPS URL without embedded credentials.'}</p>}
-    {active.url && <div className="web-preview-actions"><span>{zh ? '网页浏览' : 'Browser'}</span><button onClick={() => onInspect(active.currentUrl || active.url)}>{zh ? '让 AX 检查' : 'Ask AX to inspect'}<ArrowUpRight size={13}/></button></div>}
+    {active.url && <div className="web-preview-actions"><span>{active.adopted ? (zh ? 'AX 控制中' : 'AX controlled') : (zh ? '网页浏览' : 'Browser')}</span>{active.adopted && <button onClick={() => addTab(active.currentUrl || active.url)}>{zh ? '自由浏览（新标签页）' : 'Browse in a new tab'}<ArrowUpRight size={13}/></button>}<button onClick={() => onInspect(active.currentUrl || active.url)}>{zh ? '让 AX 检查' : 'Ask AX to inspect'}<ArrowUpRight size={13}/></button></div>}
     {tabs.map(tab => <div key={tab.id} id={`${tab.id}-page`} role="tabpanel" aria-labelledby={`${tab.id}-tab`} hidden={tab.id !== active.id} className="web-preview-page">
       {tab.url ? <>
-        {native ? <NativeWebPreview id={tab.id} url={tab.url} active={tab.id === active.id} action={tab.action} onUrl={value => {
+        {native ? <NativeWebPreview id={tab.id} url={tab.url} adopted={tab.adopted} scope={remote ? undefined : browserScope} active={tab.id === active.id} action={tab.action} onUrl={value => {
           if (!previewUrl(value)) return
           updateTab(tab.id, old => value === old.currentUrl ? {} : { currentUrl: value, ...(document.activeElement === inputRef.current && tab.id === active.id ? {} : { address: value }) })
         }}/>

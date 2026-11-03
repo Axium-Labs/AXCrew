@@ -1,5 +1,7 @@
 mod terminal;
 mod preview_browser;
+mod agent_browser;
+mod browser_network_guard;
 mod terminal_ssh;
 mod capability_sources;
 mod ax;
@@ -461,11 +463,14 @@ pub fn run() {
             cfg.token = Some(token.clone());
 
             fs::write(&config_path, serde_json::to_string_pretty(&cfg)?)?;
+            let (browser_url, browser_token) = agent_browser::start(app.handle().clone())?;
             let child=proc::command(backend).arg("--listen").arg(format!("{listen_addr}:{port}"))
                 .arg("--database").arg(data.join("crew.sqlite3"))
                 .arg("--ax").arg(&ax)
                 .env("AX_CREW_ADMIN_TOKEN",&token)
                 .env("AX_CREW_WORKSPACE",&workspace)
+                .env("AX_CREW_BROWSER_URL", &browser_url)
+                .env("AX_CREW_BROWSER_TOKEN", &browser_token)
                 .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn()?;
             let preference_path = data.join("desktop-settings.json");
             let close_preference = desktop_behavior::ClosePreference::load(preference_path.clone()).unwrap_or_else(|error| {

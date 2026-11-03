@@ -63,11 +63,12 @@ const slashCommands=[
   {name:'/mcp',key:'session.slash.mcp'},{name:'/compact',key:'session.slash.compact'},
 ] as const
 const PROJECT_KEY='ax-crew.projects'
+const HIDDEN_PROJECT_KEY='ax-crew.hidden-projects'
 // Projects are directories; the same directory may be spelled with either slash.
 const normalizePath=(value:string)=>value.replace(/\\/g,'/').replace(/^\/\/\?\//,'').replace(/\/+$/,'').toLowerCase()
 const baseName=(value:string)=>value.replace(/\\/g,'/').replace(/\/+$/,'').split('/').pop()||value
-function loadProjectDirs(){
-  try{const value=JSON.parse(localStorage.getItem(PROJECT_KEY)??'[]');return Array.isArray(value)?value.filter((item):item is string=>typeof item==='string'):[]}catch{return []}
+function loadProjectDirs(key=PROJECT_KEY){
+  try{const value=JSON.parse(localStorage.getItem(key)??'[]');return Array.isArray(value)?value.filter((item):item is string=>typeof item==='string'):[]}catch{return []}
 }
 
 function timeLabel(value?:number|null){
@@ -156,6 +157,7 @@ export function SessionsWorkspace(){
 
   const [search,setSearch]=useState(''),[onlyActive,setOnlyActive]=useState(false),[projectsOpen,setProjectsOpen]=useState(true),[recentOpen,setRecentOpen]=useState(true)
   const [projectDirs,setProjectDirs]=useState<string[]>(loadProjectDirs),[openProject,setOpenProject]=useState<string|null>(null)
+  const [hiddenProjects,setHiddenProjects]=useState<string[]>(()=>loadProjectDirs(HIDDEN_PROJECT_KEY))
   const [sending,setSending]=useState(false),[sendError,setSendError]=useState('')
   const [imagesByDraft,setImagesByDraft]=useState<Record<string,AttachedImage[]>>({})
   const [imagePreview,setImagePreview]=useState<AttachedImage|null>(null)
@@ -258,8 +260,8 @@ export function SessionsWorkspace(){
       if(existing)existing.name=project.name
       else items.push({key,name:project.name,root:project.cwd,sessions:[],picked:false})
     }
-    return items
-  },[localAx.data,projectDirs,namedProjects.data])
+    return items.filter(item=>!hiddenProjects.includes(item.key))
+  },[localAx.data,projectDirs,namedProjects.data,hiddenProjects])
   // A project owns every session that ran in its directory: AX history first, then
   // the Crew conversations that are not already one of those AX sessions.
   const projectSessions=(project:{root:string;sessions:LocalAxSession[]})=>{
@@ -277,6 +279,17 @@ export function SessionsWorkspace(){
     ].sort((a,b)=>Number(!!meta(b.key).marked)-Number(!!meta(a.key).marked)||b.at-a.at)
   }
   const persistProjects=(next:string[])=>{setProjectDirs(next);try{localStorage.setItem(PROJECT_KEY,JSON.stringify(next))}catch{/* a local convenience only */}}
+  const saveHiddenProjects=(next:string[])=>{setHiddenProjects(next);try{localStorage.setItem(HIDDEN_PROJECT_KEY,JSON.stringify(next))}catch{/* a local convenience only */}}
+  const removeLocalProject=async(key:string)=>{
+    try{
+      const named=(namedProjects.data??[]).filter(project=>project.device_id==='local'&&normalizePath(project.cwd)===key)
+      for(const project of named)await connections.removeProject(project.id)
+      saveHiddenProjects([...new Set([...hiddenProjects,key])])
+      persistProjects(projectDirs.filter(directory=>normalizePath(directory)!==key))
+      if(openProject===key)setOpenProject(null)
+      await queryClient.invalidateQueries({queryKey:['named-projects']})
+    }catch(error){setSendError(String(error))}
+  }
   const startInProject=(root:string)=>{ui.setSelectedEnvironment(null);setCloud(false);ui.setSelectedCwd(root);newSession()}
   const addProject=()=>setProjectDialog(true)
   const openLocal=(session:LocalAxSession)=>navigate(session.task_id?`/sessions/${session.task_id}`:`/sessions?local=${encodeURIComponent(session.id)}`)
@@ -479,8 +492,7 @@ export function SessionsWorkspace(){
                   <Menu trigger={<button className="session-project-action" type="button" aria-label={t('session.moreActions',{name:project.name})} title={t('session.moreActions',{name:project.name})}><MoreHorizontal size={15}/></button>} items={[
                     {label:t('session.newSessionHere'),action:()=>startInProject(project.root)},
                     {label:t('session.setAsWorkspace'),action:()=>ui.setSelectedCwd(project.root)},
-                    ...((namedProjects.data??[]).find(p=>p.device_id==='local'&&normalizePath(p.cwd)===project.key)?[{label:connectionText('从项目中移除','Remove project'),action:()=>{const named=namedProjects.data!.find(p=>p.device_id==='local'&&normalizePath(p.cwd)===project.key)!;void connections.removeProject(named.id).then(()=>queryClient.invalidateQueries({queryKey:['named-projects']})).catch(e=>setSendError(String(e)))}}]:[]),
-                    ...(project.picked?[{label:t('session.removeFromList'),action:()=>persistProjects(projectDirs.filter(directory=>normalizePath(directory)!==project.key))}]:[]),
+                    {label:t('session.removeFromList'),action:()=>void removeLocalProject(project.key)},
                   ]}/>
                 </div>
                 {opened&&<div className="session-project-sessions">
@@ -558,13 +570,13 @@ export function SessionsWorkspace(){
         {rightOpen&&<Menu trigger={<button type="button" className="session-layout-menu" aria-label={connectionText('面板布局','Panel layout')}><MoreHorizontal size={17}/></button>} items={[{label:connectionText(layout.rightMode==='full'?'显示主聊天':'仅侧栏视图',layout.rightMode==='full'?'Show main chat':'Sidebar only'),action:()=>ui.setChatOpen(layout.rightMode==='full')},{label:connectionText('恢复默认布局','Restore default layout'),action:resetLayout}]}/>}
         <button className="session-right-toggle" aria-label={rightOpen?t('session.closeRight'):t('session.openRight')} title={rightOpen?t('session.collapseRight'):t('session.expandRight')} aria-expanded={rightOpen} onClick={()=>setRightOpen(!rightOpen)}><PanelRight size={18}/></button>
       </div>
-      <div className="session-file-panel-slot" hidden={rightTab!=='preview'}><WebPreviewPanel key={draftKey} sessionKey={draftKey} lines={lines} remote={remoteMode} onInspect={url=>{setDraft(`${draft}${draft?'\n':''}${connectionText('请使用浏览器工具检查页面：','Use the browser tool to inspect this page: ')}${url}`);inputRef.current?.focus()}}/></div>
+      <div className="session-file-panel-slot" hidden={rightTab!=='preview'}><WebPreviewPanel key={draftKey} sessionKey={draftKey} lines={lines} remote={remoteMode} browserScope={selectedBinding?.ax_session_id??localId??undefined} onAgentActivity={()=>{setRightTab('preview');setRightOpen(true)}} onInspect={url=>{setDraft(`${draft}${draft?'\n':''}${connectionText('请使用浏览器工具检查页面：','Use the browser tool to inspect this page: ')}${url}`);inputRef.current?.focus()}}/></div>
       <div className="session-file-panel-slot" hidden={rightTab!=='files'}><UnifiedFilePanel key={`${draftKey}:${imageRoot??member?.cwd??''}:${remoteMode}`} changedFiles={reviewFiles} reviewRequest={changedView.request} member={member} workspaceRoot={changedView.root??imageRoot} remote={remoteMode} onReference={path=>{setDraft(`${draft}${draft?'\n':''}@file ${path}`);inputRef.current?.focus()}}/></div>
       {rightTab==='agents'&&<SubagentPanel key={draftKey} agents={agents} selectedId={selectedAgent?.conversation===draftKey?selectedAgent.agentId:null} onSelect={openSubagent} visible={rightOpen}/>}
       <SessionInteractions value={{root:imageRoot,onChanges:openChanges}}><div className="session-side-chat-slot" hidden={rightTab!=='chat'}><SideChat visible={rightOpen&&rightTab==='chat'} quotes={sideQuotes} onQuotesChange={setSideQuotes} cwd={imageRoot} memberId={remoteMode?member?.id:undefined} models={models} initialModel={selectedModel} fast={fastInference} onFast={()=>void toggleInference()} fastDisabled={(remoteMode&&!sshMode)||!axAvailable||!ax.data||switchingInference} remote={remoteMode} onRemoteModel={chooseModel} onTask={id=>setSideTaskIds(ids=>[...ids,id])}/></div></SessionInteractions>
       {rightTab==='details'&&<div className="session-right-details"><div><span>{t('session.deviceLabel')}</span><strong>{device?.name??member?.device_id??'—'}</strong></div><div><span>{t('session.taskStatus')}</span><strong>{modelFailure?modelConnectionText(modelFailure,useLang.getState().lang):task?.status?t('status.'+task.status):t('session.statusNew')}</strong></div><div><span>{t('session.axSessionId')}</span><strong className="session-detail-id">{selectedBinding?.ax_session_id??'—'}</strong></div>{id&&<Link to={`/tasks/${task?.id??id}`}>{t('session.viewTask')} <ExternalLink size={14}/></Link>}</div>}
     </aside>
-    <ProjectDialog open={projectDialog} onClose={()=>setProjectDialog(false)} onCreated={project=>{if(project.device_id==="local"){ui.setSelectedCwd(project.cwd);ui.setSelectedEnvironment(null);setCloud(false)}else{ui.setSelectedEnvironment(project.member_id);setCloud(true)}newSession()}}/>
+    <ProjectDialog open={projectDialog} onClose={()=>setProjectDialog(false)} onCreated={project=>{if(project.device_id==="local"){saveHiddenProjects(hiddenProjects.filter(key=>key!==normalizePath(project.cwd)));ui.setSelectedCwd(project.cwd);ui.setSelectedEnvironment(null);setCloud(false)}else{ui.setSelectedEnvironment(project.member_id);setCloud(true)}newSession()}}/>
     {context&&<div className="session-context-menu ax-menu" role="menu" style={{left:context.x,top:context.y}}>
       <button role="menuitem" onClick={()=>setEditSession({id:context.id,kind:'title',value:context.title})}>{t('session.rename')}</button>
       <button role="menuitem" onClick={()=>ui.setMetadata(context.id,{marked:!meta(context.id).marked})}>{meta(context.id).marked?t('session.unmark'):t('session.mark')}</button>

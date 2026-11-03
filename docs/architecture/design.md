@@ -41,3 +41,21 @@ response or resume the same task; it does not synthesize an agent answer.
 - [Storage](storage.md) describes the database and durability boundaries.
 - [Android platform mapping](android-migration.md) documents client-specific
   capabilities and limits.
+
+
+## Local desktop browser transport
+
+For local desktop AX execution, Crew injects a per-launch loopback endpoint and
+secret into trusted AX/ACP processes. AX keeps the existing BrowserTool registry,
+HostPermissionStore, task policy and execution loop. The desktop bridge owns only
+fixed operations on its real sidebar child WebViews, not model decisions. It
+returns bounded, untrusted page data through one-use nonce title results and
+never grants remote pages Tauri IPC. SSH and paired remote AX do not receive this
+local transport, and user-code subprocesses do not inherit its credentials.
+
+Windows Agent-controlled pages require native all-source request filtering and
+CDP response enforcement before navigation; setup failure and unsupported
+platforms fail closed. Normal user previews remain separate from the controlled
+network mode. Cookie profiles are reused, while page routing uses actual AX
+Session IDs. See [desktop browser behavior](../desktop/README.md#web-preview-and-compact-change-review)
+for adoption/reload, lifecycle, free-browse controls and capability limitations.
