@@ -23,7 +23,7 @@ See [platform support](docs/platforms.md) for prerequisites, native shell settin
 updates and capability limits. New platform installers require native validation
 and a release containing those assets before download.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](crates/server/Cargo.toml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](crates/server/Cargo.toml)
 [![Rust 1.92+](https://img.shields.io/badge/rust-1.92+-orange)](https://www.rust-lang.org)
 [![Release](https://img.shields.io/github/v/release/Axium-Labs/AXCrew)](https://github.com/Axium-Labs/AXCrew/releases/latest)
 
@@ -348,7 +348,7 @@ build flow — desktop, Android, packaging — and the process-level tests.
 
 ## License
 
-MIT. See [crates/server/Cargo.toml](crates/server/Cargo.toml).
+Apache-2.0. See [crates/server/Cargo.toml](crates/server/Cargo.toml).
 
 ## Distributed Collaboration
 

@@ -4,7 +4,7 @@ version = "0.3.13"
 edition = "2024"
 rust-version = "1.92"
 description = "AX Crew control plane: REST/WebSocket gateway, DAG scheduling and device routing for AX runtimes"
-license = "MIT"
+license = "Apache-2.0"
 
 # `src/lib.rs` exposes the module tree (`ax_crew`) and `src/main.rs` is the thin
 # bootstrap binary that keeps the published artifact name `ax-crew.exe`.
