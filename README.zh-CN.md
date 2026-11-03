@@ -9,7 +9,7 @@
 
 会话会显示“正在连接模型”“正在重新连接模型”和实际连接次数（匹配新版 AX 时最多 5 次请求）。无法恢复时显示“模型连接失败”和原因，重新打开会话仍能看到最终失败次数。
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](crates/server/Cargo.toml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](crates/server/Cargo.toml)
 [![Rust 1.92+](https://img.shields.io/badge/rust-1.92+-orange)](https://www.rust-lang.org)
 [![Release](https://img.shields.io/github/v/release/Axium-Labs/AXCrew)](https://github.com/Axium-Labs/AXCrew/releases/latest)
 
@@ -174,7 +174,7 @@ cargo test --workspace
 
 ## 许可证
 
-MIT。见 [crates/server/Cargo.toml](crates/server/Cargo.toml)。
+Apache-2.0。见 [crates/server/Cargo.toml](crates/server/Cargo.toml)。
 
 ## 分布式协作
 
