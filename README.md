@@ -348,7 +348,7 @@ build flow — desktop, Android, packaging — and the process-level tests.
 
 ## License
 
-Apache-2.0. See [crates/server/Cargo.toml](crates/server/Cargo.toml).
+[Apache-2.0](LICENSE-APACHE). See [crates/server/Cargo.toml](crates/server/Cargo.toml).
 
 ## Distributed Collaboration
 

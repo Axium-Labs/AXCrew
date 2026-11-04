@@ -190,7 +190,7 @@ cargo test --workspace
 
 ## 许可证
 
-Apache-2.0。见 [crates/server/Cargo.toml](crates/server/Cargo.toml)。
+[Apache-2.0](LICENSE-APACHE)。见 [crates/server/Cargo.toml](crates/server/Cargo.toml)。
 
 ## 分布式协作
 
