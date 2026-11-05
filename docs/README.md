@@ -1,7 +1,5 @@
 # AXCrew documentation
 
-External distributed capability measurement: [benchmarks.md](benchmarks.md).
-
 Current AXCrew behavior and contracts are documented here. Release-specific
 changes live under [releases](releases/); development procedures are separate.
 
@@ -12,8 +10,12 @@ terminal defaults, telemetry, installer updates and capability limits.
 
 | Document | Topic |
 |---|---|
+| [getting-started.md](getting-started.md) | First conversation, local/paired/SSH execution, client entry points and safety basics |
 | [distributed-collaboration.md](distributed-collaboration.md) | Distributed control plane, scoped worker API, recovery and desktop management |
-| [releases/0.3.12.md](releases/0.3.12.md) | Current desktop release |
+| [chat-channels.md](chat-channels.md) | Chat platforms, peer authorization and project/session navigation |
+| [benchmarks.md](benchmarks.md) | Distributed measurement tooling and boundaries |
+| [architecture/android-migration.md](architecture/android-migration.md) | Android capabilities and desktop-only limits |
+| [releases/0.3.13.md](releases/0.3.13.md) | Current desktop release |
 | [architecture/README.md](architecture/README.md) | System architecture: control plane modules, layering, boundaries, repository layout |
 | [architecture/design.md](architecture/design.md) | AX/Crew runtime boundary and execution ownership |
 | [architecture/storage.md](architecture/storage.md) | SQLite WAL database, durable vs live data, source-of-truth boundary |
@@ -22,11 +24,13 @@ terminal defaults, telemetry, installer updates and capability limits.
 | [protocol/api.md](protocol/api.md) | REST/WebSocket API reference, authentication, pairing and connection |
 | [development/README.md](development/README.md) | Build, test and packaging commands |
 | [desktop/README.md](desktop/README.md) | Desktop chat, settings, imports and scoped AX capabilities |
-Older release notes remain available in this directory by version.
+
+Older release notes remain available in `releases/` by version.
 
 ## How to read
 
-- **New users** — start with the repository [README](../README.md).
+- **New users** — start with the repository [README](../README.md), then follow
+  [getting-started.md](getting-started.md) for setup and links to detailed guides.
 - **Contributors** — read [architecture/README.md](architecture/README.md)
   first, then the topic document for the area you touch.
 - **Protocol work** — [protocol/README.md](protocol/README.md) points at the
