@@ -1,5 +1,7 @@
 # Storage
 
+**English** | [简体中文](storage.zh-CN.md)
+
 Crew keeps its own SQLite WAL database, separate from AX. It stores orchestration metadata and final task results. Optional distributed
 collaboration additionally stores selected workflow checkpoints, observations and
 Artifact bytes, including explicitly published logs/transcripts. Complete AX
@@ -26,18 +28,21 @@ retained. Detailed child history is replayed through AX's parent session store.
 
 ## Source of truth
 
-AX's own project `.ax` directory remains the source of truth for session
-conversation and memory. ACP session IDs are exactly AX session IDs; Crew
+AX's own installation/home store remains the source of truth for session
+conversation and memory. Standalone AX defaults to `<install-dir>/.ax`; Crew
+passes `AX_HOME` (default `~/.ax`) to its local runtime. See
+[AX storage](https://github.com/Axium-Labs/AX/blob/main/docs/storage.md) for project
+subdirectories, legacy stores and explicit overrides. ACP session IDs are exactly AX session IDs; Crew
 stores only the binding. Provider credentials stay under AX's home and never
 reach Crew's database.
 
 ## Schema and migrations
 
-The full schema (`devices`, `pairings`, `crews`, `crew_members`, `tasks`,
-`task_dependencies`, `task_runs`, `session_bindings`, `events`, `automations`,
-`automation_runs`, `client_pairings`, `client_authorizations`,
-`app_settings`, `distributed_cluster`, `distributed_blobs`) and the state machines are documented in
-[design.md](design.md). Foreign keys are on; dependency and state updates are
-transactional; the migration version lives in `PRAGMA user_version`.
-`schema.sql` is idempotent, so an existing database opens without a conversion
-step.
+The authoritative table definitions are in
+[`schema.sql`](../../crates/server/src/storage/schema.sql); database opening and
+normalization live in [`migrations.rs`](../../crates/server/src/storage/migrations.rs).
+Foreign keys are on; dependency and state updates are transactional. Opening a
+database applies the idempotent schema and normalizes interrupted task states
+back to `ready`; SSH devices are marked offline until probed again. The schema
+records its version in `PRAGMA user_version`. Chat-channel secrets use separate
+protected sidecar storage; see [chat channels](../chat-channels.md).

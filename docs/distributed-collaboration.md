@@ -1,5 +1,7 @@
 # Distributed Collaboration
 
+**English** | [简体中文](distributed-collaboration.zh-CN.md)
+
 Introduced in AXCrew 0.3.3 with AX 0.3.7, alongside existing Crew/Task/Session/device
 control. Open the desktop sidebar **Distributed** (`/distributed`) to manage the
 cluster. Existing routes, SQLite data and Android controls remain compatible;
@@ -336,7 +338,7 @@ tests and a real three-AX-process/two-logical-Host scenario with a fake model:
 failed test → log analysis → Patch → retest, scoped auth, event cursor and Crew
 restart. This simulates Hosts on one computer; physical networking/GPU isolation
 has not been validated by that test. See [development](development/README.md)
-and [AX worker setup](../../ax/docs/distributed-collaboration.md).
+and [AX worker setup](https://github.com/Axium-Labs/AX/blob/main/docs/distributed-collaboration.md).
 
 The current snapshot endpoint and transactional aggregate retain complete cluster metadata history. They target small clusters; histories/receipts grow without automatic pruning and large-scale deployments need storage/pagination extensions.
 

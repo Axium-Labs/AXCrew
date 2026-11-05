@@ -1,5 +1,7 @@
 # AXCrew documentation
 
+**English** | [简体中文](README.zh-CN.md)
+
 Current AXCrew behavior and contracts are documented here. Release-specific
 changes live under [releases](releases/); development procedures are separate.
 

@@ -1,5 +1,7 @@
 # Desktop behavior
 
+**English** | [简体中文](README.zh-CN.md)
+
 Current behavior of the AXCrew desktop client is documented here. Build,
 installation and packaging instructions are in
 [apps/desktop/README.md](../../apps/desktop/README.md).
@@ -62,7 +64,7 @@ live conversation cache; an application restart can only replay saved output.
 With a matching AX runtime, large or slow workspaces cannot indefinitely block
 chat while preparing automatic file change previews. AX bounds and cancels the
 snapshot worker; the transcript shows when a complete file change preview is
-unavailable. Tool execution remains available. See [AX ACP limits](../../../ax/docs/acp-crew.md).
+unavailable. Tool execution remains available. See [AX ACP limits](https://github.com/Axium-Labs/AX/blob/main/docs/acp-crew.md).
 
 ### Personalization and automatic learning
 
@@ -220,9 +222,9 @@ the existing dynamic permission dialog. Generic action approval does not grant a
 new app/site. Desktop control delegates to AX's Windows UIA, Linux AT-SPI or
 macOS Accessibility backend; Unix requires driver dependencies, macOS requires
 OS privacy permissions, and Wayland restricts raw input/capture. See
-[AX Computer Use](../../../ax/docs/computer-use.md). Native Windows/macOS
+[AX Computer Use](https://github.com/Axium-Labs/AX/blob/main/docs/computer-use.md). Native Windows/macOS
 OS workspace isolation is not implemented and explicit confined modes still fail
-closed. See [AX host access](../../../ax/docs/host-permissions.md).
+closed. See [AX host access](https://github.com/Axium-Labs/AX/blob/main/docs/host-permissions.md).
 
 ### Local system metrics
 
@@ -741,7 +743,7 @@ continuing to show the other catalogs. Updating Crew alone does not add Mod
 support to an older AX executable.
 AX rejects Node Mods when workspace sandboxing is active or a local runtime is
 executing through SSH. DSH's full UI/managed-tier API is not implemented. See
-[AX Mod package and API guide](../../../ax/docs/mods.md) for supported events,
+[AX Mod package and API guide](https://github.com/Axium-Labs/AX/blob/main/docs/mods.md) for supported events,
 options, `/mod:<command>`, lifecycle and compatibility limitations.
 
 Side chat includes the main composer's add-context menu, image attachment/paste/
@@ -856,7 +858,9 @@ roots, preserving the bridge allowlist; register a folder with AX on that host
 first. Removing a project retains members and existing conversation history.
 
 
-Goal 系统界面文案按当前语言显示：中文“目标”、英文“Goal”。设置导航使用共享 i18n 键 settings.goal，目标策略与分布式相关说明保持同一语言；API 字段、原生命令和用户内容保留原值。
+Goal labels follow the interface language (目标 / Goal) through the shared
+`settings.goal` key. API fields, native commands and user content keep their
+original values.
 
 
 ### Collaboration editing
@@ -872,22 +876,12 @@ failed/stale saves preserve drafts. See [distributed collaboration](../distribut
 for persistence, fencing and editing limits.
 
 
-Distributed lifecycle controls include confirmed removal of empty Hosts and entire
-collaborations, including cancelled/empty ones. Removing a collaboration stops its
-unfinished task graph atomically while retaining execution history in Activity;
-external dependencies block removal. Cancel keeps the collaboration visible.
-Administrators can add new work to a cancelled retained collaboration. Task removal
-is directly available in task details, with links to dependency blockers. Polling
-preserves the selected collaboration and metadata drafts across runtime-only
-updates. See [distributed lifecycle contract](../distributed-collaboration.md).
-
-The collaboration member picker excludes deleted AX instances, including old
-membership references and instances removed during editing. Saving clears obsolete
-member/model/new-work references; execution history remains separately accessible.
-The editor and the workbench history both name archived members, including ones
-that never ran a task, so a stale participant reference that would still constrain
-placement stays diagnosable. A pin to a removed Host is labelled as removed in the
-reassign picker instead of showing a raw identifier.
+Lifecycle actions expose dependency blockers and require confirmation. Polling
+preserves the selected collaboration and metadata drafts. The member picker
+excludes deleted instances and clears obsolete selections on save; historical
+views retain archived participant names and label removed Host pins. Detailed
+transaction, fencing and retention rules live in the
+[distributed lifecycle contract](../distributed-collaboration.md#removing-and-cancelling-collaborations).
 
 ## Display color themes
 
@@ -902,12 +896,17 @@ Mode and palette are saved separately on this desktop; existing preferences reta
 the AXCrew palette. Selecting AXCrew restores the original colors. These palettes are
 AXCrew adaptations, not imports of the reference application's theme definitions.
 
-会话列表与右侧面板展开/收起时提供滑动与淡入淡出过渡，并遵循系统减少动画设置。展开时使用面板内的收起入口，关闭后使用聊天栏的展开入口，避免重复按钮；收起后的面板不参与键盘焦点。
+Session lists and side panels slide/fade when expanded or collapsed and honor
+the system reduced-motion preference. Expanded panels expose their own collapse
+action; closed panels use the chat-bar action and leave the keyboard focus order.
 
-Android 客户端允许正常截图和录屏。手机扫码连接使用局域网；账号授权、接口权限限制和撤销仍然生效。
+For Android capture and LAN authorization limits, see
+[Android capabilities](../architecture/android-migration.md).
 
-设置 → 聊天平台提供 Slack、Discord、Telegram、Webex、企业微信、飞书、Microsoft Teams、个人微信、iMessage 和 WhatsApp 的私聊文字接入。Teams 需公网 HTTPS 回调；iMessage 需运行于 Mac；WhatsApp 需 Node.js 连接组件与扫码关联设备。其余平台使用出站连接，无需 AXCrew 共用中转。账号绑定需电脑确认，支持独立会话、任务状态、取消和单次工具审批。左侧选择平台，右侧仅显示该平台的配置；切换平台保留本页未保存的输入和扫码进度。配置与限制见 [聊天渠道](../chat-channels.md)。
-
+Settings → Chat platforms configures peer text conversations. Selecting a platform
+preserves unsaved fields and QR progress for the other platforms. Supported
+platforms, companion dependencies, callback requirements and authorization are
+maintained in [chat channels](../chat-channels.md).
 
 ### Web preview and compact change review
 

@@ -1,5 +1,7 @@
 # Android client scope
 
+**English** | [简体中文](android-migration.zh-CN.md)
+
 The Android app controls an AXCrew Gateway through the same REST and WebSocket
 API as the desktop client. It does not run an AX Runtime, execute remote shell
 commands, manage model-provider credentials on a computer, or administer AX

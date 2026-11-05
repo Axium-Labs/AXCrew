@@ -1,5 +1,7 @@
 # Chat channels
 
+**English** | [简体中文](chat-channels.zh-CN.md)
+
 Settings → Chat platforms lists **Slack, Discord, Telegram, Webex, WeCom,
 Feishu, Microsoft Teams, personal Weixin/WeChat, iMessage and WhatsApp**. Select
 one platform to show its configuration. Inputs and QR progress are retained while

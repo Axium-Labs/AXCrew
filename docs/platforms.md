@@ -1,5 +1,7 @@
 # Desktop platforms
 
+**English** | [简体中文](platforms.zh-CN.md)
+
 AX Crew shares one React/Tauri client and one Rust gateway across Windows,
 Linux and macOS. Frontend, API, database and AX ACP protocol remain common;
 Android's separate client and protocol are unchanged.
@@ -70,7 +72,7 @@ Gateway databases and configuration remain in Tauri's per-user data directory,
 separate from bundles; `AX_HOME`, `AX_CREW_AX`, `AX_CREW_BACKEND` retain their
 meaning. Computer Use now delegates to AX's Windows UIA, Linux AT-SPI or macOS
 Accessibility adapter, with Unix runtime/TCC prerequisites and Wayland input/
-capture limits described in [AX Computer Use](../../ax/docs/computer-use.md).
+capture limits described in [AX Computer Use](https://github.com/Axium-Labs/AX/blob/main/docs/computer-use.md).
 AX's native macOS confinement remains unavailable and is not relaxed.
 
 ## Verification status

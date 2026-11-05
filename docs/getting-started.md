@@ -1,5 +1,7 @@
 # Getting started with AX Crew
 
+**English** | [简体中文](getting-started.zh-CN.md)
+
 [简体中文项目介绍](../README.zh-CN.md) · [Documentation index](README.md)
 
 Begin with a local conversation, then connect remote machines or other client

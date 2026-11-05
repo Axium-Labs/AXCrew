@@ -1,5 +1,7 @@
 # Architecture
 
+**English** | [简体中文](README.zh-CN.md)
+
 AXCrew is one product made of three deliverables that only meet at stable
 interfaces: the control plane (`crates/server`), the desktop client
 (`apps/desktop`) and the Android client (`apps/android`). The clients talk to the

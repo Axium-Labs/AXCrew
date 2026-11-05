@@ -1,8 +1,10 @@
 # AXCrew distributed benchmark
 
-The external [AX-Bench Agent package](../../ax/benchmarks/agent/README.md) measures
+**English** | [简体中文](benchmarks.zh-CN.md)
+
+The external [AX-Bench Agent package](https://github.com/Axium-Labs/AX/blob/main/benchmarks/agent/README.md) measures
 production Crew and AX workers without changing Crew scheduling, leases,
-permissions or persistence. [Distributed controller configuration](../../ax/benchmarks/agent/docs-crew.md)
+permissions or persistence. [Distributed controller configuration](https://github.com/Axium-Labs/AX/blob/main/benchmarks/agent/docs-crew.md)
 describes real node management, DAGs, artifact checks, fault/restore and collectors.
 
 The controller supports dedicated local or SSH workers with explicit run-scoped

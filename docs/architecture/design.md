@@ -1,5 +1,7 @@
 # AX and AXCrew runtime boundary
 
+**English** | [简体中文](design.zh-CN.md)
+
 AXCrew coordinates work and presents its results. AX remains the agent runtime
 that owns model calls, tools, permissions, sessions, memory and execution. The
 two projects communicate through ACP; AXCrew does not interpret model output or

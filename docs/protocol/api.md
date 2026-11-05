@@ -1,5 +1,7 @@
 # REST & WebSocket API
 
+**English** | [简体中文](api.zh-CN.md)
+
 The Crew control plane exposes a REST API for management and a WebSocket
 stream for live events. Every route below is implemented in
 `crates/server/src/api/`; the protocol compatibility commitments are listed in
@@ -7,10 +9,16 @@ stream for live events. Every route below is implemented in
 
 ## Authentication
 
-- All REST query/control routes and `/api/ws` require
-  `Authorization: Bearer <token>` when `AX_CREW_ADMIN_TOKEN` is set. Set the
-  token whenever the API is reachable beyond the local machine, including
-  through a reverse proxy.
+- Management routes use the existing bearer authorization gate. Authentication
+  becomes required when an admin token, retained issued token or phone
+  authorization is configured; an entirely unconfigured loopback gateway can
+  be used locally without a token. A non-loopback bind requires
+  `AX_CREW_ADMIN_TOKEN`. Set it whenever the API is exposed through a reverse
+  proxy as well.
+- REST accepts `Authorization: Bearer <token>`; `/api/ws` also accepts the
+  existing `?token=` form. Phone credentials have a restricted LAN API scope;
+  they do not grant desktop-admin management or provider-secret access. Streams
+  revalidate authorization after revocation/expiry.
 - Pair-code redemption and the device gateway are public endpoints, protected
   by the one-time code and the Ed25519 challenge respectively. Device private
   keys never enter Crew's database.
@@ -20,10 +28,12 @@ stream for live events. Every route below is implemented in
 - `POST /api/crews` — create a Crew.
 - `POST /api/crews/{id}/members` — add a member to a Crew.
 
-Member fields: `device_id` is `local` a paired device ID, or a saved SSH device ID; `cwd` is an
-absolute path **on that device**. `provider` and `model` select models already
-configured in that device's AX installation. `skills` and `mcp_servers` are
-arrays of locally installed/configured names. `permission_profile` is `ask`
+Member fields: `device_id` is `local`, a paired device ID, or a saved SSH device
+ID; `cwd` is an absolute path on the execution host. Local/paired members use
+that host's AX models, skills and MCP configuration. SSH members use the local
+AX installation for inference, skills and history, and the remote host for shell
+commands; see [connections](#connections-workspaces-and-projects).
+`skills` and `mcp_servers` are arrays of installed/configured names. `permission_profile` is `ask`
 (default), `allow`, or `deny`. `max_concurrency` defaults to 1.
 
 ## Tasks

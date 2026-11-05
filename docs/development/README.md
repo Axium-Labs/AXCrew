@@ -1,5 +1,7 @@
 # Development
 
+**English** | [简体中文](README.zh-CN.md)
+
 Production Rust modules/Cargo targets do not depend on private, untracked test
 files. Keep local regression wiring in a disposable source overlay and separately
 verify the intended formal file set with build, test compilation and static checks.
@@ -46,9 +48,11 @@ npm ci
 npm run tauri:dev     # app + Vite + the local backend
 ```
 
-`cargo tauri build` and `npm run pack:portable` both work from `apps/desktop`;
-the packaging scripts themselves live in the repository's `scripts/` directory
-because they also build the backend.
+Run `npm run tauri:build` from `apps/desktop` to stage the backend before the
+Tauri build. `cargo tauri build` alone does not run that staging step; run
+`npm run prepare:binaries` first if invoking it directly. The portable packaging
+command is `npm run pack:portable`; the scripts live in the repository's
+`scripts/` directory.
 
 ### Desktop theming
 
@@ -196,7 +200,7 @@ loads its own stylesheet. Its shared Button provides Enter/Space, `aria-expanded
 hides rather than unmounts children, preserving form drafts. Distributed views and
 all related dialogs use it instead of browser-native details/summary controls.
 
-The server workspace also compiles outbound chat adapters using reqwest, tokio-tungstenite and prost. Windows channel sidecars use current-user DPAPI through windows-sys; no external Node/OpenClaw runtime or inbound relay is required. See [configuration and platform prerequisites](../chat-channels.md).
+The server workspace also compiles outbound chat adapters using reqwest, tokio-tungstenite and prost. Windows channel sidecars use current-user DPAPI through windows-sys. Native outbound adapters do not require Node or an inbound relay; WhatsApp and iMessage have the companion prerequisites described below, and Teams requires authenticated HTTPS ingress. See [configuration and platform prerequisites](../chat-channels.md).
 
 ### Optional WhatsApp companion
 
